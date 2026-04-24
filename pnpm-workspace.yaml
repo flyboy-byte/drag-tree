@@ -157,3 +157,23 @@ overrides:
   # drizzle-kit uses esbuild internally on an older version that's vulnerable, this overrides it
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
   esbuild: "0.27.3"
+  # Security vulnerability fixes (GHSA advisories)
+  # picomatch: ReDoS via extglob quantifiers + POSIX char class injection
+  "picomatch@2.3.1": "2.3.2"
+  "picomatch@4.0.3": "4.0.4"
+  # path-to-regexp: DoS via sequential optional groups + multiple wildcards
+  "path-to-regexp@8.3.0": "8.4.2"
+  # lodash: code injection in _.template + prototype pollution via _.unset/_.omit
+  "lodash@4.17.23": "4.18.1"
+  # yaml: stack overflow via deeply nested YAML collections
+  "yaml@2.8.2": "2.8.3"
+  # brace-expansion: zero-step sequence causes process hang + memory exhaustion
+  "brace-expansion@2.0.2": "2.1.0"
+  # postcss: XSS via unescaped </style> in CSS stringify output
+  "postcss@8.4.49": "8.5.10"
+  "postcss@8.5.8": "8.5.10"
+  # uuid: missing buffer bounds check in v3/v5/v6 when buf is provided.
+  # Both consumers (@expo/ngrok, xcode) use uuid.v4() only — verified compatible
+  # with uuid@14 API. No patched version exists within the v3 or v7 major lines.
+  "uuid@3.4.0": "14.0.0"
+  "uuid@7.0.3": "14.0.0"
