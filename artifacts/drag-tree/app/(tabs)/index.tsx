@@ -31,12 +31,12 @@ const SENSITIVITY_OPTIONS: { key: LaunchSensitivity; label: string; sub: string 
   { key: "hard",   label: "HARD",   sub: "0.92g" },
 ];
 
-function getStatusLabel(phase: string, sensorAvailable: boolean): string {
+function getStatusLabel(phase: string): string {
   switch (phase) {
     case "idle":      return "READY";
     case "staging":   return "STAGING...";
     case "countdown": return "WATCH THE TREE";
-    case "go":        return sensorAvailable ? "FLOOR  IT" : "TAP  NOW";
+    case "go":        return "FLOOR  IT";
     case "result":    return "TAP TO RESET";
     case "redlight":  return "TAP TO RESET";
     default:          return "";
@@ -82,7 +82,7 @@ export default function HomeScreen() {
     isWatchingRedLight,
   } = useTreeSession();
 
-  const { currentG, isAvailable } = useAccelerometer({
+  const { currentG, isAvailable, simulateLaunch, simulateRedLight } = useAccelerometer({
     armed: isArmed,
     sensitivity,
     onLaunch: () => {
@@ -96,14 +96,17 @@ export default function HomeScreen() {
     watchForRedLight: isWatchingRedLight,
   });
 
+  // On web: use simulated sensor. On native without sensor: fallback tap.
   const onMainPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (phase === "idle") {
       startSequence();
     } else if (phase === "result" || phase === "redlight") {
       reset();
-    } else if (!isAvailable) {
-      handleManualLaunch();
+    } else if (phase === "go") {
+      if (!isAvailable) simulateLaunch();
+    } else if (phase === "staging" || phase === "countdown") {
+      if (!isAvailable) simulateRedLight();
     }
   };
 
@@ -127,6 +130,9 @@ export default function HomeScreen() {
   const isActive = phase === "staging" || phase === "countdown" || phase === "go";
   const isDone   = phase === "result" || phase === "redlight";
 
+  // On native with sensor: arms automatically. On web: simulate button.
+  const useSimulation = !isAvailable;
+
   const gColor =
     currentG > 0.8 ? colors.greenOn :
     currentG > 0.3 ? colors.primary :
@@ -135,16 +141,35 @@ export default function HomeScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
+  // Button appearance
   const btnBg =
-    isDone   ? colors.secondary :
-    isActive && isAvailable ? "transparent" :
-    phase === "idle" ? colors.primary :
+    isDone                               ? colors.secondary :
+    phase === "go"   && useSimulation    ? colors.greenOn :
+    phase === "go"   && !useSimulation   ? "transparent" :
+    isActive         && !useSimulation   ? "transparent" :
+    isActive         && useSimulation    ? colors.card :
     colors.primary;
 
+  const btnBorder =
+    (phase === "go" && !useSimulation) || (isActive && !useSimulation) ? colors.border : "transparent";
+
   const btnLabel =
-    isDone   ? "RESET" :
-    isActive  ? (isAvailable ? "ARMED" : "LAUNCH") :
+    isDone                            ? "RESET"      :
+    phase === "go" && useSimulation   ? "FLOOR IT"   :
+    phase === "go" && !useSimulation  ? "ARMED"      :
+    isActive       && useSimulation   ? "RED LIGHT"  :
+    isActive       && !useSimulation  ? "ARMED"      :
     "STAGE";
+
+  const btnTextColor =
+    isDone                            ? colors.foreground         :
+    phase === "go" && useSimulation   ? colors.primaryForeground  :
+    phase === "go" && !useSimulation  ? colors.mutedForeground    :
+    isActive       && useSimulation   ? colors.redOn              :
+    isActive                          ? colors.mutedForeground    :
+    colors.primaryForeground;
+
+  const btnDisabled = isActive && !useSimulation;
 
   return (
     <ScrollView
@@ -202,10 +227,10 @@ export default function HomeScreen() {
             pulseStyle,
           ]}
         >
-          {getStatusLabel(phase, isAvailable)}
+          {getStatusLabel(phase)}
         </Animated.Text>
 
-        {isAvailable && isActive && (
+        {isActive && (
           <View style={styles.gRow}>
             <GaugeMeter value={currentG} color={gColor} />
             <Text style={[styles.gText, { color: gColor }]}>{currentG.toFixed(2)}g</Text>
@@ -219,30 +244,26 @@ export default function HomeScreen() {
           styles.mainBtn,
           {
             backgroundColor: btnBg,
-            borderWidth: isActive && isAvailable ? 1 : 0,
-            borderColor: colors.border,
-            opacity: pressed ? 0.82 : isActive && isAvailable ? 0.45 : 1,
+            borderWidth: btnBorder !== "transparent" ? 1 : 0,
+            borderColor: btnBorder,
+            opacity: pressed ? 0.82 : btnDisabled ? 0.4 : 1,
             transform: [{ scale: pressed ? 0.97 : 1 }],
-            shadowColor: phase === "idle" ? colors.primary : "transparent",
+            shadowColor: phase === "idle" ? colors.primary : phase === "go" && useSimulation ? colors.greenOn : "transparent",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.5,
+            shadowRadius: 14,
+            elevation: phase === "idle" || (phase === "go" && useSimulation) ? 10 : 0,
           },
         ]}
         onPress={onMainPress}
-        disabled={isActive && isAvailable}
+        disabled={btnDisabled}
       >
-        <Text style={[
-          styles.mainBtnText,
-          {
-            color:
-              isDone ? colors.foreground :
-              isActive ? colors.mutedForeground :
-              colors.primaryForeground,
-          },
-        ]}>
+        <Text style={[styles.mainBtnText, { color: btnTextColor }]}>
           {btnLabel}
         </Text>
       </Pressable>
 
-      {/* Sensor sensitivity picker */}
+      {/* Sensor sensitivity picker — show when idle/done */}
       {isAvailable && !isActive && (
         <View style={styles.sensitivityRow}>
           {SENSITIVITY_OPTIONS.map(opt => (
@@ -266,15 +287,17 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {!isAvailable && isActive && (
-        <Text style={[styles.fallbackHint, { color: colors.mutedForeground }]}>
-          Tap the button above to launch
+      {/* Contextual hint */}
+      {phase === "idle" && (
+        <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+          {isAvailable
+            ? "Floor it when green — sensor detects your launch"
+            : "Simulated sensor — tap FLOOR IT when the green lights"}
         </Text>
       )}
-
-      {isAvailable && phase === "idle" && (
+      {useSimulation && phase === "countdown" && (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          Floor it when green — sensor detects your launch
+          Tap RED LIGHT to simulate an early launch
         </Text>
       )}
 
