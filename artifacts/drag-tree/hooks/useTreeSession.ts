@@ -46,13 +46,12 @@ export function useTreeSession() {
   const [grade, setGrade] = useState<ReactionGrade>(null);
   const [records, setRecords] = useState<RunRecord[]>([]);
   const [bestTime, setBestTime] = useState<number | null>(null);
-  
+
   const greenAtRef = useRef<number | null>(null);
   const timerIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const phaseRef = useRef<SessionPhase>("idle");
   const modeRef = useRef<TreeMode>("pro");
 
-  // Keep refs in sync
   const updatePhase = (p: SessionPhase) => {
     phaseRef.current = p;
     setPhase(p);
@@ -135,72 +134,85 @@ export function useTreeSession() {
       }));
     }, randomDelay + 600 + interval * 3));
 
-    // Auto-late after 1.5s of green
+    // Auto-late after 2s of green
     ids.push(setTimeout(() => {
       if (phaseRef.current === "go") {
-        const rt = 1.5;
+        const rt = 2.0;
         const g = gradeRT(rt);
         setTree(t => ({ ...t, green: false }));
         recordResult(rt, g);
         updatePhase("result");
       }
-    }, randomDelay + 600 + interval * 3 + 1500));
+    }, randomDelay + 600 + interval * 3 + 2000));
 
     timerIdsRef.current = ids;
   }, [recordResult]);
 
-  const handleLaunch = useCallback(() => {
-    const currentPhase = phaseRef.current;
+  // Called by accelerometer when launch is detected
+  const triggerLaunch = useCallback(() => {
+    if (phaseRef.current !== "go" || greenAtRef.current === null) return;
+    clearTimers();
+    const now = performance.now();
+    const rt = (now - greenAtRef.current) / 1000;
+    const g = gradeRT(rt);
+    setTree(t => ({ ...t, green: false }));
+    recordResult(rt, g);
+    updatePhase("result");
+  }, [recordResult]);
 
-    if (currentPhase === "idle") {
+  // Called by accelerometer when force detected too early
+  const triggerRedLight = useCallback(() => {
+    const current = phaseRef.current;
+    if (current !== "staging" && current !== "countdown") return;
+    clearTimers();
+    updatePhase("redlight");
+    setGrade("redlight");
+    setReactionTime(-0.1);
+    setTree(t => ({
+      ...t,
+      amber1: false,
+      amber2: false,
+      amber3: false,
+      green: false,
+      red: true,
+    }));
+    const record: RunRecord = {
+      id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
+      reactionTime: 0,
+      grade: "redlight",
+      mode: modeRef.current,
+    };
+    setRecords(prev => [record, ...prev].slice(0, 30));
+  }, []);
+
+  // Manual tap fallback (for web / no sensor)
+  const handleManualLaunch = useCallback(() => {
+    const current = phaseRef.current;
+    if (current === "idle") {
       startSequence();
       return;
     }
-
-    if (currentPhase === "result" || currentPhase === "redlight") {
+    if (current === "result" || current === "redlight") {
       reset();
       return;
     }
-
-    if (currentPhase === "staging" || currentPhase === "countdown") {
-      clearTimers();
-      updatePhase("redlight");
-      setGrade("redlight");
-      setReactionTime(-0.1);
-      setTree(t => ({
-        ...t,
-        amber1: false,
-        amber2: false,
-        amber3: false,
-        green: false,
-        red: true,
-      }));
-      const record: RunRecord = {
-        id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
-        reactionTime: 0,
-        grade: "redlight",
-        mode: modeRef.current,
-      };
-      setRecords(prev => [record, ...prev].slice(0, 30));
+    if (current === "staging" || current === "countdown") {
+      triggerRedLight();
       return;
     }
-
-    if (currentPhase === "go" && greenAtRef.current !== null) {
-      clearTimers();
-      const now = performance.now();
-      const rt = (now - greenAtRef.current) / 1000;
-      const g = gradeRT(rt);
-      setTree(t => ({ ...t, green: false }));
-      recordResult(rt, g);
-      updatePhase("result");
+    if (current === "go") {
+      triggerLaunch();
     }
-  }, [startSequence, reset, recordResult]);
+  }, [startSequence, reset, triggerRedLight, triggerLaunch]);
 
   const switchMode = useCallback((m: TreeMode) => {
     modeRef.current = m;
     setMode(m);
     reset();
   }, [reset]);
+
+  const isWatchingRedLight = phase === "staging" || phase === "countdown";
+  const isArmed = phase === "go";
 
   return {
     phase,
@@ -211,7 +223,12 @@ export function useTreeSession() {
     grade,
     records,
     bestTime,
-    handleLaunch,
+    handleManualLaunch,
+    startSequence,
     reset,
+    triggerLaunch,
+    triggerRedLight,
+    isArmed,
+    isWatchingRedLight,
   };
 }

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,40 +9,78 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withRepeat,
+  withSequence,
+  Easing,
+} from "react-native-reanimated";
 import { ChristmasTree } from "@/components/ChristmasTree";
 import { ReactionDisplay } from "@/components/ReactionDisplay";
 import { HistoryList } from "@/components/HistoryList";
 import { useTreeSession } from "@/hooks/useTreeSession";
+import { useAccelerometer, type LaunchSensitivity } from "@/hooks/useAccelerometer";
 import { useColors } from "@/hooks/useColors";
 
-function getButtonLabel(phase: string): string {
-  switch (phase) {
-    case "idle": return "STAGE";
-    case "staging":
-    case "countdown":
-    case "go": return "LAUNCH";
-    case "result": return "RESET";
-    case "redlight": return "RESET";
-    default: return "STAGE";
-  }
-}
+const SENSITIVITY_LABELS: Record<LaunchSensitivity, string> = {
+  gentle: "GENTLE",
+  normal: "NORMAL",
+  hard: "HARD",
+};
 
-function getStatusLabel(phase: string): string {
+function getStatusLabel(phase: string, sensorAvailable: boolean): string {
   switch (phase) {
-    case "idle": return "READY TO STAGE";
+    case "idle": return "TAP STAGE TO BEGIN";
     case "staging": return "STAGING...";
-    case "countdown": return "WATCH THE LIGHTS";
-    case "go": return "GO  GO  GO";
+    case "countdown": return sensorAvailable ? "WATCH THE TREE" : "WATCH THE TREE";
+    case "go": return sensorAvailable ? "FLOOR  IT" : "TAP  NOW";
     case "result": return "TAP TO RESET";
     case "redlight": return "TAP TO RESET";
     default: return "";
   }
 }
 
+function GaugeMeter({ value, color }: { value: number; color: string }) {
+  const pct = Math.min(value / 1.5, 1);
+  const width = useSharedValue(0);
+
+  React.useEffect(() => {
+    width.value = withTiming(pct, { duration: 80, easing: Easing.out(Easing.quad) });
+  }, [pct]);
+
+  const barStyle = useAnimatedStyle(() => ({
+    width: `${width.value * 100}%` as unknown as number,
+  }));
+
+  return (
+    <View style={gaugeStyles.track}>
+      <Animated.View style={[gaugeStyles.bar, { backgroundColor: color }, barStyle]} />
+    </View>
+  );
+}
+
+const gaugeStyles = StyleSheet.create({
+  track: {
+    height: 4,
+    backgroundColor: "#1e1e1e",
+    borderRadius: 2,
+    overflow: "hidden",
+    width: "100%",
+  },
+  bar: {
+    height: 4,
+    borderRadius: 2,
+  },
+});
+
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const [sensitivity, setSensitivity] = useState<LaunchSensitivity>("normal");
+
   const {
     phase,
     tree,
@@ -52,17 +90,73 @@ export default function HomeScreen() {
     grade,
     records,
     bestTime,
-    handleLaunch,
+    handleManualLaunch,
+    startSequence,
     reset,
+    triggerLaunch,
+    triggerRedLight,
+    isArmed,
+    isWatchingRedLight,
   } = useTreeSession();
 
-  const onPress = () => {
+  const { currentG, isAvailable } = useAccelerometer({
+    armed: isArmed,
+    sensitivity,
+    onLaunch: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      triggerLaunch();
+    },
+    onRedLight: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      triggerRedLight();
+    },
+    watchForRedLight: isWatchingRedLight,
+  });
+
+  const onStagePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    handleLaunch();
+    if (phase === "idle") {
+      startSequence();
+    } else if (phase === "result" || phase === "redlight") {
+      reset();
+    } else if (!isAvailable) {
+      // Web fallback: manual tap
+      handleManualLaunch();
+    }
   };
+
+  // Pulsing animation for "armed" state
+  const pulseOpacity = useSharedValue(1);
+  React.useEffect(() => {
+    if (isArmed) {
+      pulseOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.3, { duration: 400, easing: Easing.out(Easing.ease) }),
+          withTiming(1, { duration: 400, easing: Easing.in(Easing.ease) }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      pulseOpacity.value = withTiming(1, { duration: 200 });
+    }
+  }, [isArmed]);
+
+  const armedTextStyle = useAnimatedStyle(() => ({
+    opacity: pulseOpacity.value,
+  }));
+
+  const gColor =
+    currentG > 0.8 ? colors.greenOn :
+    currentG > 0.4 ? colors.primary :
+    colors.mutedForeground;
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+
+  const showStageBtnAsReset = phase === "result" || phase === "redlight";
+  const showStageBtnAsActive = phase === "idle";
+  const showStageBtnDisabled = phase === "staging" || phase === "countdown" || phase === "go";
 
   return (
     <ScrollView
@@ -77,51 +171,63 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.appTitle, { color: colors.foreground }]}>DRAG TREE</Text>
-        {bestTime !== null && (
-          <View style={styles.bestBadge}>
-            <Ionicons name="trophy" size={11} color={colors.primary} />
-            <Text style={[styles.bestText, { color: colors.primary }]}>
-              {bestTime.toFixed(3)}
-            </Text>
+        <View style={styles.headerRight}>
+          {bestTime !== null && (
+            <View style={styles.bestBadge}>
+              <Ionicons name="trophy" size={11} color={colors.primary} />
+              <Text style={[styles.bestText, { color: colors.primary }]}>
+                {bestTime.toFixed(3)}
+              </Text>
+            </View>
+          )}
+          {isAvailable && (
+            <View style={[styles.sensorBadge, { borderColor: colors.greenOn }]}>
+              <MaterialCommunityIcons name="car-speed-limiter" size={11} color={colors.greenOn} />
+              <Text style={[styles.sensorText, { color: colors.greenOn }]}>SENSOR</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Mode + Sensitivity row */}
+      <View style={styles.controlRow}>
+        <View style={[styles.segmentedControl, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          {(["pro", "full"] as const).map(m => (
+            <Pressable
+              key={m}
+              style={[styles.segmentBtn, mode === m && { backgroundColor: colors.primary }]}
+              onPress={() => switchMode(m)}
+            >
+              <Text style={[styles.segmentText, { color: mode === m ? colors.primaryForeground : colors.mutedForeground }]}>
+                {m === "pro" ? "PRO .4s" : "FULL .5s"}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {isAvailable && (
+          <View style={[styles.segmentedControl, { borderColor: colors.border, backgroundColor: colors.card }]}>
+            {(["gentle", "normal", "hard"] as LaunchSensitivity[]).map(s => (
+              <Pressable
+                key={s}
+                style={[styles.segmentBtn, sensitivity === s && { backgroundColor: colors.secondary }]}
+                onPress={() => setSensitivity(s)}
+              >
+                <Text style={[styles.segmentText, { color: sensitivity === s ? colors.foreground : colors.mutedForeground }]}>
+                  {SENSITIVITY_LABELS[s][0]}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         )}
       </View>
 
-      {/* Mode selector */}
-      <View style={[styles.modeRow, { borderColor: colors.border, backgroundColor: colors.card }]}>
-        <Pressable
-          style={[
-            styles.modeBtn,
-            mode === "pro" && { backgroundColor: colors.primary },
-          ]}
-          onPress={() => switchMode("pro")}
-        >
-          <Text
-            style={[
-              styles.modeBtnText,
-              { color: mode === "pro" ? colors.primaryForeground : colors.mutedForeground },
-            ]}
-          >
-            PRO (.4s)
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[
-            styles.modeBtn,
-            mode === "full" && { backgroundColor: colors.primary },
-          ]}
-          onPress={() => switchMode("full")}
-        >
-          <Text
-            style={[
-              styles.modeBtnText,
-              { color: mode === "full" ? colors.primaryForeground : colors.mutedForeground },
-            ]}
-          >
-            FULL (.5s)
-          </Text>
-        </Pressable>
-      </View>
+      {/* Sensitivity label */}
+      {isAvailable && (
+        <Text style={[styles.sensitivityLabel, { color: colors.mutedForeground }]}>
+          LAUNCH SENSITIVITY: {SENSITIVITY_LABELS[sensitivity]}
+        </Text>
+      )}
 
       {/* Tree */}
       <View style={styles.treeContainer}>
@@ -133,45 +239,81 @@ export default function HomeScreen() {
       {/* Reaction time display */}
       <ReactionDisplay reactionTime={reactionTime} grade={grade} />
 
-      {/* Status label */}
-      <Text
-        style={[
-          styles.status,
-          {
-            color: phase === "go" ? colors.greenOn : colors.mutedForeground,
-          },
-        ]}
-      >
-        {getStatusLabel(phase)}
-      </Text>
+      {/* Status + G-meter */}
+      <View style={styles.statusSection}>
+        <Animated.Text
+          style={[
+            styles.status,
+            {
+              color: phase === "go"
+                ? colors.greenOn
+                : phase === "redlight"
+                ? colors.redOn
+                : colors.mutedForeground,
+            },
+            armedTextStyle,
+          ]}
+        >
+          {getStatusLabel(phase, isAvailable)}
+        </Animated.Text>
 
-      {/* Launch button */}
+        {isAvailable && (phase === "go" || phase === "staging" || phase === "countdown") && (
+          <View style={styles.gMeter}>
+            <GaugeMeter value={currentG} color={gColor} />
+            <Text style={[styles.gValue, { color: gColor }]}>
+              {currentG.toFixed(2)}g
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Stage / Reset button */}
       <Pressable
         style={({ pressed }) => [
-          styles.launchBtn,
+          styles.stageBtn,
           {
-            backgroundColor:
-              phase === "go"
-                ? colors.greenOn
-                : phase === "redlight"
-                ? colors.redOn
-                : colors.primary,
-            opacity: pressed ? 0.85 : 1,
+            backgroundColor: showStageBtnAsReset
+              ? colors.secondary
+              : showStageBtnDisabled && isAvailable
+              ? "transparent"
+              : colors.primary,
+            borderWidth: showStageBtnDisabled && isAvailable ? 1 : 0,
+            borderColor: colors.border,
+            opacity: pressed ? 0.85 : showStageBtnDisabled && isAvailable ? 0.4 : 1,
             transform: [{ scale: pressed ? 0.97 : 1 }],
-            shadowColor:
-              phase === "go"
-                ? colors.greenOn
-                : phase === "redlight"
-                ? colors.redOn
-                : colors.primary,
+            shadowColor: showStageBtnAsActive ? colors.primary : "transparent",
           },
         ]}
-        onPress={onPress}
+        onPress={onStagePress}
+        disabled={showStageBtnDisabled && isAvailable}
       >
-        <Text style={[styles.launchBtnText, { color: colors.primaryForeground }]}>
-          {getButtonLabel(phase)}
+        <Text style={[
+          styles.stageBtnText,
+          {
+            color: showStageBtnAsReset
+              ? colors.foreground
+              : showStageBtnDisabled
+              ? colors.mutedForeground
+              : colors.primaryForeground,
+          },
+        ]}>
+          {showStageBtnAsReset ? "RESET" : showStageBtnDisabled ? "ARMED" : "STAGE"}
         </Text>
       </Pressable>
+
+      {/* Web fallback note */}
+      {!isAvailable && (phase === "go" || phase === "staging" || phase === "countdown") && (
+        <Text style={[styles.fallbackNote, { color: colors.mutedForeground }]}>
+          Tap button above to launch
+        </Text>
+      )}
+
+      {/* Sensor info */}
+      {isAvailable && phase === "idle" && (
+        <Text style={[styles.sensorInfo, { color: colors.mutedForeground }]}>
+          Accelerometer armed — floor it when green
+        </Text>
+      )}
 
       {/* History */}
       <View style={styles.historySection}>
@@ -191,11 +333,15 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
     width: "100%",
-    paddingHorizontal: 24,
-    marginBottom: 16,
-    gap: 10,
+    paddingHorizontal: 20,
+    marginBottom: 14,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   appTitle: {
     fontSize: 20,
@@ -218,25 +364,53 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     letterSpacing: 0.5,
   },
-  modeRow: {
+  sensorBadge: {
     flexDirection: "row",
-    borderRadius: 10,
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 20,
     borderWidth: 1,
-    overflow: "hidden",
-    marginBottom: 20,
   },
-  modeBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-  },
-  modeBtnText: {
-    fontSize: 12,
+  sensorText: {
+    fontSize: 9,
     fontWeight: "700" as const,
     letterSpacing: 1.5,
     fontFamily: "Inter_700Bold",
   },
+  controlRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 6,
+    paddingHorizontal: 20,
+    width: "100%",
+    justifyContent: "center",
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  segmentBtn: {
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+  },
+  segmentText: {
+    fontSize: 11,
+    fontWeight: "700" as const,
+    letterSpacing: 1.2,
+    fontFamily: "Inter_700Bold",
+  },
+  sensitivityLabel: {
+    fontSize: 10,
+    letterSpacing: 1.5,
+    fontFamily: "Inter_500Medium",
+    marginBottom: 12,
+  },
   treeContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   treePanel: {
     paddingVertical: 24,
@@ -245,15 +419,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
   },
-  status: {
-    fontSize: 12,
-    fontWeight: "600" as const,
-    letterSpacing: 3,
-    fontFamily: "Inter_600SemiBold",
-    marginBottom: 16,
-    height: 18,
+  statusSection: {
+    alignItems: "center",
+    width: "100%",
+    paddingHorizontal: 40,
+    marginBottom: 10,
+    minHeight: 44,
+    gap: 8,
   },
-  launchBtn: {
+  status: {
+    fontSize: 13,
+    fontWeight: "700" as const,
+    letterSpacing: 4,
+    fontFamily: "Inter_700Bold",
+    textAlign: "center",
+  },
+  gMeter: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  gValue: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    fontWeight: "600" as const,
+    letterSpacing: 0.5,
+    minWidth: 38,
+    textAlign: "right",
+  },
+  stageBtn: {
     paddingVertical: 18,
     paddingHorizontal: 64,
     borderRadius: 16,
@@ -261,15 +456,29 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 8,
-    marginBottom: 24,
+    marginBottom: 8,
   },
-  launchBtnText: {
+  stageBtnText: {
     fontSize: 18,
     fontWeight: "700" as const,
     letterSpacing: 4,
     fontFamily: "Inter_700Bold",
   },
+  fallbackNote: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginBottom: 8,
+  },
+  sensorInfo: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    textAlign: "center",
+    paddingHorizontal: 32,
+  },
   historySection: {
     width: "100%",
+    marginTop: 12,
   },
 });
