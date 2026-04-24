@@ -1,4 +1,4 @@
-# Building the APK
+# Building the Drag Tree APK
 
 ## Requirements
 - Node.js 18+
@@ -7,26 +7,32 @@
 ## Steps
 
 ```bash
-# 1. Install EAS CLI
+# 1. Clone the repo
+git clone https://github.com/flyboy-byte/drag-tree.git
+cd drag-tree/artifacts/drag-tree
+
+# 2. Install EAS CLI
 npm install -g eas-cli
 
-# 2. Log in to your Expo account
+# 3. Log in to your Expo account
 eas login
 
-# 3. Go to the app directory
-cd artifacts/drag-tree
+# 4. Install dependencies
+npm install
 
-# 4. Link to your Expo account (first time only)
-eas init --id <your-project-id>
-# OR just run the build — it will prompt you to create a project
-
-# 5. Build the APK
+# 5. Build the APK (EAS builds in the cloud — free tier: 30 builds/month)
 eas build --platform android --profile preview
 ```
 
-EAS builds in the cloud (free tier: 30 builds/month). When it's done it gives you a
-download link for the APK. Install it on any Android phone — no Play Store needed.
+EAS will ask you to link a project the first time — just follow the prompts.
+When the build finishes (~10–15 min) it gives you a download link for the APK.
 
-## The APK
-- Fully standalone — runs offline, no Expo Go required
-- Sideload by enabling "Install from unknown sources" on your Android device
+## Installing the APK on Android
+1. Enable "Install from unknown sources" (Settings → Apps → Special app access)
+2. Transfer the APK to your phone and tap it to install
+3. The app runs fully offline — no internet, no Expo Go required
+
+## The App
+- NHRA Pro Tree reaction timer (0.400s between ambers)
+- Uses accelerometer to detect launch G-force when mounted on your dash
+- Web/simulator mode: tap FLOOR IT button to simulate launch
