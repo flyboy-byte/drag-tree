@@ -76,8 +76,6 @@ overrides:
   brace-expansion@2.0.2: 2.1.0
   postcss@8.4.49: 8.5.10
   postcss@8.5.8: 8.5.10
-  uuid@3.4.0: 14.0.0
-  uuid@7.0.3: 14.0.0
 
 importers:
 
@@ -6118,8 +6116,13 @@ packages:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
 
-  uuid@14.0.0:
-    resolution: {integrity: sha512-Qo+uWgilfSmAhXCMav1uYFynlQO7fMFiMVZsQqZRMIXp0O7rR7qjkj+cPvBHLgBqi960QCoo/PH2/6ZtVqKvrg==}
+  uuid@3.4.0:
+    resolution: {integrity: sha512-HjSDRw6gZE5JMggctHBcjVak08+KEVhSIiDzFnT9S9aegmp85S/bReBVTb4QTFaRNptJ9kuYaNhnbNEOkbKb/A==}
+    deprecated: Please upgrade  to version 7 or higher.  Older versions may use Math.random() in certain circumstances, which is known to be problematic.  See https://v8.dev/blog/math-random for details.
+    hasBin: true
+
+  uuid@7.0.3:
+    resolution: {integrity: sha512-DPSke0pXhTZgoF/d+WSt2QaKMCFSfx7QegxEWT+JOuHF5aWrKEn0G+ztjuJg/gG8/ItK+rbPCD/yNv8yyih6Cg==}
     hasBin: true
 
   validate-npm-package-name@5.0.1:
@@ -7485,7 +7488,7 @@ snapshots:
     dependencies:
       '@expo/ngrok-bin': 2.3.42
       got: 11.8.6
-      uuid: 14.0.0
+      uuid: 3.4.0
       yaml: 1.10.3
 
   '@expo/osascript@2.4.2':
@@ -12688,7 +12691,9 @@ snapshots:
 
   utils-merge@1.0.1: {}
 
-  uuid@14.0.0: {}
+  uuid@3.4.0: {}
+
+  uuid@7.0.3: {}
 
   validate-npm-package-name@5.0.1: {}
 
@@ -12805,7 +12810,7 @@ snapshots:
   xcode@3.0.1:
     dependencies:
       simple-plist: 1.3.1
-      uuid: 14.0.0
+      uuid: 7.0.3
 
   xml2js@0.6.0:
     dependencies:
