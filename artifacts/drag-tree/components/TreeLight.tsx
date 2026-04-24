@@ -9,7 +9,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/useColors";
 
-type LightColor = "amber" | "green" | "red";
+export type LightColor = "amber" | "green" | "red";
 
 interface TreeLightProps {
   color: LightColor;
@@ -17,71 +17,96 @@ interface TreeLightProps {
   size?: number;
 }
 
-export function TreeLight({ color, lit, size = 54 }: TreeLightProps) {
+export function TreeLight({ color, lit, size = 52 }: TreeLightProps) {
   const colors = useColors();
   const scale = useSharedValue(1);
-  const opacity = useSharedValue(lit ? 1 : 0.12);
+  const glowOpacity = useSharedValue(lit ? 1 : 0);
+  const brightness = useSharedValue(lit ? 1 : 0.18);
 
   React.useEffect(() => {
     if (lit) {
-      scale.value = withSpring(1.08, { damping: 8, stiffness: 200 }, () => {
-        scale.value = withSpring(1, { damping: 12, stiffness: 200 });
+      scale.value = withSpring(1.07, { damping: 8, stiffness: 220 }, () => {
+        scale.value = withSpring(1, { damping: 14, stiffness: 220 });
       });
-      opacity.value = withTiming(1, { duration: 60, easing: Easing.out(Easing.exp) });
+      brightness.value = withTiming(1, { duration: 55, easing: Easing.out(Easing.exp) });
+      glowOpacity.value = withTiming(1, { duration: 55 });
     } else {
-      opacity.value = withTiming(0.12, { duration: 200, easing: Easing.in(Easing.exp) });
-      scale.value = withTiming(1, { duration: 200 });
+      brightness.value = withTiming(0.18, { duration: 220, easing: Easing.in(Easing.exp) });
+      glowOpacity.value = withTiming(0, { duration: 220 });
+      scale.value = withTiming(1, { duration: 220 });
     }
   }, [lit]);
 
   const getColors = () => {
     switch (color) {
-      case "amber":
-        return { on: colors.amberOn, off: colors.amberOff, glow: colors.amberGlow };
-      case "green":
-        return { on: colors.greenOn, off: colors.greenOff, glow: colors.greenGlow };
-      case "red":
-        return { on: colors.redOn, off: colors.redOff, glow: colors.redGlow };
+      case "amber": return { on: colors.amberOn, off: colors.amberOff, glow: colors.amberGlow };
+      case "green": return { on: colors.greenOn, off: colors.greenOff, glow: colors.greenGlow };
+      case "red":   return { on: colors.redOn,   off: colors.redOff,   glow: colors.redGlow };
     }
   };
-
   const { on, off, glow } = getColors();
 
-  const animStyle = useAnimatedStyle(() => ({
+  const outerGlow = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value * 0.65,
+  }));
+  const innerStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
-    opacity: opacity.value,
+    opacity: brightness.value,
+  }));
+  const coreStyle = useAnimatedStyle(() => ({
+    opacity: Math.max(0, (brightness.value - 0.5) * 2),
   }));
 
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: lit ? opacity.value * 0.7 : 0,
-  }));
+  const bezelSize = size + 10;
+  const glowSize = size + 28;
 
   return (
-    <View style={[styles.wrapper, { width: size + 20, height: size + 20 }]}>
+    <View style={[styles.wrapper, { width: glowSize, height: glowSize }]}>
+      {/* Outer glow bloom */}
       <Animated.View
         style={[
           styles.glow,
-          { width: size + 20, height: size + 20, borderRadius: (size + 20) / 2, backgroundColor: glow },
-          glowStyle,
+          { width: glowSize, height: glowSize, borderRadius: glowSize / 2, backgroundColor: glow },
+          outerGlow,
         ]}
       />
-      <Animated.View
+      {/* Chrome bezel ring */}
+      <View
         style={[
-          styles.light,
+          styles.bezel,
           {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            backgroundColor: lit ? on : off,
-            shadowColor: on,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: lit ? 0.9 : 0,
-            shadowRadius: 16,
-            elevation: lit ? 12 : 0,
+            width: bezelSize,
+            height: bezelSize,
+            borderRadius: bezelSize / 2,
           },
-          animStyle,
         ]}
-      />
+      >
+        {/* Inner shadow ring */}
+        <View
+          style={[
+            styles.innerRing,
+            { width: size + 4, height: size + 4, borderRadius: (size + 4) / 2 },
+          ]}
+        >
+          {/* The bulb */}
+          <Animated.View
+            style={[
+              styles.bulb,
+              { width: size, height: size, borderRadius: size / 2,
+                backgroundColor: on,
+                shadowColor: on, shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: lit ? 0.95 : 0, shadowRadius: 18, elevation: lit ? 16 : 0,
+              },
+              innerStyle,
+            ]}
+          >
+            {/* Specular highlight */}
+            <Animated.View style={[styles.specular, coreStyle]}>
+              <View style={[styles.highlight, { width: size * 0.32, height: size * 0.32 }]} />
+            </Animated.View>
+          </Animated.View>
+        </View>
+      </View>
     </View>
   );
 }
@@ -94,8 +119,40 @@ const styles = StyleSheet.create({
   glow: {
     position: "absolute",
   },
-  light: {
+  bezel: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#3a3a3a",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 6,
+    // Chrome gradient effect via border
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderTopColor: "#666",
+    borderLeftColor: "#555",
+    borderRightColor: "#222",
+    borderBottomColor: "#1a1a1a",
+  },
+  innerRing: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#111",
+    borderWidth: 1,
+    borderColor: "#000",
+  },
+  bulb: {
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingTop: 6,
+    overflow: "hidden",
+  },
+  specular: {
+    alignItems: "center",
+  },
+  highlight: {
+    borderRadius: 100,
+    backgroundColor: "rgba(255,255,255,0.18)",
   },
 });
