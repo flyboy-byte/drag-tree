@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "TflCB342eANS2N8vFVw9J"
+uri = "file://artifacts/drag-tree/assets/images/icon.png"
+type = "image"
+title = "drag strip tree icon"
