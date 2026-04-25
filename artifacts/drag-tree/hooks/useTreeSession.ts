@@ -92,8 +92,13 @@ export function useTreeSession() {
     setGrade(null);
     greenAtRef.current = null;
 
-    const interval = modeRef.current === "pro" ? 400 : 500;
     const randomDelay = 1500 + Math.random() * 1500;
+    const isPro = modeRef.current === "pro";
+
+    // Pro Tree:  all 3 ambers fire simultaneously, green 400ms later
+    // Full Tree: ambers fire sequentially 500ms apart, green 500ms after last amber
+    const amberInterval = isPro ? 0 : 500;
+    const greenDelay    = isPro ? 400 : 500;
 
     updatePhase("staging");
     setTree({ ...INITIAL_TREE });
@@ -109,18 +114,22 @@ export function useTreeSession() {
       updatePhase("countdown");
     }, randomDelay + 300));
 
+    // Pro:  all fire at the same time (amberInterval = 0)
+    // Full: staggered 500ms apart
     ids.push(setTimeout(() => {
       setTree(t => ({ ...t, amber1: true }));
     }, randomDelay + 600));
 
     ids.push(setTimeout(() => {
       setTree(t => ({ ...t, amber2: true }));
-    }, randomDelay + 600 + interval));
+    }, randomDelay + 600 + amberInterval));
 
     ids.push(setTimeout(() => {
       setTree(t => ({ ...t, amber3: true }));
-    }, randomDelay + 600 + interval * 2));
+    }, randomDelay + 600 + amberInterval * 2));
 
+    // Green fires greenDelay after the LAST amber
+    const lastAmberAt = randomDelay + 600 + amberInterval * 2;
     ids.push(setTimeout(() => {
       const now = performance.now();
       greenAtRef.current = now;
@@ -132,7 +141,7 @@ export function useTreeSession() {
         amber3: false,
         green: true,
       }));
-    }, randomDelay + 600 + interval * 3));
+    }, lastAmberAt + greenDelay));
 
     // Auto-late after 2s of green
     ids.push(setTimeout(() => {
@@ -143,7 +152,7 @@ export function useTreeSession() {
         recordResult(rt, g);
         updatePhase("result");
       }
-    }, randomDelay + 600 + interval * 3 + 2000));
+    }, lastAmberAt + greenDelay + 2000));
 
     timerIdsRef.current = ids;
   }, [recordResult]);
