@@ -26,9 +26,9 @@ import { useAccelerometer, type LaunchSensitivity } from "@/hooks/useAcceleromet
 import { useColors } from "@/hooks/useColors";
 
 const SENSITIVITY_OPTIONS: { key: LaunchSensitivity; label: string; sub: string }[] = [
-  { key: "gentle", label: "GENTLE", sub: "0.3g" },
-  { key: "normal", label: "NORMAL", sub: "0.56g" },
-  { key: "hard",   label: "HARD",   sub: "0.92g" },
+  { key: "gentle", label: "GENTLE", sub: "0.15g" },
+  { key: "normal", label: "NORMAL", sub: "0.25g" },
+  { key: "hard",   label: "HARD",   sub: "0.46g" },
 ];
 
 function getStatusLabel(phase: string): string {
