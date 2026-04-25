@@ -66,8 +66,8 @@ EAS builds the APK in the cloud — no Android SDK, no Java, nothing extra to in
 
 ### Prerequisites
 
-| Tool | Min version | Install |
-|------|-------------|---------|
+| Tool | Min version | Install command |
+|------|-------------|-----------------|
 | Node.js | 18 | https://nodejs.org |
 | pnpm | 9+ | `npm install -g pnpm` |
 | EAS CLI | 16+ | `npm install -g eas-cli` |
@@ -75,58 +75,121 @@ EAS builds the APK in the cloud — no Android SDK, no Java, nothing extra to in
 
 > **Why pnpm?** This is a pnpm workspace (monorepo). Using `npm install` or `yarn` will break the build.
 
-### Step 1 — Clone
+### Step 1 — Install EAS CLI
+
+```bash
+npm install -g eas-cli
+```
+
+This installs the EAS command-line tool globally. You only need to do this once per machine. Verify it installed:
+
+```bash
+eas --version
+```
+
+---
+
+### Step 2 — Clone
 
 ```bash
 git clone https://github.com/flyboy-byte/drag-tree.git
 cd drag-tree
 ```
 
-### Step 2 — Install dependencies
+---
+
+### Step 3 — Install dependencies
 
 ```bash
 pnpm install
 ```
 
-Run this from the **repo root**, not from `artifacts/drag-tree`. This installs all workspace packages together. Running it from the wrong directory is the single most common build failure.
+Run this from the **repo root** (`drag-tree/`), not from inside `artifacts/drag-tree`. This installs all workspace packages together. Running it from the wrong directory is the most common build failure.
 
-### Step 3 — Log in to Expo
+---
+
+### Step 4 — Log in to Expo
 
 ```bash
 eas login
 ```
 
-Enter your Expo account credentials. Create a free account at https://expo.dev/signup if you don't have one.
+You will be prompted:
+```
+Log in to EAS with email or username
+Email or username … your@email.com
+Password … ************
+Logged in
+```
 
-### Step 4 — Link the EAS project (first time only)
+Create a free account at https://expo.dev/signup if you don't have one.
+
+---
+
+### Step 5 — Link the EAS project (first time only)
 
 ```bash
 cd artifacts/drag-tree
 eas init
 ```
 
-When prompted:
-- **"Would you like to create a new EAS project?"** → **Y**
-- Choose any project name (e.g. `drag-tree`)
+You will be prompted:
+```
+Would you like to create a project for @yourusername/drag-tree? … yes
+```
 
-EAS writes a project ID into `app.json`. You only do this once.
+Press **Enter** to accept. EAS creates the project on expo.dev, gets a project ID, and writes it into `app.json` automatically. You will see:
 
-### Step 5 — Build the APK
+```
+Project successfully linked (ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) (modified app.json)
+```
+
+You only do this once. The project ID stays in `app.json` from now on.
+
+---
+
+### Step 6 — Build the APK
 
 ```bash
 eas build --platform android --profile preview
 ```
 
+> **Common typo:** `android` not `adroid` — EAS will tell you if you mistype the platform name.
+
+During the build you will see several prompts and messages — here is what to expect and what to do:
+
+**"No environment variables with visibility 'Plain text' found"**
+→ Safe to ignore. This app uses no server-side env vars.
+
+**"Using remote Android credentials (Expo server)"**
+**"Generate a new Android Keystore?"** → type **yes** and press Enter
+→ EAS generates and stores the signing keystore in the cloud. You do not need to manage it yourself.
+
+After that, EAS uploads your project and queues the build:
+
+```
+Compressing project files and uploading to EAS Build...
+Uploaded to EAS
+Computed project fingerprint
+See logs: https://expo.dev/accounts/yourname/projects/drag-tree/builds/...
+Waiting for build to complete. You can press Ctrl+C to exit.
+Build queued...
+```
+
+**You can safely press Ctrl+C** — the build continues running in the cloud. Come back to https://expo.dev/accounts/yourname/projects/drag-tree/builds to check progress or download the APK when done.
+
 - Builds in the cloud — takes **10–20 minutes**
 - Free tier: **30 builds/month**
-- When done, EAS prints a download URL for the `.apk` file
+- When done, the build page shows a **Download** button for the `.apk` file
 
-### Step 6 — Install on your Android phone
+---
+
+### Step 7 — Install on your Android phone
 
 1. On the phone: **Settings → Apps → Special app access → Install unknown apps**
    Enable it for your browser or Files app.
-2. Open the APK download URL from Step 5 on your phone's browser.
-3. Tap the downloaded file and follow the install prompts.
+2. Open the EAS build page on your phone's browser and tap **Download**.
+3. Tap the downloaded `.apk` file and follow the install prompts.
 4. Open **Drag Tree** — no internet required.
 
 ---
