@@ -1,6 +1,6 @@
 # Drag Tree — NHRA Pro Tree Reaction Timer
 
-An Android app that simulates a real **NHRA Pro Tree** (0.400 s between ambers) and measures your reaction time using the phone's accelerometer. Mount your phone on the dash, stage up, watch the tree, and floor it — the app detects launch G-force and records your RT automatically.
+An Android app that simulates a real **NHRA Pro Tree** (all 3 ambers fire simultaneously, green 0.400 s later) and measures your reaction time using the phone's accelerometer. Mount your phone on the dash, stage up, watch the tree, and floor it — the app detects launch G-force and records your RT automatically.
 
 **No internet required.** Runs fully offline after installation.
 
@@ -271,7 +271,7 @@ Every EAS build has a full log URL printed in the terminal. Open it. Scroll to t
 
 ## 5. App features
 
-- **Pro Tree** — 0.400 s between each amber, fixed (no Full Tree mode)
+- **Pro Tree** — all 3 ambers fire simultaneously, green 0.400 s later (no Full Tree mode)
 - **Accelerometer launch detection** — rolling-average baseline, no calibration step
 - **Three sensitivity presets** — Gentle / Normal / Hard, adjustable when idle
 - **Reaction grading** — Perfect / Pro / Great / Good / Late / Red Light  
