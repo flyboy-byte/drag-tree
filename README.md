@@ -34,14 +34,16 @@ No EAS account or Android device needed — runs in any desktop browser.
 ```bash
 # 1. Clone
 git clone https://github.com/flyboy-byte/drag-tree.git
-cd drag-tree
 
-# 2. Install (must run from repo root — NOT from artifacts/drag-tree)
+# 2. Install — run from the repo root (the drag-tree/ folder you just cloned)
+cd drag-tree
 pnpm install
 
-# 3. Start the web version
+# 3. Navigate into the app directory — one level deeper than the repo root
 cd artifacts/drag-tree
-npx expo start --web
+
+# 4. Start the web version using the project's own Expo (not npx)
+pnpm web
 ```
 
 Expo opens the app in your default browser automatically. If it doesn't, look for a line like:
@@ -51,6 +53,8 @@ Web is waiting on http://localhost:8081
 ```
 
 and open that URL.
+
+> **Do not use `npx expo start --web`** — npx downloads whichever Expo version is current (may differ from the project's Expo 54) and will cause version mismatch errors. Always use `pnpm web` from inside `artifacts/drag-tree`.
 
 > **Accelerometer on web:** The browser does not expose the phone accelerometer API that Expo uses, so the sensor is disabled in browser mode. Use the **FLOOR IT** button on screen to simulate a launch — it animates the G-meter and fires the timer exactly as the real sensor would.
 
