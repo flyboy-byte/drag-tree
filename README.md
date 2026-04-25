@@ -306,13 +306,15 @@ This means:
 
 ### Sensitivity presets
 
-| Preset | Threshold | Typical use |
-|--------|-----------|-------------|
-| Gentle | ~0.3g (3.0 m/s²) | Smooth launches, light cars |
-| Normal | ~0.56g (5.5 m/s²) | Street/bracket racing default |
-| Hard | ~0.92g (9.0 m/s²) | Hard launches, drag slicks |
+| Preset | Threshold | Required duration | Typical use |
+|--------|-----------|-------------------|-------------|
+| Gentle | ~0.15g (1.5 m/s²) | 3 consecutive readings (~48 ms) | FWD street car, light throttle |
+| Normal | ~0.25g (2.5 m/s²) | 3 consecutive readings (~48 ms) | RWD or sport car, moderate launch |
+| Hard   | ~0.46g (4.5 m/s²) | 3 consecutive readings (~48 ms) | Drag-prepped car, slicks, hard launch |
 
-**Start with Normal.** If the app fires before you actually launch (false trigger from gear engagement, bumps, or creep), go up to Hard. If it misses your launch entirely, drop to Gentle.
+The sensor requires the G-force to stay above the threshold for **3 readings in a row (~48 ms)** before firing. A real launch is sustained for 300–500 ms. Road bumps, taps, and vibration spikes are over in under 30 ms and will not trigger it. If G drops below threshold even once, the counter resets — the full 48 ms window must start over.
+
+**Start with Gentle** for any street car. Move to Normal or Hard only if you get false triggers.
 
 ### Phone mounting — important
 
