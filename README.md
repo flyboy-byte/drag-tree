@@ -12,9 +12,10 @@ An Android app that simulates a real **NHRA Pro Tree** (all 3 ambers fire simult
 
 1. [Run in the browser (quickest start)](#1-run-in-the-browser-quickest-start)
 2. [Build the Android APK with EAS](#2-build-the-android-apk-with-eas)
-3. [Accelerometer — how it works & known issues](#3-accelerometer--how-it-works--known-issues)
-4. [Troubleshooting](#4-troubleshooting)
-5. [App features](#5-app-features)
+3. [Updating your local copy and rebuilding](#3-updating-your-local-copy-and-rebuilding)
+4. [Accelerometer — how it works & known issues](#4-accelerometer--how-it-works--known-issues)
+5. [Troubleshooting](#5-troubleshooting)
+6. [App features](#6-app-features)
 
 ---
 
@@ -194,7 +195,106 @@ Build queued...
 
 ---
 
-## 3. Accelerometer — how it works & known issues
+## 3. Updating your local copy and rebuilding
+
+When changes are pushed to the GitHub repo you need to pull them down, optionally re-install dependencies, and queue a new EAS build.
+
+### Pull the latest changes
+
+```bash
+# From the repo root (drag-tree/)
+git pull origin main
+```
+
+You will see a summary of what changed, e.g.:
+
+```
+Updating 1a0a795..245de81
+Fast-forward
+ artifacts/drag-tree/hooks/useTreeSession.ts | 14 ++++--
+ README.md                                   | 42 +++++++++++++------
+ 2 files changed, 40 insertions(+), 16 deletions(-)
+```
+
+### Check what actually changed
+
+```bash
+# One-line log of recent commits
+git log --oneline -10
+
+# See exactly which files changed in the last commit
+git show --stat HEAD
+
+# See the full diff of what changed
+git diff HEAD~1 HEAD
+```
+
+### Re-install dependencies (only if needed)
+
+If the pull changed `package.json`, `pnpm-workspace.yaml`, or `pnpm-lock.yaml` you need to re-install. Safe to always run — it's a no-op if nothing changed:
+
+```bash
+# From repo root
+pnpm install
+```
+
+### Queue a new EAS build
+
+```bash
+cd artifacts/drag-tree
+eas build --platform android --profile preview
+```
+
+The keystore prompt will not appear again — EAS already has it stored from your first build. You go straight to upload and queue.
+
+Each build produces a new versioned APK. Install it over the top of the old one; Android will preserve your session history.
+
+---
+
+### Build a specific git commit or tag
+
+If you want to build from a specific point in history rather than the latest:
+
+```bash
+# See available commits
+git log --oneline
+
+# Check out a specific commit (detached HEAD — read-only)
+git checkout abc1234
+
+# Or check out a tag if you have any
+git checkout v1.0.0
+
+# Then build from that state
+cd artifacts/drag-tree
+eas build --platform android --profile preview
+
+# Return to the tip of main when done
+git checkout main
+```
+
+---
+
+### Roll back if a new build has a problem
+
+```bash
+# Find the last known-good commit hash
+git log --oneline
+
+# Reset your local copy to that commit (keeps files, undoes commits)
+git reset --hard abc1234
+
+# Re-install and rebuild
+pnpm install
+cd artifacts/drag-tree
+eas build --platform android --profile preview
+```
+
+> `git reset --hard` throws away any local uncommitted changes. Make sure you don't have anything important unsaved before running it.
+
+---
+
+## 4. Accelerometer — how it works & known issues
 
 ### How the sensor detects launch
 
@@ -240,7 +340,7 @@ This app runs React Native **New Architecture** (`newArchEnabled: true`). All de
 
 ---
 
-## 4. Troubleshooting
+## 5. Troubleshooting
 
 ### `pnpm: command not found`
 
@@ -332,7 +432,7 @@ Every EAS build has a full log URL printed in the terminal. Open it. Scroll to t
 
 ---
 
-## 5. App features
+## 6. App features
 
 - **Pro Tree** — all 3 ambers fire simultaneously, green 0.400 s later (no Full Tree mode)
 - **Accelerometer launch detection** — rolling-average baseline, no calibration step
