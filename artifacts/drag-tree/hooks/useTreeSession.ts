@@ -157,12 +157,13 @@ export function useTreeSession() {
     timerIdsRef.current = ids;
   }, [recordResult]);
 
-  // Called by accelerometer when launch is detected
-  const triggerLaunch = useCallback(() => {
+  // Called by accelerometer when launch is detected.
+  // candidateTime is the timestamp of the FIRST threshold-crossing reading —
+  // using it here keeps RT accurate despite the 3-sample confirmation delay.
+  const triggerLaunch = useCallback((candidateTime: number) => {
     if (phaseRef.current !== "go" || greenAtRef.current === null) return;
     clearTimers();
-    const now = performance.now();
-    const rt = (now - greenAtRef.current) / 1000;
+    const rt = (candidateTime - greenAtRef.current) / 1000;
     const g = gradeRT(rt);
     setTree(t => ({ ...t, green: false }));
     recordResult(rt, g);
@@ -210,7 +211,7 @@ export function useTreeSession() {
       return;
     }
     if (current === "go") {
-      triggerLaunch();
+      triggerLaunch(performance.now());
     }
   }, [startSequence, reset, triggerRedLight, triggerLaunch]);
 
