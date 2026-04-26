@@ -37,7 +37,9 @@ function magnitude(x: number, y: number, z: number): number {
 interface UseAccelerometerOptions {
   armed: boolean;
   sensitivity: LaunchSensitivity;
-  onLaunch: () => void;
+  // candidateTime is the performance.now() of the FIRST threshold-crossing
+  // reading, not the final confirming reading — keeps RT accurate.
+  onLaunch: (candidateTime: number) => void;
   onRedLight: () => void;
   watchForRedLight: boolean;
 }
@@ -57,16 +59,21 @@ export function useAccelerometer({
   const firedRef         = useRef(false);
   // Counts consecutive readings above threshold; resets on any dip below.
   const sustainedRef     = useRef(0);
+  // Timestamp of the FIRST reading that crossed the threshold.
+  // Passed to onLaunch so RT is measured from first movement,
+  // not the final confirming sample (~32–48 ms later).
+  const candidateTimeRef = useRef<number | null>(null);
   const simTimerRef      = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const [currentG,    setCurrentG]    = useState(0);
   const [isAvailable, setIsAvailable] = useState(false);
 
-  // Reset fire-gate and sustained counter when phase changes.
+  // Reset fire-gate, sustained counter, and candidate timestamp when phase changes.
   // Baseline stays intact — already reflects resting state.
   useEffect(() => {
-    firedRef.current   = false;
-    sustainedRef.current = 0;
+    firedRef.current      = false;
+    sustainedRef.current  = 0;
+    candidateTimeRef.current = null;
   }, [armed, watchForRedLight]);
 
   // Sensor availability check (native only — web is always false)
@@ -124,18 +131,28 @@ export function useAccelerometer({
       if (firedRef.current) return;
 
       // ── Sustained-sample confirmation ──────────────────────────────────
-      // Increment counter while above threshold; reset on any dip.
-      // Fires only when SUSTAINED_SAMPLES consecutive readings all exceed
-      // the threshold — eliminates bumps/taps that spike then drop.
+      // On the FIRST crossing: record its timestamp as the candidate.
+      // Continue counting consecutive above-threshold readings.
+      // On confirmation: fire with the CANDIDATE timestamp — not now() —
+      //   so RT reflects first detected movement, not the ~32–48 ms later
+      //   confirmation moment.
+      // On any dip below threshold: discard candidate, reset counter.
       if (delta >= threshold) {
+        if (sustainedRef.current === 0) {
+          // First crossing — record this exact moment
+          candidateTimeRef.current = performance.now();
+        }
         sustainedRef.current += 1;
         if (sustainedRef.current >= SUSTAINED_SAMPLES) {
           firedRef.current = true;
-          if (armed)                 { onLaunch(); }
+          const t = candidateTimeRef.current!;
+          if (armed)                 { onLaunch(t); }
           else if (watchForRedLight) { onRedLight(); }
         }
       } else {
-        sustainedRef.current = 0;
+        // Dipped below — not a sustained launch, discard candidate
+        sustainedRef.current     = 0;
+        candidateTimeRef.current = null;
       }
     });
 
@@ -172,7 +189,8 @@ export function useAccelerometer({
 
   const simulateLaunch = useCallback(() => {
     if (!armed) return;
-    runSimulation(onLaunch);
+    // Web simulation: no real sensor, so pass performance.now() at fire time
+    runSimulation(() => onLaunch(performance.now()));
   }, [armed, runSimulation, onLaunch]);
 
   const simulateRedLight = useCallback(() => {
