@@ -85,9 +85,9 @@ export default function HomeScreen() {
   const { currentG, isAvailable, simulateLaunch, simulateRedLight } = useAccelerometer({
     armed: isArmed,
     sensitivity,
-    onLaunch: () => {
+    onLaunch: (candidateTime: number) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      triggerLaunch();
+      triggerLaunch(candidateTime);
     },
     onRedLight: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
