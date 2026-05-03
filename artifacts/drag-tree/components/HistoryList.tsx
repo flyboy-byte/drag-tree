@@ -9,7 +9,7 @@ interface HistoryListProps {
   onClear: () => void;
 }
 
-function gradeColor(grade: string): string {
+function gradeColor(grade: string | null): string {
   switch (grade) {
     case "perfect": return "#ffd700";
     case "pro": return "#22c55e";
@@ -52,7 +52,7 @@ export function HistoryList({ records, onClear }: HistoryListProps) {
         renderItem={({ item }) => (
           <View style={[styles.record, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.recordGrade, { color: gradeColor(item.grade) }]}>
-              {item.grade === "redlight" ? "RL" : item.grade.toUpperCase().slice(0, 3)}
+              {item.grade === "redlight" ? "RL" : (item.grade ?? "—").toUpperCase().slice(0, 3)}
             </Text>
             <Text style={[styles.recordTime, { color: colors.foreground }]}>
               {item.grade === "redlight"
