@@ -308,11 +308,21 @@ This means:
 
 | Preset | Threshold | Required duration | Typical use |
 |--------|-----------|-------------------|-------------|
-| Gentle | ~0.15g (1.5 m/s²) | 3 consecutive readings (~48 ms) | FWD street car, light throttle |
-| Normal | ~0.25g (2.5 m/s²) | 3 consecutive readings (~48 ms) | RWD or sport car, moderate launch |
-| Hard   | ~0.46g (4.5 m/s²) | 3 consecutive readings (~48 ms) | Drag-prepped car, slicks, hard launch |
+| Gentle | ~0.15g (1.5 m/s²) | 5 consecutive readings (~40 ms) | FWD street car, light throttle |
+| Normal | ~0.25g (2.5 m/s²) | 5 consecutive readings (~40 ms) | RWD or sport car, moderate launch |
+| Hard   | ~0.46g (4.5 m/s²) | 5 consecutive readings (~40 ms) | Drag-prepped car, slicks, hard launch |
 
-The sensor requires the G-force to stay above the threshold for **3 readings in a row (~48 ms)** before firing. A real launch is sustained for 300–500 ms. Road bumps, taps, and vibration spikes are over in under 30 ms and will not trigger it. If G drops below threshold even once, the counter resets — the full 48 ms window must start over.
+The sensor runs at **125 Hz** (8 ms between samples) and requires the G-force to stay above the threshold for **5 readings in a row (~40 ms)** before firing. A real launch is sustained for 300–500 ms. Road bumps, taps, and vibration spikes are over in under 30 ms and will not trigger it. If G drops below threshold even once, the counter resets — the full 40 ms window must start over.
+
+### Reaction-time precision (jerk-onset rewind)
+
+Naive threshold-crossing detection always over-reports RT, because the threshold is only crossed *partway up* the launch acceleration ramp. To fix this, the app maintains a rolling 150 ms buffer of recent samples and, after a launch is confirmed, walks **backward** through the buffer to find the first sample where the smoothed acceleration slope started rising. That earlier sample is used as the launch timestamp.
+
+This shaves **50–100 ms** off measured RT compared to threshold-only detection — without weakening false-positive rejection, because the sustained-samples gate above still has to fire first.
+
+The "green-light" timestamp is also captured at the next vsync via `requestAnimationFrame` (rather than at the JS `setState` call) so it lines up with when the green pixels actually appear on screen — removing another ~30–40 ms of pre-paint bias.
+
+You can verify the precision on your device using the **Diagnostics screen** (DIAG button in the top-right corner of the home screen) — see *App features* below.
 
 **Start with Gentle** for any street car. Move to Normal or Hard only if you get false triggers.
 
@@ -328,13 +338,13 @@ The sensor requires the G-force to stay above the threshold for **3 readings in 
 |-------|-------|------------|
 | Sensor fires on a bump before launch | Baseline jitter on rough pavement | Use Normal or Hard sensitivity |
 | Sensor fires the instant you tap STAGE | Phone was moving when staged | Wait ~1 second after tapping STAGE before staging the car |
-| Sensor doesn't fire at all | Device accelerometer rate capped below 60 Hz | Try Gentle sensitivity; report your device model |
+| Sensor doesn't fire at all | Device accelerometer hardware caps below 125 Hz despite the high-sampling permission | Try Gentle sensitivity; check the Diagnostics screen for the achieved Hz; report your device model |
 | App shows "Sensor not available" | Very rare — some Android emulators lack virtual sensors | Use a real device |
 | Slight G reading even at rest | Normal — vibration, idle RPM, A/C compressor cycling | Baseline averages it out automatically |
 
 ### Permissions
 
-The Android accelerometer runs below 200 Hz — **no special permissions are required.** The app declares `permissions: []` in its manifest, so Android will not prompt for sensor access.
+The app requests one Android permission: **`HIGH_SAMPLING_RATE_SENSORS`**. This is required on Android 12+ (API 31+) for the 125 Hz accelerometer rate the launch detector uses — without it, Android caps sensor updates at 5 Hz (200 ms intervals), which is far too slow to measure drag-strip reaction times. The permission is granted automatically at install time (no runtime prompt). It does **not** give the app access to your location, camera, microphone, or any other sensitive data.
 
 ### New Architecture (React Native)
 
@@ -437,10 +447,11 @@ Every EAS build has a full log URL printed in the terminal. Open it. Scroll to t
 ## 6. App features
 
 - **Pro Tree** — all 3 ambers fire simultaneously, green 0.400 s later (no Full Tree mode)
-- **Accelerometer launch detection** — rolling-average baseline, no calibration step
+- **High-precision accelerometer launch detection** — 125 Hz sampling, sensor-timestamp-corrected sample times, jerk-onset rewind, vsync-aligned green-light timestamp (see *Reaction-time precision* above)
 - **Three sensitivity presets** — Gentle / Normal / Hard, adjustable when idle
 - **Reaction grading** — Perfect / Pro / Great / Good / Late / Red Light  
 - **Session history** — all runs logged, personal best highlighted
+- **Diagnostics screen** — open via the **DIAG** badge in the home header. Shows live G with a real-time acceleration curve (sparkline), 5-second sample-rate capture (mean interval, jitter σ, achieved Hz), per-sensitivity onset/threshold/confirm timing breakdown, and an auto-updating **LAST REAL LAUNCH** card with the full green→onset→threshold→confirm breakdown for the most recent green-light run on your phone
 - **Browser / simulator mode** — FLOOR IT button animates G-meter and fires timer
 
 ---
