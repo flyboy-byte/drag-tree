@@ -8,6 +8,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, {
@@ -24,6 +25,7 @@ import { HistoryList } from "@/components/HistoryList";
 import { useTreeSession } from "@/hooks/useTreeSession";
 import { useAccelerometer, type LaunchSensitivity } from "@/hooks/useAccelerometer";
 import { useColors } from "@/hooks/useColors";
+import { launchTelemetry } from "@/lib/launchTelemetry";
 
 const SENSITIVITY_OPTIONS: { key: LaunchSensitivity; label: string; sub: string }[] = [
   { key: "gentle", label: "GENTLE", sub: "0.15g" },
@@ -80,6 +82,7 @@ export default function HomeScreen() {
     triggerRedLight,
     isArmed,
     isWatchingRedLight,
+    getGreenAt,
   } = useTreeSession();
 
   const { currentG, isAvailable, simulateLaunch, simulateRedLight } = useAccelerometer({
@@ -94,6 +97,26 @@ export default function HomeScreen() {
       triggerRedLight();
     },
     watchForRedLight: isWatchingRedLight,
+    onLaunchTelemetry: (t) => {
+      // Combine sensor telemetry with the live greenAt and write to the
+      // shared store so the Diagnostics screen can render a real-launch
+      // breakdown (greenAt → onset → threshold → confirm).
+      const greenAt = getGreenAt();
+      launchTelemetry.set({
+        capturedAt: performance.now(),
+        greenAt,
+        onsetTime: t.onsetTime,
+        thresholdTime: t.thresholdTime,
+        confirmTime: t.confirmTime,
+        peakG: t.peakG,
+        sampleIntervalMean: t.sampleIntervalMean,
+        greenToOnsetMs: greenAt != null ? t.onsetTime - greenAt : null,
+        onsetToThresholdMs: t.thresholdTime - t.onsetTime,
+        thresholdToConfirmMs: t.confirmTime - t.thresholdTime,
+        rewindMs: t.confirmTime - t.onsetTime,
+        source: t.source,
+      });
+    },
   });
 
   // On web: use simulated sensor. On native without sensor: fallback tap.
@@ -197,6 +220,27 @@ export default function HomeScreen() {
               <Text style={[styles.badgeText, { color: colors.greenOn }]}>ACCEL</Text>
             </View>
           )}
+          <Pressable
+            onPress={() => {
+              if (isActive) return;
+              Haptics.selectionAsync();
+              // typed-routes manifest regenerates at expo start; cast until then
+              router.push("/diagnostic" as never);
+            }}
+            disabled={isActive}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.badge,
+              {
+                borderColor: colors.border,
+                borderWidth: 1,
+                opacity: pressed ? 0.6 : isActive ? 0.4 : 1,
+              },
+            ]}
+          >
+            <Ionicons name="pulse" size={10} color={colors.mutedForeground} />
+            <Text style={[styles.badgeText, { color: colors.mutedForeground }]}>DIAG</Text>
+          </Pressable>
         </View>
       </View>
 
