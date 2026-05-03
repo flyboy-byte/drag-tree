@@ -6,14 +6,17 @@ import {
   Pressable,
   ScrollView,
   Platform,
+  Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { DeviceMotion } from "expo-sensors";
 import { useColors } from "@/hooks/useColors";
 import { SENSITIVITY_THRESHOLDS } from "@/hooks/useAccelerometer";
 import { launchTelemetry, type RealLaunchTelemetry } from "@/lib/launchTelemetry";
+import { settings } from "@/lib/settings";
 
 const SAMPLE_INTERVAL_MS = 8;
 const CAPTURE_DURATION_MS = 5000;
@@ -184,6 +187,9 @@ export default function DiagnosticScreen() {
     launchTelemetry.get,
   );
 
+  // Subscribe to user preferences (practice mode toggle)
+  const appSettings = useSyncExternalStore(settings.subscribe, settings.get, settings.get);
+
   useEffect(() => {
     if (Platform.OS === "web") { setAvailable(false); return; }
     DeviceMotion.isAvailableAsync().then(setAvailable);
@@ -260,7 +266,7 @@ export default function DiagnosticScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Diagnostics", headerShown: false }} />
+      <Stack.Screen options={{ title: "Settings", headerShown: false }} />
       <ScrollView
         style={[styles.scroll, { backgroundColor: colors.background }]}
         contentContainerStyle={[styles.container, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24 }]}
@@ -271,9 +277,36 @@ export default function DiagnosticScreen() {
             <Ionicons name="chevron-back" size={22} color={colors.foreground} />
             <Text style={[styles.backText, { color: colors.foreground }]}>BACK</Text>
           </Pressable>
-          <Text style={[styles.title, { color: colors.foreground }]}>DIAGNOSTICS</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>SETTINGS</Text>
           <View style={{ width: 60 }} />
         </View>
+
+        {/* ── PREFERENCES ───────────────────────────────────────────── */}
+        <View style={[styles.card, { borderColor: colors.border }]}>
+          <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>PREFERENCES</Text>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={[styles.rowVal, { color: colors.foreground }]}>Practice Mode</Text>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+                Replace the motion sensor with an on-screen FLOOR IT button.
+                Useful for practicing at home without a car.
+              </Text>
+            </View>
+            <Switch
+              value={appSettings.practiceMode}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                settings.set({ practiceMode: v });
+              }}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={appSettings.practiceMode ? colors.primaryForeground : colors.mutedForeground}
+            />
+          </View>
+        </View>
+
+        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+          SENSOR DIAGNOSTICS
+        </Text>
 
         {!available && (
           <View style={[styles.card, { borderColor: colors.border }]}>
@@ -497,6 +530,8 @@ const styles = StyleSheet.create({
   rowVal:   { fontSize: 13, fontFamily: "Inter_600SemiBold", fontVariant: ["tabular-nums"] },
   rowSub:   { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 1 },
   warn: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
+  toggleRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4 },
+  sectionLabel: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 2, marginTop: 6, paddingHorizontal: 4 },
   sensBlock: { gap: 4, paddingVertical: 6 },
   sensLabel: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 1 },
   sensVal: { fontSize: 11, fontFamily: "Inter_400Regular" },
