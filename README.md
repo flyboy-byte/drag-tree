@@ -1,4 +1,4 @@
-# Drag Tree — NHRA Pro Tree Reaction Timer
+# DragTree — NHRA Pro Tree Reaction Timer
 
 An Android app that simulates a real **NHRA Pro Tree** (all 3 ambers fire simultaneously, green 0.400 s later) and measures your reaction time using the phone's accelerometer. Mount your phone on the dash, stage up, watch the tree, and floor it — the app detects launch G-force and records your RT automatically.
 
@@ -191,7 +191,7 @@ Build queued...
    Enable it for your browser or Files app.
 2. Open the EAS build page on your phone's browser and tap **Download**.
 3. Tap the downloaded `.apk` file and follow the install prompts.
-4. Open **Drag Tree** — no internet required.
+4. Open **DragTree** — no internet required.
 
 ---
 

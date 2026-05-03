@@ -25,7 +25,10 @@
       "permissions": [
         "android.permission.HIGH_SAMPLING_RATE_SENSORS"
       ],
-      "versionCode": 3
+      "blockedPermissions": [
+        "android.permission.ACTIVITY_RECOGNITION"
+      ],
+      "versionCode": 4
     },
     "web": {
       "favicon": "./assets/images/icon.png",
