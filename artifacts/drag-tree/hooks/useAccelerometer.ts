@@ -1,40 +1,116 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { DeviceMotion } from "expo-sensors";
 import { Platform } from "react-native";
+import {
+  loadNativeLaunchDetector,
+  type LaunchEventPayload,
+} from "../modules/native-launch-detector/src";
 
 export type LaunchSensitivity = "gentle" | "normal" | "hard";
 
 // Thresholds in m/s² of TRUE LINEAR ACCELERATION (gravity already removed
-// by Android's sensor fusion). With DeviceMotion these values now mean
-// exactly what they say — a 0.25g launch produces ~2.45 m/s² magnitude
-// regardless of how the phone is oriented.
-//
+// by Android's sensor fusion).
 //   gentle ~0.15g — FWD street car, light throttle
 //   normal ~0.25g — RWD or sport car, moderate launch
 //   hard   ~0.46g — drag-prepped, slicks, hard launch
-const SENSITIVITY_THRESHOLDS: Record<LaunchSensitivity, number> = {
+export const SENSITIVITY_THRESHOLDS: Record<LaunchSensitivity, number> = {
   gentle: 1.5,
   normal: 2.5,
   hard:   4.5,
 };
 
-// Sustained confirmation: 3 samples at 16 ms = ~48 ms of held G-force.
-// A real launch holds 300–500 ms; a single bump or vibration spike
-// is over in < 30 ms and gets rejected.
-const SUSTAINED_SAMPLES = 3;
+// JS-fallback target sample rate. Android 12+ requires the
+// HIGH_SAMPLING_RATE_SENSORS permission for intervals < 200 ms (declared in
+// app.json). The native module path uses SENSOR_DELAY_FASTEST (~200 Hz)
+// directly on the sensor thread instead.
+const SAMPLE_INTERVAL_MS = 8;
+
+// Sustained confirmation: ~40 ms of held above-threshold force.
+// At 125 Hz that's 5 consecutive samples. Bumps and vibration spikes are
+// over in < 30 ms and get rejected.
+const SUSTAINED_SAMPLES = 5;
+
+// Rolling sample buffer for jerk-onset rewind. Holds ~150 ms of samples
+// at 125 Hz — enough to find the start of a launch-acceleration ramp.
+const BUFFER_SIZE = 24;
+
+// Minimum slope (m/s² per ms) over a smoothing window to count as "rising".
+// A real launch ramp from 0 → 1.5 m/s² in ~80 ms is slope ≈ 0.019.
+// Hand-held noise floor over a 32 ms window averages ≈ 0.001–0.002.
+// 0.004 sits comfortably between the two.
+const ONSET_SLOPE = 0.004;
+
+// Window (in samples) over which slope is computed when walking back.
+// Wider window = more noise immunity, less precise onset.
+const SLOPE_WINDOW = 4;
+
+// Hard cap on how far backward in time we look for the onset.
+const MAX_REWIND_MS = 150;
+
+interface Sample {
+  t: number;   // performance.now()-aligned ms
+  mag: number; // linear-accel magnitude in m/s²
+}
 
 function magnitude3(x: number, y: number, z: number): number {
   return Math.sqrt(x * x + y * y + z * z);
 }
 
+// Convert whatever unit the sensor's `timestamp` field uses into ms.
+// Android raw is nanoseconds since boot; iOS is seconds since boot; some
+// expo-sensors versions normalize differently. Detect by magnitude.
+function tsToMs(raw: number): number {
+  if (raw > 1e12) return raw / 1e6;  // nanoseconds
+  if (raw > 1e9)  return raw;        // already ms (epoch-ish)
+  if (raw > 1e6)  return raw;        // ms-scale uptime
+  return raw * 1000;                  // seconds
+}
+
+// Walk backward from the confirmation sample to find the first sample where
+// the rising slope died. That sample's timestamp ≈ true launch onset.
+function findOnsetTimestamp(buf: Sample[], confirmTime: number): number {
+  if (buf.length < SLOPE_WINDOW + 1) {
+    return buf.length > 0 ? buf[buf.length - 1].t : confirmTime;
+  }
+  let onsetIdx = buf.length - 1;
+  for (let i = buf.length - 1; i >= SLOPE_WINDOW; i--) {
+    if (buf[i].t < confirmTime - MAX_REWIND_MS) break;
+    const dt = buf[i].t - buf[i - SLOPE_WINDOW].t;
+    if (dt <= 0) continue;
+    const slope = (buf[i].mag - buf[i - SLOPE_WINDOW].mag) / dt;
+    if (slope >= ONSET_SLOPE) {
+      // Far edge of this window is part of the rising portion → keep walking
+      onsetIdx = i - SLOPE_WINDOW;
+    } else {
+      // Slope died here — we've walked back into pre-launch noise
+      break;
+    }
+  }
+  return buf[onsetIdx].t;
+}
+
+export interface LaunchTelemetry {
+  greenAt: number | null;        // for cross-checking; not always known here
+  onsetTime: number;             // jerk-based onset (passed to RT)
+  thresholdTime: number;         // first sample that crossed magnitude threshold
+  confirmTime: number;           // sample where SUSTAINED_SAMPLES was reached
+  peakG: number;                 // max linear-G observed in the buffer
+  rewindMs: number;              // confirmTime - onsetTime
+  sampleIntervalMean: number;    // observed mean ms between samples
+  source: "native" | "js";       // which detection path produced this telemetry
+}
+
 interface UseAccelerometerOptions {
   armed: boolean;
   sensitivity: LaunchSensitivity;
-  // candidateTime is performance.now() of the FIRST threshold-crossing
-  // sample, so RT reflects first detected movement (not confirmation time).
+  // candidateTime is the JERK-ONSET timestamp (rewound from the confirmation
+  // sample), so RT reflects the start of acceleration — not the moment we
+  // crossed threshold or the moment we confirmed.
   onLaunch: (candidateTime: number) => void;
   onRedLight: () => void;
   watchForRedLight: boolean;
+  // Optional: receives full telemetry for the most recent launch.
+  onLaunchTelemetry?: (t: LaunchTelemetry) => void;
 }
 
 export function useAccelerometer({
@@ -43,80 +119,239 @@ export function useAccelerometer({
   onLaunch,
   onRedLight,
   watchForRedLight,
+  onLaunchTelemetry,
 }: UseAccelerometerOptions) {
-  const firedRef         = useRef(false);
-  const sustainedRef     = useRef(0);
-  const candidateTimeRef = useRef<number | null>(null);
-  const simTimerRef      = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const firedRef           = useRef(false);
+  const sustainedRef       = useRef(0);
+  const thresholdTimeRef   = useRef<number | null>(null);
+  const sensorOffsetRef    = useRef<number | null>(null);
+  const bufferRef          = useRef<Sample[]>([]);
+  const lastSampleTRef     = useRef<number | null>(null);
+  const intervalSumRef     = useRef(0);
+  const intervalCountRef   = useRef(0);
+  const peakMagRef         = useRef(0);
+  const simTimerRef        = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Native-module clock offset: nativeMs + offset = performance.now().
+  // Captured once per session; both clocks tick at the same rate while the
+  // screen is on, so a single sample is sufficient.
+  const nativeOffsetRef    = useRef<number | null>(null);
 
   const [currentG,    setCurrentG]    = useState(0);
   const [isAvailable, setIsAvailable] = useState(false);
 
-  // Reset detection state on phase change
-  useEffect(() => {
+  // Resolve the native module once. On Android with a dev/EAS build this is
+  // the real Kotlin module; on web/iOS/Expo Go it's null and we fall back
+  // to the JS DeviceMotion path.
+  const nativeRef = useRef(loadNativeLaunchDetector());
+  const usingNative = nativeRef.current !== null;
+
+  const resetDetection = () => {
     firedRef.current         = false;
     sustainedRef.current     = 0;
-    candidateTimeRef.current = null;
+    thresholdTimeRef.current = null;
+    bufferRef.current        = [];
+    lastSampleTRef.current   = null;
+    intervalSumRef.current   = 0;
+    intervalCountRef.current = 0;
+    peakMagRef.current       = 0;
+  };
+
+  // Reset detection state on phase change. Sensor-clock offset stays
+  // (it's a calibration that holds for the app session).
+  useEffect(() => {
+    resetDetection();
+    nativeRef.current?.resetDetection();
   }, [armed, watchForRedLight]);
 
-  // DeviceMotion availability (native only)
+  // Availability
   useEffect(() => {
     if (Platform.OS === "web") { setIsAvailable(false); return; }
-    DeviceMotion.isAvailableAsync().then(setIsAvailable);
-  }, []);
+    if (usingNative && nativeRef.current) {
+      nativeRef.current.isAvailable().then(setIsAvailable);
+    } else {
+      DeviceMotion.isAvailableAsync().then(setIsAvailable);
+    }
+  }, [usingNative]);
 
-  // ── Sensor subscription ──────────────────────────────────────────────────
+  // ── Native subscription path ────────────────────────────────────────────
   useEffect(() => {
+    if (!usingNative || !isAvailable) return;
+    const native = nativeRef.current;
+    if (!native) return;
+
+    // One-shot clock offset capture. Read native clock and performance.now()
+    // back-to-back; the small (~1 ms) bridge round-trip is absorbed into
+    // a constant offset that applies equally to every onset timestamp,
+    // so it does NOT affect RT accuracy (which is a delta).
+    let cancelled = false;
+    if (nativeOffsetRef.current === null) {
+      native.getNativeNowMs().then(nativeNow => {
+        if (cancelled) return;
+        nativeOffsetRef.current = performance.now() - nativeNow;
+      });
+    }
+
+    // onSample only fires from native while idle (gated server-side).
+    // During the armed detection window there are zero bridge crossings
+    // until the single onLaunch / onRedLight event.
+    const sampleSub = native.addListener("onSample", ({ g }) => {
+      setCurrentG(g);
+    });
+
+    const handleDetection = (e: LaunchEventPayload, fromArmed: boolean) => {
+      if (firedRef.current) return;
+      firedRef.current = true;
+      // Convert native-clock timestamps into performance.now()-aligned ms.
+      const offset = nativeOffsetRef.current ?? 0;
+      const onsetT     = e.onsetNativeMs     + offset;
+      const thresholdT = e.thresholdNativeMs + offset;
+      const confirmT   = e.confirmNativeMs   + offset;
+      if (onLaunchTelemetry) {
+        onLaunchTelemetry({
+          greenAt: null,
+          onsetTime: onsetT,
+          thresholdTime: thresholdT,
+          confirmTime: confirmT,
+          peakG: e.peakG,
+          rewindMs: e.rewindMs,
+          sampleIntervalMean: e.sampleIntervalMeanMs,
+          source: "native",
+        });
+      }
+      if (fromArmed) onLaunch(onsetT);
+      else           onRedLight();
+    };
+
+    const launchSub = native.addListener("onLaunch",
+      (e) => handleDetection(e, true));
+    const redSub = native.addListener("onRedLight",
+      (e) => handleDetection(e, false));
+
+    // Keep the sensor registered at all times — even while idle — so the
+    // throttled `onSample` event can drive the live G gauge between
+    // sessions. The native side gates detection (and the bridge crossing)
+    // on the `armed` / `watchRedLight` flags we pass here, so leaving
+    // the sensor on while idle is free of bridge-traffic during the
+    // critical detection window.
+    native.start(SENSITIVITY_THRESHOLDS[sensitivity], armed, watchForRedLight);
+
+    return () => {
+      cancelled = true;
+      sampleSub.remove();
+      launchSub.remove();
+      redSub.remove();
+      native.stop();
+    };
+  }, [usingNative, isAvailable, armed, watchForRedLight, sensitivity,
+      onLaunch, onRedLight, onLaunchTelemetry]);
+
+  // ── JS-fallback subscription path (web, iOS, Expo Go) ───────────────────
+  useEffect(() => {
+    if (usingNative) return;
     if (!isAvailable || Platform.OS === "web") return;
 
-    // Idle: no detection needed, just zero the display
     if (!armed && !watchForRedLight) {
       setCurrentG(0);
       return;
     }
 
-    // Armed / red-light watch: full-rate detection
-    DeviceMotion.setUpdateInterval(16);
+    DeviceMotion.setUpdateInterval(SAMPLE_INTERVAL_MS);
     const threshold = SENSITIVITY_THRESHOLDS[sensitivity];
 
-    const sub = DeviceMotion.addListener(({ acceleration }) => {
-      // acceleration is gravity-REMOVED linear acceleration in m/s²
-      // (computed by Android's sensor fusion using accelerometer + gyro)
+    const sub = DeviceMotion.addListener(({ acceleration, interval }) => {
       if (!acceleration) return;
 
-      const mag = magnitude3(acceleration.x, acceleration.y, acceleration.z);
+      // ── Map sensor sample timestamp into performance.now() coordinates ──
+      // This removes per-sample callback jitter (5–30 ms) from every reading.
+      // Three-tier strategy:
+      //   1. Best:   acceleration.timestamp (true hardware sample time)
+      //   2. Better: perfNow - interval     (callback bias correction)
+      //   3. Worst:  perfNow                (no correction; sanity fallback)
+      const perfNow = performance.now();
+      let sampleT = perfNow;
+      const rawTs = (acceleration as { timestamp?: number }).timestamp;
+      const haveSensorTs =
+        rawTs != null && Number.isFinite(rawTs) && rawTs !== 0;
+      if (haveSensorTs) {
+        const tsMs = tsToMs(rawTs as number);
+        if (sensorOffsetRef.current === null) {
+          sensorOffsetRef.current = perfNow - tsMs;
+        }
+        sampleT = tsMs + sensorOffsetRef.current;
+        // Sanity clamp: a sample can't be in the future and shouldn't be
+        // older than ~200 ms. If the sensor clock is wonky, fall back.
+        if (sampleT > perfNow || sampleT < perfNow - 200) {
+          sampleT = perfNow - (interval ?? SAMPLE_INTERVAL_MS);
+        }
+      } else {
+        // Sensor didn't expose a per-sample timestamp on this Expo SDK
+        // build / device. Best estimate of when the sample was actually
+        // taken: callback time minus the reported sample interval.
+        // Removes a constant ≈ interval ms of bias even without sensor ts.
+        const reported = interval ?? SAMPLE_INTERVAL_MS;
+        sampleT = perfNow - Math.max(0, Math.min(reported, 50));
+      }
 
-      // Display in g-force units for the UI meter
+      const mag = magnitude3(acceleration.x, acceleration.y, acceleration.z);
       setCurrentG(mag / 9.81);
+
+      // Track observed sample interval (for diagnostic visibility)
+      if (lastSampleTRef.current !== null) {
+        const dt = sampleT - lastSampleTRef.current;
+        if (dt > 0 && dt < 100) {
+          intervalSumRef.current += dt;
+          intervalCountRef.current += 1;
+        }
+      }
+      lastSampleTRef.current = sampleT;
+
+      // Push to rolling buffer (used for onset rewind)
+      bufferRef.current.push({ t: sampleT, mag });
+      if (bufferRef.current.length > BUFFER_SIZE) bufferRef.current.shift();
+      if (mag > peakMagRef.current) peakMagRef.current = mag;
 
       if (firedRef.current) return;
 
-      // ── Sustained-sample confirmation ─────────────────────────────────
-      // First crossing: record candidate timestamp.
-      // 3 consecutive readings above threshold: confirm and fire with
-      //   the FIRST timestamp (so RT isn't shifted by ~48 ms).
-      // Any dip below: discard candidate, reset counter.
+      // ── Sustained-sample confirmation gate ──
       if (mag >= threshold) {
         if (sustainedRef.current === 0) {
-          candidateTimeRef.current = performance.now();
+          thresholdTimeRef.current = sampleT;
         }
         sustainedRef.current += 1;
         if (sustainedRef.current >= SUSTAINED_SAMPLES) {
           firedRef.current = true;
-          const t = candidateTimeRef.current!;
-          if (armed)                 { onLaunch(t); }
+          // Walk back through the buffer to find the jerk-onset timestamp
+          const onsetT = findOnsetTimestamp(bufferRef.current, sampleT);
+          const meanInt = intervalCountRef.current > 0
+            ? intervalSumRef.current / intervalCountRef.current
+            : SAMPLE_INTERVAL_MS;
+          if (onLaunchTelemetry) {
+            onLaunchTelemetry({
+              greenAt: null,
+              onsetTime: onsetT,
+              thresholdTime: thresholdTimeRef.current ?? sampleT,
+              confirmTime: sampleT,
+              peakG: peakMagRef.current / 9.81,
+              rewindMs: sampleT - onsetT,
+              sampleIntervalMean: meanInt,
+              source: "js",
+            });
+          }
+          if (armed)                 { onLaunch(onsetT); }
           else if (watchForRedLight) { onRedLight(); }
         }
       } else {
         sustainedRef.current     = 0;
-        candidateTimeRef.current = null;
+        thresholdTimeRef.current = null;
       }
     });
 
     return () => sub.remove();
-  }, [isAvailable, armed, watchForRedLight, sensitivity, onLaunch, onRedLight]);
+  }, [usingNative, isAvailable, armed, watchForRedLight, sensitivity,
+      onLaunch, onRedLight, onLaunchTelemetry]);
 
-  // ── Web / simulator (unchanged) ───────────────────────────────────────────
+  // ── Web / simulator ───────────────────────────────────────────────────────
   const clearSimTimers = () => {
     simTimerRef.current.forEach(clearTimeout);
     simTimerRef.current = [];
@@ -156,5 +391,5 @@ export function useAccelerometer({
 
   useEffect(() => () => clearSimTimers(), []);
 
-  return { currentG, isAvailable, simulateLaunch, simulateRedLight };
+  return { currentG, isAvailable, simulateLaunch, simulateRedLight, usingNative };
 }
