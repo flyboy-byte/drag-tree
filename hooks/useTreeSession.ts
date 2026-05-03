@@ -248,5 +248,9 @@ export function useTreeSession() {
     triggerRedLight,
     isArmed,
     isWatchingRedLight,
+    // Lazy accessor for the current greenAt — used by the home screen to
+    // attach session context to per-launch sensor telemetry without making
+    // greenAt itself reactive (it would cause needless re-renders).
+    getGreenAt: () => greenAtRef.current,
   };
 }
