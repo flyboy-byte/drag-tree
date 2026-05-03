@@ -7,11 +7,15 @@ export interface AppSettings {
   // Set by the home screen while a run is in progress; the settings screen
   // uses this to lock toggles that would corrupt an active session.
   sessionLocked: boolean;
+  // "pro" = Pro Tree (.400s, all ambers together)
+  // "full" = Sportsman Tree (.500s, ambers count down one at a time)
+  treeMode: "pro" | "full";
 }
 
 let current: AppSettings = {
   practiceMode: false,
   sessionLocked: false,
+  treeMode: "pro",
 };
 
 const listeners = new Set<() => void>();
