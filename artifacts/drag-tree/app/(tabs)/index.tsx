@@ -125,7 +125,10 @@ export default function HomeScreen() {
     },
   });
 
-  // On web: use simulated sensor. On native without sensor: fallback tap.
+  // Tap routing: in simulation mode (no sensor OR practice-mode override)
+  // the on-screen button drives launches and red-lights. With the real
+  // sensor armed, taps during the active sequence are ignored — the
+  // accelerometer fires those events.
   const onMainPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (phase === "idle") {
@@ -133,9 +136,9 @@ export default function HomeScreen() {
     } else if (phase === "result" || phase === "redlight") {
       reset();
     } else if (phase === "go") {
-      if (!isAvailable) simulateLaunch();
+      if (useSimulation) simulateLaunch();
     } else if (phase === "staging" || phase === "countdown") {
-      if (!isAvailable) simulateRedLight();
+      if (useSimulation) simulateRedLight();
     }
   };
 
