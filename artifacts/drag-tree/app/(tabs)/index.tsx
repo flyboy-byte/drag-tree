@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useSyncExternalStore } from "react";
 import {
   View,
   Text,
@@ -27,6 +27,8 @@ import { useTreeSession } from "@/hooks/useTreeSession";
 import { useAccelerometer, type LaunchSensitivity } from "@/hooks/useAccelerometer";
 import { useColors } from "@/hooks/useColors";
 import { launchTelemetry } from "@/lib/launchTelemetry";
+import { settings } from "@/lib/settings";
+import { coachingHint } from "@/lib/coaching";
 
 const SENSITIVITY_OPTIONS: { key: LaunchSensitivity; label: string; sub: string }[] = [
   { key: "gentle", label: "GENTLE", sub: "0.15g" },
@@ -68,7 +70,8 @@ export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [sensitivity, setSensitivity] = useState<LaunchSensitivity>("normal");
-  const [practiceMode, setPracticeMode] = useState(false);
+  const appSettings = useSyncExternalStore(settings.subscribe, settings.get, settings.get);
+  const practiceMode = appSettings.practiceMode;
 
   const {
     phase,
@@ -222,34 +225,11 @@ export default function HomeScreen() {
               <Text style={[styles.badgeText, { color: colors.greenOn }]}>ACCEL</Text>
             </View>
           )}
-          {isAvailable && (
-            <Pressable
-              onPress={() => {
-                if (isActive) return;
-                Haptics.selectionAsync();
-                setPracticeMode(p => !p);
-              }}
-              disabled={isActive}
-              hitSlop={8}
-              style={({ pressed }) => [
-                styles.badge,
-                {
-                  backgroundColor: practiceMode ? colors.primary : "transparent",
-                  borderColor: practiceMode ? colors.primary : colors.border,
-                  borderWidth: 1,
-                  opacity: pressed ? 0.6 : isActive ? 0.4 : 1,
-                },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="gesture-tap"
-                size={10}
-                color={practiceMode ? colors.primaryForeground : colors.mutedForeground}
-              />
-              <Text style={[styles.badgeText, { color: practiceMode ? colors.primaryForeground : colors.mutedForeground }]}>
-                TAP
-              </Text>
-            </Pressable>
+          {practiceMode && (
+            <View style={[styles.badge, { borderColor: colors.primary, borderWidth: 1 }]}>
+              <MaterialCommunityIcons name="gesture-tap" size={10} color={colors.primary} />
+              <Text style={[styles.badgeText, { color: colors.primary }]}>PRACTICE</Text>
+            </View>
           )}
           <Pressable
             onPress={() => {
@@ -269,8 +249,8 @@ export default function HomeScreen() {
               },
             ]}
           >
-            <Ionicons name="pulse" size={10} color={colors.mutedForeground} />
-            <Text style={[styles.badgeText, { color: colors.mutedForeground }]}>DIAG</Text>
+            <Ionicons name="settings-outline" size={10} color={colors.mutedForeground} />
+            <Text style={[styles.badgeText, { color: colors.mutedForeground }]}>SET</Text>
           </Pressable>
         </View>
       </View>
@@ -375,6 +355,16 @@ export default function HomeScreen() {
           Tap RED LIGHT to simulate an early launch
         </Text>
       )}
+
+      {/* Subtle coaching hint — only fires after a repeating mistake pattern */}
+      {isDone && (() => {
+        const tip = coachingHint(records);
+        return tip ? (
+          <Text style={[styles.hint, { color: colors.mutedForeground, fontStyle: "italic" }]}>
+            {tip}
+          </Text>
+        ) : null;
+      })()}
 
       {/* History */}
       <View style={styles.history}>
