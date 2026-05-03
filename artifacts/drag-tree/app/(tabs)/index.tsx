@@ -68,6 +68,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [sensitivity, setSensitivity] = useState<LaunchSensitivity>("normal");
+  const [practiceMode, setPracticeMode] = useState(false);
 
   const {
     phase,
@@ -154,8 +155,8 @@ export default function HomeScreen() {
   const isActive = phase === "staging" || phase === "countdown" || phase === "go";
   const isDone   = phase === "result" || phase === "redlight";
 
-  // On native with sensor: arms automatically. On web: simulate button.
-  const useSimulation = !isAvailable;
+  // On native with sensor: arms automatically. On web or when practice toggled: tap button.
+  const useSimulation = !isAvailable || practiceMode;
 
   const gColor =
     currentG > 0.8 ? colors.greenOn :
@@ -207,7 +208,7 @@ export default function HomeScreen() {
     >
       {/* Header row */}
       <View style={styles.header}>
-        <Text style={[styles.appTitle, { color: colors.foreground }]}>DRAG TREE</Text>
+        <Text style={[styles.appTitle, { color: colors.foreground }]}>DRAGTREE</Text>
         <View style={styles.badges}>
           {bestTime !== null && (
             <View style={[styles.badge, { backgroundColor: "rgba(245,166,35,0.12)" }]}>
@@ -215,11 +216,40 @@ export default function HomeScreen() {
               <Text style={[styles.badgeText, { color: colors.primary }]}>{bestTime.toFixed(3)}</Text>
             </View>
           )}
-          {isAvailable && (
+          {isAvailable && !practiceMode && (
             <View style={[styles.badge, { borderColor: colors.greenOn, borderWidth: 1 }]}>
               <MaterialCommunityIcons name="car-speed-limiter" size={10} color={colors.greenOn} />
               <Text style={[styles.badgeText, { color: colors.greenOn }]}>ACCEL</Text>
             </View>
+          )}
+          {isAvailable && (
+            <Pressable
+              onPress={() => {
+                if (isActive) return;
+                Haptics.selectionAsync();
+                setPracticeMode(p => !p);
+              }}
+              disabled={isActive}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.badge,
+                {
+                  backgroundColor: practiceMode ? colors.primary : "transparent",
+                  borderColor: practiceMode ? colors.primary : colors.border,
+                  borderWidth: 1,
+                  opacity: pressed ? 0.6 : isActive ? 0.4 : 1,
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="gesture-tap"
+                size={10}
+                color={practiceMode ? colors.primaryForeground : colors.mutedForeground}
+              />
+              <Text style={[styles.badgeText, { color: practiceMode ? colors.primaryForeground : colors.mutedForeground }]}>
+                TAP
+              </Text>
+            </Pressable>
           )}
           <Pressable
             onPress={() => {
@@ -335,9 +365,9 @@ export default function HomeScreen() {
       {/* Contextual hint */}
       {phase === "idle" && (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          {isAvailable
-            ? "Floor it when green — sensor detects your launch"
-            : "Simulated sensor — tap FLOOR IT when the green lights"}
+          {useSimulation
+            ? "Tap FLOOR IT when the green lights"
+            : "Floor it when green — sensor detects your launch"}
         </Text>
       )}
       {useSimulation && phase === "countdown" && (
