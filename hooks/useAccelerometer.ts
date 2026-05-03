@@ -165,24 +165,38 @@ export function useAccelerometer({
     DeviceMotion.setUpdateInterval(SAMPLE_INTERVAL_MS);
     const threshold = SENSITIVITY_THRESHOLDS[sensitivity];
 
-    const sub = DeviceMotion.addListener(({ acceleration }) => {
+    const sub = DeviceMotion.addListener(({ acceleration, interval }) => {
       if (!acceleration) return;
 
       // ── Map sensor sample timestamp into performance.now() coordinates ──
       // This removes per-sample callback jitter (5–30 ms) from every reading.
+      // Three-tier strategy:
+      //   1. Best:   acceleration.timestamp (true hardware sample time)
+      //   2. Better: perfNow - interval     (callback bias correction)
+      //   3. Worst:  perfNow                (no correction; sanity fallback)
       const perfNow = performance.now();
       let sampleT = perfNow;
       const rawTs = (acceleration as { timestamp?: number }).timestamp;
-      if (rawTs != null && Number.isFinite(rawTs)) {
-        const tsMs = tsToMs(rawTs);
+      const haveSensorTs =
+        rawTs != null && Number.isFinite(rawTs) && rawTs !== 0;
+      if (haveSensorTs) {
+        const tsMs = tsToMs(rawTs as number);
         if (sensorOffsetRef.current === null) {
           sensorOffsetRef.current = perfNow - tsMs;
         }
         sampleT = tsMs + sensorOffsetRef.current;
         // Sanity clamp: a sample can't be in the future and shouldn't be
-        // older than ~200 ms. If the sensor clock is wonky, fall back to
-        // the callback time for this sample only.
-        if (sampleT > perfNow || sampleT < perfNow - 200) sampleT = perfNow;
+        // older than ~200 ms. If the sensor clock is wonky, fall back.
+        if (sampleT > perfNow || sampleT < perfNow - 200) {
+          sampleT = perfNow - (interval ?? SAMPLE_INTERVAL_MS);
+        }
+      } else {
+        // Sensor didn't expose a per-sample timestamp on this Expo SDK
+        // build / device. Best estimate of when the sample was actually
+        // taken: callback time minus the reported sample interval.
+        // Removes a constant ≈ interval ms of bias even without sensor ts.
+        const reported = interval ?? SAMPLE_INTERVAL_MS;
+        sampleT = perfNow - Math.max(0, Math.min(reported, 50));
       }
 
       const mag = magnitude3(acceleration.x, acceleration.y, acceleration.z);
