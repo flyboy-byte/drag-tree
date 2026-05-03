@@ -298,10 +298,18 @@ export default function DiagnosticScreen() {
                 Haptics.selectionAsync();
                 settings.set({ practiceMode: v });
               }}
+              disabled={appSettings.sessionLocked}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={appSettings.practiceMode ? colors.primaryForeground : colors.mutedForeground}
+              accessibilityLabel="Practice Mode toggle"
+              accessibilityHint="Replaces the motion sensor with an on-screen Floor It button"
             />
           </View>
+          {appSettings.sessionLocked && (
+            <Text style={[styles.rowSub, { color: colors.mutedForeground, marginTop: 6 }]}>
+              Finish or reset the current run to change this.
+            </Text>
+          )}
         </View>
 
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
