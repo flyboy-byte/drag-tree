@@ -72,6 +72,7 @@ export default function HomeScreen() {
   const [sensitivity, setSensitivity] = useState<LaunchSensitivity>("normal");
   const appSettings = useSyncExternalStore(settings.subscribe, settings.get, settings.get);
   const practiceMode = appSettings.practiceMode;
+  const treeMode = appSettings.treeMode;
 
   const {
     phase,
@@ -89,7 +90,15 @@ export default function HomeScreen() {
     isWatchingRedLight,
     getGreenAt,
     clearHistory,
+    switchMode,
   } = useTreeSession();
+
+  // Keep the session's tree mode in sync with the settings store.
+  // switchMode also calls reset(), so switching while idle is clean;
+  // the sessionLocked guard in Settings prevents switching mid-run.
+  React.useEffect(() => {
+    switchMode(treeMode);
+  }, [treeMode]);
 
   const { currentG, isAvailable, simulateLaunch, simulateRedLight } = useAccelerometer({
     armed: isArmed,
@@ -269,9 +278,11 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* PRO TREE label */}
+      {/* Tree mode banner */}
       <View style={[styles.proLabel, { borderColor: colors.border }]}>
-        <Text style={[styles.proText, { color: colors.mutedForeground }]}>PRO TREE  •  0.400s</Text>
+        <Text style={[styles.proText, { color: colors.mutedForeground }]}>
+          {treeMode === "pro" ? "PRO TREE  •  0.400s" : "SPORTSMAN  •  0.500s"}
+        </Text>
       </View>
 
       {/* The tree */}
