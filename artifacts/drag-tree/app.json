@@ -22,7 +22,9 @@
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#0a0a0a"
       },
-      "permissions": ["android.permission.HIGH_SAMPLING_RATE_SENSORS"]
+      "permissions": [
+        "android.permission.HIGH_SAMPLING_RATE_SENSORS"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png",
@@ -35,6 +37,12 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "316b0319-363f-4c90-b255-09aa5957c946"
+      }
+    },
+    "owner": "flyboybyte"
   }
 }
