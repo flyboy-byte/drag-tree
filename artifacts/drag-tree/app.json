@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Drag Tree",
+    "name": "DragTree",
     "slug": "drag-tree",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,13 +17,16 @@
       "supportsTablet": false
     },
     "android": {
-      "package": "com.dragtree.app",
+      "package": "com.flyboybyte.dragtree",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#0a0a0a"
       },
       "permissions": [
         "android.permission.HIGH_SAMPLING_RATE_SENSORS"
+      ],
+      "blockedPermissions": [
+        "android.permission.ACTIVITY_RECOGNITION"
       ]
     },
     "web": {
