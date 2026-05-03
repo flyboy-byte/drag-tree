@@ -15,6 +15,12 @@
       "android": {
         "buildType": "apk"
       }
+    },
+    "play": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "autoIncrement": true
     }
   }
 }
