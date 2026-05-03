@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { TreeState } from "@/components/ChristmasTree";
 import type { ReactionGrade } from "@/components/ReactionDisplay";
 
@@ -29,6 +30,11 @@ const INITIAL_TREE: TreeState = {
   red: false,
 };
 
+// AsyncStorage keys — bumping the suffix is the migration path if the
+// shape of RunRecord ever changes incompatibly.
+const STORAGE_KEY_RECORDS  = "dragtree.history.v1";
+const STORAGE_KEY_BEST     = "dragtree.bestTime.v1";
+
 function gradeRT(rt: number): ReactionGrade {
   if (rt < 0) return "redlight";
   if (rt <= 0.049) return "perfect";
@@ -51,6 +57,62 @@ export function useTreeSession() {
   const timerIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const phaseRef = useRef<SessionPhase>("idle");
   const modeRef = useRef<TreeMode>("pro");
+  // Hydration guard: don't write to AsyncStorage until we've finished
+  // reading the initial values, otherwise the first render's empty state
+  // would clobber the stored history.
+  const hydratedRef = useRef(false);
+
+  // ── Hydrate persisted history + best on mount ─────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [rawRecords, rawBest] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEY_RECORDS),
+          AsyncStorage.getItem(STORAGE_KEY_BEST),
+        ]);
+        if (cancelled) return;
+        if (rawRecords) {
+          const parsed: unknown = JSON.parse(rawRecords);
+          if (Array.isArray(parsed)) {
+            // Light shape validation; drop any malformed entries silently
+            // rather than crashing on schema drift.
+            const safe = parsed.filter((r): r is RunRecord =>
+              !!r && typeof r === "object" &&
+              typeof (r as RunRecord).id === "string" &&
+              typeof (r as RunRecord).reactionTime === "number" &&
+              typeof (r as RunRecord).mode === "string"
+            );
+            setRecords(safe.slice(0, 30));
+          }
+        }
+        if (rawBest) {
+          const n = Number(rawBest);
+          if (Number.isFinite(n) && n > 0) setBestTime(n);
+        }
+      } catch {
+        // Storage unavailable — proceed with empty state, no user-facing error.
+      } finally {
+        if (!cancelled) hydratedRef.current = true;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Persist on change (after hydration) ───────────────────────────────
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    AsyncStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records)).catch(() => {});
+  }, [records]);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    if (bestTime === null) {
+      AsyncStorage.removeItem(STORAGE_KEY_BEST).catch(() => {});
+    } else {
+      AsyncStorage.setItem(STORAGE_KEY_BEST, String(bestTime)).catch(() => {});
+    }
+  }, [bestTime]);
 
   const updatePhase = (p: SessionPhase) => {
     phaseRef.current = p;
@@ -84,6 +146,12 @@ export function useTreeSession() {
     setReactionTime(null);
     setGrade(null);
     greenAtRef.current = null;
+  }, []);
+
+  // Wipe persisted history (called by the History "clear" button).
+  const clearHistory = useCallback(() => {
+    setRecords([]);
+    setBestTime(null);
   }, []);
 
   const startSequence = useCallback(() => {
@@ -196,7 +264,10 @@ export function useTreeSession() {
     }));
     const record: RunRecord = {
       id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
-      reactionTime: 0,
+      // Negative RT marks redlight runs unambiguously; matches gradeRT() rule
+      // and the live setReactionTime(-0.1) above, so history sorts and any
+      // future analytics treat redlights consistently.
+      reactionTime: -0.1,
       grade: "redlight",
       mode: modeRef.current,
     };
@@ -244,6 +315,7 @@ export function useTreeSession() {
     handleManualLaunch,
     startSequence,
     reset,
+    clearHistory,
     triggerLaunch,
     triggerRedLight,
     isArmed,
