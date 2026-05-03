@@ -88,6 +88,7 @@ export default function HomeScreen() {
     isArmed,
     isWatchingRedLight,
     getGreenAt,
+    clearHistory,
   } = useTreeSession();
 
   const { currentG, isAvailable, simulateLaunch, simulateRedLight } = useAccelerometer({
@@ -157,6 +158,13 @@ export default function HomeScreen() {
 
   const isActive = phase === "staging" || phase === "countdown" || phase === "go";
   const isDone   = phase === "result" || phase === "redlight";
+
+  // Lock the Practice Mode toggle (in Settings) while a run is active so the
+  // user can't change modes mid-sequence and end up in a half-armed state.
+  React.useEffect(() => {
+    settings.set({ sessionLocked: isActive });
+    return () => { settings.set({ sessionLocked: false }); };
+  }, [isActive]);
 
   // On native with sensor: arms automatically. On web or when practice toggled: tap button.
   const useSimulation = !isAvailable || practiceMode;
@@ -240,6 +248,9 @@ export default function HomeScreen() {
             }}
             disabled={isActive}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
+            accessibilityHint="Open the settings and sensor diagnostics screen"
             style={({ pressed }) => [
               styles.badge,
               {
@@ -312,6 +323,9 @@ export default function HomeScreen() {
         ]}
         onPress={onMainPress}
         disabled={btnDisabled}
+        accessibilityRole="button"
+        accessibilityLabel={btnLabel}
+        accessibilityState={{ disabled: btnDisabled }}
       >
         <Text style={[styles.mainBtnText, { color: btnTextColor }]}>
           {btnLabel}
@@ -332,6 +346,9 @@ export default function HomeScreen() {
                 },
               ]}
               onPress={() => setSensitivity(opt.key)}
+              accessibilityRole="button"
+              accessibilityLabel={`Set launch sensitivity to ${opt.label.toLowerCase()}, ${opt.sub}`}
+              accessibilityState={{ selected: sensitivity === opt.key }}
             >
               <Text style={[styles.sensBtnLabel, { color: sensitivity === opt.key ? colors.foreground : colors.mutedForeground }]}>
                 {opt.label}
@@ -368,7 +385,7 @@ export default function HomeScreen() {
 
       {/* History */}
       <View style={styles.history}>
-        <HistoryList records={records} onClear={reset} />
+        <HistoryList records={records} onClear={clearHistory} />
       </View>
 
       {/* Footer: privacy + source links */}
