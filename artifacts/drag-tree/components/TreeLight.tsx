@@ -17,7 +17,7 @@ interface TreeLightProps {
   size?: number;
 }
 
-export function TreeLight({ color, lit, size = 52 }: TreeLightProps) {
+function TreeLightImpl({ color, lit, size = 52 }: TreeLightProps) {
   const colors = useColors();
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(lit ? 1 : 0);
@@ -110,6 +110,10 @@ export function TreeLight({ color, lit, size = 52 }: TreeLightProps) {
     </View>
   );
 }
+
+// Memoized: only re-renders when its own color/lit/size actually change,
+// so flipping amber1 doesn't re-render the green or red bulbs.
+export const TreeLight = React.memo(TreeLightImpl);
 
 const styles = StyleSheet.create({
   wrapper: {
