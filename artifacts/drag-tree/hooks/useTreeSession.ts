@@ -131,8 +131,6 @@ export function useTreeSession() {
     // Green fires greenDelay after the LAST amber
     const lastAmberAt = randomDelay + 600 + amberInterval * 2;
     ids.push(setTimeout(() => {
-      const now = performance.now();
-      greenAtRef.current = now;
       updatePhase("go");
       setTree(t => ({
         ...t,
@@ -141,6 +139,16 @@ export function useTreeSession() {
         amber3: false,
         green: true,
       }));
+      // Capture greenAt at next vsync (when pixels actually change), not at
+      // state-set time. The rAF callback's `t` is performance.now()-aligned.
+      // This removes ~30–40 ms of pre-paint bias from every measured RT.
+      // Pre-seed with performance.now() as a safety net in case rAF is
+      // delayed past an extremely fast detection (sub-16ms, never happens
+      // in practice but preserves correctness).
+      greenAtRef.current = performance.now();
+      requestAnimationFrame((t) => {
+        greenAtRef.current = t;
+      });
     }, lastAmberAt + greenDelay));
 
     // Auto-late after 2s of green
@@ -240,5 +248,9 @@ export function useTreeSession() {
     triggerRedLight,
     isArmed,
     isWatchingRedLight,
+    // Lazy accessor for the current greenAt — used by the home screen to
+    // attach session context to per-launch sensor telemetry without making
+    // greenAt itself reactive (it would cause needless re-renders).
+    getGreenAt: () => greenAtRef.current,
   };
 }
