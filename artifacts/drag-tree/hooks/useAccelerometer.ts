@@ -1,10 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { DeviceMotion } from "expo-sensors";
 import { Platform } from "react-native";
-import {
-  loadNativeLaunchDetector,
-  type LaunchEventPayload,
-} from "../modules/native-launch-detector/src";
 
 export type LaunchSensitivity = "gentle" | "normal" | "hard";
 
@@ -132,19 +128,8 @@ export function useAccelerometer({
   const peakMagRef         = useRef(0);
   const simTimerRef        = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // Native-module clock offset: nativeMs + offset = performance.now().
-  // Captured once per session; both clocks tick at the same rate while the
-  // screen is on, so a single sample is sufficient.
-  const nativeOffsetRef    = useRef<number | null>(null);
-
   const [currentG,    setCurrentG]    = useState(0);
   const [isAvailable, setIsAvailable] = useState(false);
-
-  // Resolve the native module once. On Android with a dev/EAS build this is
-  // the real Kotlin module; on web/iOS/Expo Go it's null and we fall back
-  // to the JS DeviceMotion path.
-  const nativeRef = useRef(loadNativeLaunchDetector());
-  const usingNative = nativeRef.current !== null;
 
   const resetDetection = () => {
     firedRef.current         = false;
@@ -161,94 +146,16 @@ export function useAccelerometer({
   // (it's a calibration that holds for the app session).
   useEffect(() => {
     resetDetection();
-    nativeRef.current?.resetDetection();
   }, [armed, watchForRedLight]);
 
   // Availability
   useEffect(() => {
     if (Platform.OS === "web") { setIsAvailable(false); return; }
-    if (usingNative && nativeRef.current) {
-      nativeRef.current.isAvailable().then(setIsAvailable);
-    } else {
-      DeviceMotion.isAvailableAsync().then(setIsAvailable);
-    }
-  }, [usingNative]);
+    DeviceMotion.isAvailableAsync().then(setIsAvailable);
+  }, []);
 
-  // ── Native subscription path ────────────────────────────────────────────
+  // ── JS sensor subscription path (Android via expo-sensors DeviceMotion) ──
   useEffect(() => {
-    if (!usingNative || !isAvailable) return;
-    const native = nativeRef.current;
-    if (!native) return;
-
-    // One-shot clock offset capture. Read native clock and performance.now()
-    // back-to-back; the small (~1 ms) bridge round-trip is absorbed into
-    // a constant offset that applies equally to every onset timestamp,
-    // so it does NOT affect RT accuracy (which is a delta).
-    let cancelled = false;
-    if (nativeOffsetRef.current === null) {
-      native.getNativeNowMs().then(nativeNow => {
-        if (cancelled) return;
-        nativeOffsetRef.current = performance.now() - nativeNow;
-      });
-    }
-
-    // onSample only fires from native while idle (gated server-side).
-    // During the armed detection window there are zero bridge crossings
-    // until the single onLaunch / onRedLight event.
-    const sampleSub = native.addListener("onSample", ({ g }) => {
-      setCurrentG(g);
-    });
-
-    const handleDetection = (e: LaunchEventPayload, fromArmed: boolean) => {
-      if (firedRef.current) return;
-      firedRef.current = true;
-      // Convert native-clock timestamps into performance.now()-aligned ms.
-      const offset = nativeOffsetRef.current ?? 0;
-      const onsetT     = e.onsetNativeMs     + offset;
-      const thresholdT = e.thresholdNativeMs + offset;
-      const confirmT   = e.confirmNativeMs   + offset;
-      if (onLaunchTelemetry) {
-        onLaunchTelemetry({
-          greenAt: null,
-          onsetTime: onsetT,
-          thresholdTime: thresholdT,
-          confirmTime: confirmT,
-          peakG: e.peakG,
-          rewindMs: e.rewindMs,
-          sampleIntervalMean: e.sampleIntervalMeanMs,
-          source: "native",
-        });
-      }
-      if (fromArmed) onLaunch(onsetT);
-      else           onRedLight();
-    };
-
-    const launchSub = native.addListener("onLaunch",
-      (e) => handleDetection(e, true));
-    const redSub = native.addListener("onRedLight",
-      (e) => handleDetection(e, false));
-
-    // Keep the sensor registered at all times — even while idle — so the
-    // throttled `onSample` event can drive the live G gauge between
-    // sessions. The native side gates detection (and the bridge crossing)
-    // on the `armed` / `watchRedLight` flags we pass here, so leaving
-    // the sensor on while idle is free of bridge-traffic during the
-    // critical detection window.
-    native.start(SENSITIVITY_THRESHOLDS[sensitivity], armed, watchForRedLight);
-
-    return () => {
-      cancelled = true;
-      sampleSub.remove();
-      launchSub.remove();
-      redSub.remove();
-      native.stop();
-    };
-  }, [usingNative, isAvailable, armed, watchForRedLight, sensitivity,
-      onLaunch, onRedLight, onLaunchTelemetry]);
-
-  // ── JS-fallback subscription path (web, iOS, Expo Go) ───────────────────
-  useEffect(() => {
-    if (usingNative) return;
     if (!isAvailable || Platform.OS === "web") return;
 
     if (!armed && !watchForRedLight) {
@@ -348,7 +255,7 @@ export function useAccelerometer({
     });
 
     return () => sub.remove();
-  }, [usingNative, isAvailable, armed, watchForRedLight, sensitivity,
+  }, [isAvailable, armed, watchForRedLight, sensitivity,
       onLaunch, onRedLight, onLaunchTelemetry]);
 
   // ── Web / simulator ───────────────────────────────────────────────────────
@@ -391,5 +298,5 @@ export function useAccelerometer({
 
   useEffect(() => () => clearSimTimers(), []);
 
-  return { currentG, isAvailable, simulateLaunch, simulateRedLight, usingNative };
+  return { currentG, isAvailable, simulateLaunch, simulateRedLight };
 }
