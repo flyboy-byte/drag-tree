@@ -310,6 +310,29 @@ export default function DiagnosticScreen() {
               Finish or reset the current run to change this.
             </Text>
           )}
+
+          <View style={[styles.divider, { borderColor: colors.border }]} />
+
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={[styles.rowVal, { color: colors.foreground }]}>Sportsman Tree</Text>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+                Switch from Pro Tree (.400s, all ambers together) to Sportsman Tree (.500s, ambers count down one at a time).
+              </Text>
+            </View>
+            <Switch
+              value={appSettings.treeMode === "full"}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                settings.set({ treeMode: v ? "full" : "pro" });
+              }}
+              disabled={appSettings.sessionLocked}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={appSettings.treeMode === "full" ? colors.primaryForeground : colors.mutedForeground}
+              accessibilityLabel="Sportsman Tree toggle"
+              accessibilityHint="Switches from Pro Tree (.400s) to Sportsman Tree (.500s)"
+            />
+          </View>
         </View>
 
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
@@ -539,6 +562,7 @@ const styles = StyleSheet.create({
   rowSub:   { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 1 },
   warn: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
   toggleRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4 },
+  divider: { borderTopWidth: StyleSheet.hairlineWidth, marginVertical: 10 },
   sectionLabel: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 2, marginTop: 6, paddingHorizontal: 4 },
   sensBlock: { gap: 4, paddingVertical: 6 },
   sensLabel: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 1 },
