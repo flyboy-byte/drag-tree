@@ -22,6 +22,7 @@ import Animated, {
 import { ChristmasTree } from "@/components/ChristmasTree";
 import { ReactionDisplay } from "@/components/ReactionDisplay";
 import { HistoryList } from "@/components/HistoryList";
+import { FooterLinks } from "@/components/FooterLinks";
 import { useTreeSession } from "@/hooks/useTreeSession";
 import { useAccelerometer, type LaunchSensitivity } from "@/hooks/useAccelerometer";
 import { useColors } from "@/hooks/useColors";
@@ -349,6 +350,9 @@ export default function HomeScreen() {
       <View style={styles.history}>
         <HistoryList records={records} onClear={reset} />
       </View>
+
+      {/* Footer: privacy + source links */}
+      <FooterLinks />
     </ScrollView>
   );
 }
