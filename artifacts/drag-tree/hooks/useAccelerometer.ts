@@ -127,7 +127,6 @@ export function useAccelerometer({
   const intervalSumRef     = useRef(0);
   const intervalCountRef   = useRef(0);
   const peakMagRef         = useRef(0);
-  const simTimerRef        = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Stable refs for the caller's callbacks. Updating refs is synchronous and
   // doesn't trigger a re-render, so the sensor subscription effect never needs
