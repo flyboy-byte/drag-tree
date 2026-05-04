@@ -17,6 +17,7 @@ import { useColors } from "@/hooks/useColors";
 import { SENSITIVITY_THRESHOLDS } from "@/hooks/useAccelerometer";
 import { launchTelemetry, type RealLaunchTelemetry } from "@/lib/launchTelemetry";
 import { settings, type SensitivityKey } from "@/lib/settings";
+import { sessionLock } from "@/lib/sessionLock";
 
 const SENS_OPTIONS: { key: SensitivityKey; label: string; sub: string }[] = [
   { key: "gentle", label: "GENTLE", sub: "0.15g" },
@@ -194,8 +195,12 @@ export default function DiagnosticScreen() {
     launchTelemetry.get,
   );
 
-  // Subscribe to user preferences (practice mode toggle)
+  // Subscribe to user preferences
   const appSettings = useSyncExternalStore(settings.subscribe, settings.get, settings.get);
+
+  // Subscribe to session lock (separate store so the home screen's phase
+  // transitions don't trigger settings re-renders on this screen).
+  const isSessionLocked = useSyncExternalStore(sessionLock.subscribe, sessionLock.get, sessionLock.get);
 
   useEffect(() => {
     if (Platform.OS === "web") { setAvailable(false); return; }
@@ -305,7 +310,7 @@ export default function DiagnosticScreen() {
                 Haptics.selectionAsync();
                 settings.set({ showFloorIt: v });
               }}
-              disabled={appSettings.sessionLocked}
+              disabled={isSessionLocked}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={appSettings.showFloorIt ? colors.primaryForeground : colors.mutedForeground}
               accessibilityLabel="FLOOR IT button toggle"
@@ -329,7 +334,7 @@ export default function DiagnosticScreen() {
                 Haptics.selectionAsync();
                 settings.set({ sensorEnabled: v });
               }}
-              disabled={appSettings.sessionLocked}
+              disabled={isSessionLocked}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={appSettings.sensorEnabled ? colors.primaryForeground : colors.mutedForeground}
               accessibilityLabel="Motion sensor toggle"
@@ -337,7 +342,7 @@ export default function DiagnosticScreen() {
             />
           </View>
 
-          {appSettings.sessionLocked && (
+          {isSessionLocked && (
             <Text style={[styles.rowSub, { color: colors.mutedForeground, marginTop: 6 }]}>
               Finish or reset the current run to change this.
             </Text>
@@ -364,17 +369,17 @@ export default function DiagnosticScreen() {
                     {
                       backgroundColor: appSettings.sensitivity === opt.key ? colors.secondary : "transparent",
                       borderColor: appSettings.sensitivity === opt.key ? colors.border : "transparent",
-                      opacity: appSettings.sessionLocked ? 0.5 : 1,
+                      opacity: isSessionLocked ? 0.5 : 1,
                     },
                   ]}
                   onPress={() => {
-                    if (appSettings.sessionLocked) return;
+                    if (isSessionLocked) return;
                     Haptics.selectionAsync();
                     settings.set({ sensitivity: opt.key });
                   }}
                   accessibilityRole="button"
                   accessibilityLabel={`Set sensitivity to ${opt.label.toLowerCase()}`}
-                  accessibilityState={{ selected: appSettings.sensitivity === opt.key, disabled: appSettings.sessionLocked }}
+                  accessibilityState={{ selected: appSettings.sensitivity === opt.key, disabled: isSessionLocked }}
                 >
                   <Text style={[styles.sensChipLabel, { color: appSettings.sensitivity === opt.key ? colors.foreground : colors.mutedForeground }]}>
                     {opt.label}
@@ -442,7 +447,7 @@ export default function DiagnosticScreen() {
                 Haptics.selectionAsync();
                 settings.set({ treeMode: v ? "full" : "pro" });
               }}
-              disabled={appSettings.sessionLocked}
+              disabled={isSessionLocked}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={appSettings.treeMode === "full" ? colors.primaryForeground : colors.mutedForeground}
               accessibilityLabel="Sportsman Tree toggle"
