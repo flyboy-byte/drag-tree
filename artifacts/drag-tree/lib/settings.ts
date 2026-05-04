@@ -17,16 +17,12 @@ export interface AppSettings {
   // Arm the motion sensor for launch detection.
   // When false, sensor is subscribed but never fires — taps take over.
   sensorEnabled: boolean;
-  // Set by the home screen while a run is in progress; the settings screen
-  // uses this to lock toggles that would corrupt an active session.
-  // NOT persisted — it's a runtime-only flag.
-  sessionLocked: boolean;
   // "pro" = Pro Tree (.400s, all ambers together)
   // "full" = Sportsman Tree (.500s, ambers count down one at a time)
   treeMode: "pro" | "full";
 }
 
-// Fields written to AsyncStorage. sessionLocked is runtime-only and excluded.
+// Fields written to AsyncStorage on every change.
 const STORAGE_KEY = "dragtree.settings.v1";
 const VALID_SENSITIVITY: SensitivityKey[] = ["gentle", "normal", "hard", "custom"];
 
@@ -35,7 +31,6 @@ let current: AppSettings = {
   sensitivity: "normal",
   customThreshold: 2.0,
   sensorEnabled: true,
-  sessionLocked: false,
   treeMode: "pro",
 };
 
@@ -90,10 +85,7 @@ export const settings = {
   set(patch: Partial<AppSettings>): void {
     current = { ...current, ...patch };
     listeners.forEach(fn => fn());
-    // Don't persist the runtime-only sessionLocked field.
-    if (Object.keys(patch).some(k => k !== "sessionLocked")) {
-      persist();
-    }
+    persist();
   },
   subscribe(fn: () => void): () => void {
     listeners.add(fn);
