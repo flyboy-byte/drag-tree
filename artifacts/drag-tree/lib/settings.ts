@@ -3,7 +3,11 @@
 // screen can both read/write the same flags without a context provider.
 
 export interface AppSettings {
-  practiceMode: boolean;
+  // Show an on-screen FLOOR IT / RED LIGHT button on the home screen.
+  showFloorIt: boolean;
+  // Arm the motion sensor for launch detection.
+  // When false, sensor is subscribed but never fires — taps take over.
+  sensorEnabled: boolean;
   // Set by the home screen while a run is in progress; the settings screen
   // uses this to lock toggles that would corrupt an active session.
   sessionLocked: boolean;
@@ -13,7 +17,8 @@ export interface AppSettings {
 }
 
 let current: AppSettings = {
-  practiceMode: false,
+  showFloorIt: false,
+  sensorEnabled: true,
   sessionLocked: false,
   treeMode: "pro",
 };
