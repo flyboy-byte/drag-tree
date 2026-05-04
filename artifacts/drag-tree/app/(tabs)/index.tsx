@@ -1,4 +1,4 @@
-import React, { useState, useSyncExternalStore } from "react";
+import React, { useSyncExternalStore } from "react";
 import {
   View,
   Text,
@@ -24,19 +24,12 @@ import { ReactionDisplay } from "@/components/ReactionDisplay";
 import { HistoryList } from "@/components/HistoryList";
 import { FooterLinks } from "@/components/FooterLinks";
 import { useTreeSession } from "@/hooks/useTreeSession";
-import { useAccelerometer, SENSITIVITY_THRESHOLDS, type LaunchSensitivity } from "@/hooks/useAccelerometer";
+import { useAccelerometer, SENSITIVITY_THRESHOLDS } from "@/hooks/useAccelerometer";
 import { useColors } from "@/hooks/useColors";
 import { launchTelemetry } from "@/lib/launchTelemetry";
 import { settings } from "@/lib/settings";
 import { coachingHint } from "@/lib/coaching";
 
-type SensKey = LaunchSensitivity | "custom";
-const SENSITIVITY_OPTIONS: { key: SensKey; label: string; sub: string }[] = [
-  { key: "gentle", label: "GENTLE", sub: "0.15g" },
-  { key: "normal", label: "NORMAL", sub: "0.25g" },
-  { key: "hard",   label: "HARD",   sub: "0.46g" },
-  { key: "custom", label: "CUSTOM", sub: "adj."  },
-];
 
 function getStatusLabel(phase: string): string {
   switch (phase) {
@@ -71,17 +64,17 @@ const gStyles = StyleSheet.create({
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const [sensitivity, setSensitivity] = useState<SensKey>("normal");
   const appSettings = useSyncExternalStore(settings.subscribe, settings.get, settings.get);
   const showFloorIt      = appSettings.showFloorIt;
   const sensorEnabled    = appSettings.sensorEnabled;
   const treeMode         = appSettings.treeMode;
+  const sensitivity      = appSettings.sensitivity;
   const customThreshold  = appSettings.customThreshold;
   // Resolved threshold in m/s² — presets look up from the table, custom uses the stored value.
   const thresholdValue: number =
     sensitivity === "custom"
       ? customThreshold
-      : SENSITIVITY_THRESHOLDS[sensitivity as LaunchSensitivity];
+      : SENSITIVITY_THRESHOLDS[sensitivity];
 
   const {
     phase,
@@ -360,75 +353,6 @@ export default function HomeScreen() {
         </Text>
       </Pressable>
 
-      {/* Sensor sensitivity picker — show when idle/done */}
-      {isAvailable && !isActive && (
-        <View style={styles.sensitivityRow}>
-          {SENSITIVITY_OPTIONS.map(opt => (
-            <Pressable
-              key={opt.key}
-              style={[
-                styles.sensBtn,
-                {
-                  backgroundColor: sensitivity === opt.key ? colors.secondary : "transparent",
-                  borderColor: sensitivity === opt.key ? colors.border : "transparent",
-                },
-              ]}
-              onPress={() => setSensitivity(opt.key)}
-              accessibilityRole="button"
-              accessibilityLabel={`Set launch sensitivity to ${opt.label.toLowerCase()}, ${opt.sub}`}
-              accessibilityState={{ selected: sensitivity === opt.key }}
-            >
-              <Text style={[styles.sensBtnLabel, { color: sensitivity === opt.key ? colors.foreground : colors.mutedForeground }]}>
-                {opt.label}
-              </Text>
-              <Text style={[styles.sensBtnSub, { color: colors.mutedForeground }]}>
-                {opt.key === "custom" ? `${(customThreshold / 9.81).toFixed(2)}g` : opt.sub}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
-
-      {/* Custom threshold stepper — shown when CUSTOM is selected */}
-      {sensitivity === "custom" && isAvailable && !isActive && (
-        <View style={styles.stepperRow}>
-          <Pressable
-            onPress={() => {
-              Haptics.selectionAsync();
-              settings.set({
-                customThreshold: Math.max(0.8, Math.round((customThreshold - 0.1) * 10) / 10),
-              });
-            }}
-            hitSlop={10}
-            style={[styles.stepBtn, { borderColor: colors.border }]}
-            accessibilityLabel="Decrease launch threshold"
-          >
-            <Text style={[styles.stepBtnText, { color: colors.foreground }]}>−</Text>
-          </Pressable>
-          <View style={styles.stepValue}>
-            <Text style={[styles.stepValMain, { color: colors.foreground }]}>
-              {customThreshold.toFixed(1)} m/s²
-            </Text>
-            <Text style={[styles.stepValSub, { color: colors.mutedForeground }]}>
-              {(customThreshold / 9.81).toFixed(2)}g
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => {
-              Haptics.selectionAsync();
-              settings.set({
-                customThreshold: Math.min(6.0, Math.round((customThreshold + 0.1) * 10) / 10),
-              });
-            }}
-            hitSlop={10}
-            style={[styles.stepBtn, { borderColor: colors.border }]}
-            accessibilityLabel="Increase launch threshold"
-          >
-            <Text style={[styles.stepBtnText, { color: colors.foreground }]}>+</Text>
-          </Pressable>
-        </View>
-      )}
-
       {/* Contextual hint */}
       {phase === "idle" && (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
@@ -559,64 +483,6 @@ const styles = StyleSheet.create({
     fontWeight: "700" as const,
     letterSpacing: 4,
     fontFamily: "Inter_700Bold",
-  },
-  sensitivityRow: {
-    flexDirection: "row",
-    gap: 6,
-    marginBottom: 8,
-  },
-  sensBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: "center",
-  },
-  sensBtnLabel: {
-    fontSize: 10,
-    fontWeight: "700" as const,
-    letterSpacing: 1.5,
-    fontFamily: "Inter_700Bold",
-  },
-  sensBtnSub: {
-    fontSize: 9,
-    fontFamily: "Inter_400Regular",
-    marginTop: 1,
-  },
-  stepperRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    marginBottom: 8,
-  },
-  stepBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepBtnText: {
-    fontSize: 22,
-    fontFamily: "Inter_600SemiBold",
-    fontWeight: "600" as const,
-    lineHeight: 26,
-  },
-  stepValue: {
-    alignItems: "center",
-    minWidth: 108,
-  },
-  stepValMain: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-    fontWeight: "600" as const,
-    fontVariant: ["tabular-nums"],
-  },
-  stepValSub: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    marginTop: 1,
   },
   fallbackHint: {
     fontSize: 12,
