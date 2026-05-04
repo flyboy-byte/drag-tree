@@ -299,15 +299,15 @@ export function useAccelerometer({
     simTimerRef.current.push(fireT);
   }, []);
 
+  // No arm-state guard here — caller (onMainPress) already gates on phase.
+  // Removing the guard lets simulation work even when sensorEnabled=false.
   const simulateLaunch = useCallback(() => {
-    if (!armed) return;
-    runSimulation(() => onLaunch(performance.now()));
-  }, [armed, runSimulation, onLaunch]);
+    runSimulation(() => onLaunchRef.current(performance.now()));
+  }, [runSimulation]);
 
   const simulateRedLight = useCallback(() => {
-    if (!watchForRedLight) return;
-    runSimulation(onRedLight);
-  }, [watchForRedLight, runSimulation, onRedLight]);
+    runSimulation(() => onRedLightRef.current());
+  }, [runSimulation]);
 
   useEffect(() => () => clearSimTimers(), []);
 
