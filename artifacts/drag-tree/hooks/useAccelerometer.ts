@@ -128,6 +128,18 @@ export function useAccelerometer({
   const peakMagRef         = useRef(0);
   const simTimerRef        = useRef<ReturnType<typeof setTimeout>[]>([]);
 
+  // Stable refs for the caller's callbacks. Updating refs is synchronous and
+  // doesn't trigger a re-render, so the sensor subscription effect never needs
+  // to tear down just because the parent re-rendered (which happens on every
+  // sensor sample via setCurrentG). Without this, the sub would be removed and
+  // re-created ~125×/s, creating tiny gaps in coverage during a real launch.
+  const onLaunchRef          = useRef(onLaunch);
+  const onRedLightRef        = useRef(onRedLight);
+  const onLaunchTelemetryRef = useRef(onLaunchTelemetry);
+  useEffect(() => { onLaunchRef.current = onLaunch; });
+  useEffect(() => { onRedLightRef.current = onRedLight; });
+  useEffect(() => { onLaunchTelemetryRef.current = onLaunchTelemetry; });
+
   const [currentG,    setCurrentG]    = useState(0);
   const [isAvailable, setIsAvailable] = useState(false);
 
@@ -233,8 +245,8 @@ export function useAccelerometer({
           const meanInt = intervalCountRef.current > 0
             ? intervalSumRef.current / intervalCountRef.current
             : SAMPLE_INTERVAL_MS;
-          if (onLaunchTelemetry) {
-            onLaunchTelemetry({
+          if (onLaunchTelemetryRef.current) {
+            onLaunchTelemetryRef.current({
               greenAt: null,
               onsetTime: onsetT,
               thresholdTime: thresholdTimeRef.current ?? sampleT,
@@ -245,8 +257,8 @@ export function useAccelerometer({
               source: "js",
             });
           }
-          if (armed)                 { onLaunch(onsetT); }
-          else if (watchForRedLight) { onRedLight(); }
+          if (armed)                 { onLaunchRef.current(onsetT); }
+          else if (watchForRedLight) { onRedLightRef.current(); }
         }
       } else {
         sustainedRef.current     = 0;
@@ -255,8 +267,9 @@ export function useAccelerometer({
     });
 
     return () => sub.remove();
-  }, [isAvailable, armed, watchForRedLight, sensitivity,
-      onLaunch, onRedLight, onLaunchTelemetry]);
+  // Callbacks intentionally omitted — they're read via refs so the
+  // subscription never tears down just because the parent re-rendered.
+  }, [isAvailable, armed, watchForRedLight, sensitivity]);
 
   // ── Web / simulator ───────────────────────────────────────────────────────
   const clearSimTimers = () => {
