@@ -2,7 +2,7 @@
   "expo": {
     "name": "DragTree",
     "slug": "drag-tree",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "drag-tree",
@@ -28,7 +28,7 @@
       "blockedPermissions": [
         "android.permission.ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 7
+      "versionCode": 8
     },
     "web": {
       "favicon": "./assets/images/icon.png",
