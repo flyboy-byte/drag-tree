@@ -6,7 +6,7 @@ import { useColors } from "@/hooks/useColors";
 
 const PRIVACY_URL = "https://flyboy-byte.github.io/drag-tree/privacy.html";
 const SOURCE_URL  = "https://github.com/flyboy-byte/drag-tree";
-const VERSION     = "v1.0.0";
+const VERSION     = "v1.2.0";
 
 export function FooterLinks() {
   const colors = useColors();
