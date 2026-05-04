@@ -299,13 +299,17 @@ export function useAccelerometer({
     simTimerRef.current.push(fireT);
   }, []);
 
-  // No arm-state guard here — caller (onMainPress) already gates on phase.
-  // Removing the guard lets simulation work even when sensorEnabled=false.
+  // Reset firedRef before each explicit simulation tap so subsequent runs
+  // work when sensorEnabled=false. When the sensor IS live and fires first,
+  // the phase transitions to "result" before the user can tap again, so
+  // double-fire is not possible in practice.
   const simulateLaunch = useCallback(() => {
+    firedRef.current = false;
     runSimulation(() => onLaunchRef.current(performance.now()));
   }, [runSimulation]);
 
   const simulateRedLight = useCallback(() => {
+    firedRef.current = false;
     runSimulation(() => onRedLightRef.current());
   }, [runSimulation]);
 
