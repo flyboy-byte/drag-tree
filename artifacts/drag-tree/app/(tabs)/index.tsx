@@ -28,6 +28,7 @@ import { useAccelerometer, SENSITIVITY_THRESHOLDS } from "@/hooks/useAcceleromet
 import { useColors } from "@/hooks/useColors";
 import { launchTelemetry } from "@/lib/launchTelemetry";
 import { settings } from "@/lib/settings";
+import { sessionLock } from "@/lib/sessionLock";
 import { coachingHint } from "@/lib/coaching";
 
 function getStatusLabel(phase: string): string {
@@ -176,9 +177,11 @@ export default function HomeScreen() {
 
   // Lock Settings toggles while a run is active so the user can't change
   // modes mid-sequence and end up in a half-armed state.
+  // Uses sessionLock (not settings) so this write never triggers a home
+  // screen re-render — the home screen doesn't read sessionLocked.
   React.useEffect(() => {
-    settings.set({ sessionLocked: isActive });
-    return () => { settings.set({ sessionLocked: false }); };
+    sessionLock.set(isActive);
+    return () => { sessionLock.set(false); };
   }, [isActive]);
 
   // sensorActive: sensor hardware present AND enabled in settings.
