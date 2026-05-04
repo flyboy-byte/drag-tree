@@ -271,49 +271,26 @@ export function useAccelerometer({
   // subscription never tears down just because the parent re-rendered.
   }, [isAvailable, armed, watchForRedLight, threshold]);
 
-  // ── Web / simulator ───────────────────────────────────────────────────────
-  const clearSimTimers = () => {
-    simTimerRef.current.forEach(clearTimeout);
-    simTimerRef.current = [];
-  };
-
-  const runSimulation = useCallback((callback: () => void) => {
-    clearSimTimers();
-    if (firedRef.current) return;
-
-    const steps = [0.1, 0.25, 0.5, 0.8, 1.2, 1.6, 2.0];
-    steps.forEach((g, i) => {
-      const t = setTimeout(() => setCurrentG(g), i * 16);
-      simTimerRef.current.push(t);
-    });
-
-    const fireT = setTimeout(() => {
-      firedRef.current = true;
-      callback();
-      const decay = [1.4, 1.0, 0.6, 0.3, 0.1, 0];
-      decay.forEach((g, i) => {
-        const d = setTimeout(() => setCurrentG(g), i * 40);
-        simTimerRef.current.push(d);
-      });
-    }, steps.length * 16 + 10);
-    simTimerRef.current.push(fireT);
+  // ── Simulation (explicit button taps) ────────────────────────────────────
+  // Fire immediately — no animation delay. The G-meter row is hidden the
+  // instant phase changes to "result"/"redlight", so any pre-fire ramp
+  // animation was always invisible. Capturing performance.now() at the call
+  // site gives the most accurate reaction-time anchor for FLOOR IT taps.
+  //
+  // firedRef is set to true on fire and NOT guarded here because:
+  //   - consecutive sensor-off runs: firedRef is always reset before fire, so
+  //     the "stuck true" bug between runs is eliminated.
+  //   - sensor-on + tap race: phase changes to "result" before the user's
+  //     next touch event can be processed — double-fire is not reachable.
+  const simulateLaunch = useCallback(() => {
+    firedRef.current = true;
+    onLaunchRef.current(performance.now());
   }, []);
 
-  // Reset firedRef before each explicit simulation tap so subsequent runs
-  // work when sensorEnabled=false. When the sensor IS live and fires first,
-  // the phase transitions to "result" before the user can tap again, so
-  // double-fire is not possible in practice.
-  const simulateLaunch = useCallback(() => {
-    firedRef.current = false;
-    runSimulation(() => onLaunchRef.current(performance.now()));
-  }, [runSimulation]);
-
   const simulateRedLight = useCallback(() => {
-    firedRef.current = false;
-    runSimulation(() => onRedLightRef.current());
-  }, [runSimulation]);
-
-  useEffect(() => () => clearSimTimers(), []);
+    firedRef.current = true;
+    onRedLightRef.current();
+  }, []);
 
   return { currentG, isAvailable, simulateLaunch, simulateRedLight };
 }
