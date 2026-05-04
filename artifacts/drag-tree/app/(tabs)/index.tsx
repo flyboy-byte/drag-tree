@@ -101,7 +101,9 @@ export default function HomeScreen() {
   }, [treeMode]);
 
   const { currentG, isAvailable, simulateLaunch, simulateRedLight } = useAccelerometer({
-    armed: isArmed,
+    // Disarm the sensor entirely in Practice Mode — taps drive everything
+    // and we don't want a phone wobble racing against a tap to fire a launch.
+    armed: isArmed && !practiceMode,
     sensitivity,
     onLaunch: (candidateTime: number) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -111,7 +113,7 @@ export default function HomeScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       triggerRedLight();
     },
-    watchForRedLight: isWatchingRedLight,
+    watchForRedLight: isWatchingRedLight && !practiceMode,
     onLaunchTelemetry: (t) => {
       // Combine sensor telemetry with the live greenAt and write to the
       // shared store so the Diagnostics screen can render a real-launch
