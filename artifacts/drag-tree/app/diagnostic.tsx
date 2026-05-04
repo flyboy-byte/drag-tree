@@ -16,7 +16,14 @@ import { DeviceMotion } from "expo-sensors";
 import { useColors } from "@/hooks/useColors";
 import { SENSITIVITY_THRESHOLDS } from "@/hooks/useAccelerometer";
 import { launchTelemetry, type RealLaunchTelemetry } from "@/lib/launchTelemetry";
-import { settings } from "@/lib/settings";
+import { settings, type SensitivityKey } from "@/lib/settings";
+
+const SENS_OPTIONS: { key: SensitivityKey; label: string; sub: string }[] = [
+  { key: "gentle", label: "GENTLE", sub: "0.15g" },
+  { key: "normal", label: "NORMAL", sub: "0.25g" },
+  { key: "hard",   label: "HARD",   sub: "0.46g" },
+  { key: "custom", label: "CUSTOM", sub: "adj."  },
+];
 
 const SAMPLE_INTERVAL_MS = 8;
 const CAPTURE_DURATION_MS = 5000;
@@ -338,6 +345,90 @@ export default function DiagnosticScreen() {
 
           <View style={[styles.divider, { borderColor: colors.border }]} />
 
+          {/* ── Sensor Sensitivity ── */}
+          <View style={{ gap: 10 }}>
+            <View>
+              <Text style={[styles.rowVal, { color: colors.foreground }]}>Sensor Sensitivity</Text>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground, marginTop: 3 }]}>
+                Controls how much force triggers a launch. Lower = easier to trigger.
+                Adjust if the sensor fires too early or misses your launch. Use CUSTOM
+                to dial in the exact threshold for your car.
+              </Text>
+            </View>
+            <View style={styles.sensChipRow}>
+              {SENS_OPTIONS.map(opt => (
+                <Pressable
+                  key={opt.key}
+                  style={[
+                    styles.sensChip,
+                    {
+                      backgroundColor: appSettings.sensitivity === opt.key ? colors.secondary : "transparent",
+                      borderColor: appSettings.sensitivity === opt.key ? colors.border : "transparent",
+                      opacity: appSettings.sessionLocked ? 0.5 : 1,
+                    },
+                  ]}
+                  onPress={() => {
+                    if (appSettings.sessionLocked) return;
+                    Haptics.selectionAsync();
+                    settings.set({ sensitivity: opt.key });
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Set sensitivity to ${opt.label.toLowerCase()}`}
+                  accessibilityState={{ selected: appSettings.sensitivity === opt.key, disabled: appSettings.sessionLocked }}
+                >
+                  <Text style={[styles.sensChipLabel, { color: appSettings.sensitivity === opt.key ? colors.foreground : colors.mutedForeground }]}>
+                    {opt.label}
+                  </Text>
+                  <Text style={[styles.sensChipSub, { color: colors.mutedForeground }]}>
+                    {opt.key === "custom"
+                      ? `${(appSettings.customThreshold / 9.81).toFixed(2)}g`
+                      : opt.sub}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {appSettings.sensitivity === "custom" && (
+              <View style={styles.sensStepRow}>
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    settings.set({
+                      customThreshold: Math.max(0.8, Math.round((appSettings.customThreshold - 0.1) * 10) / 10),
+                    });
+                  }}
+                  hitSlop={10}
+                  style={[styles.sensStepBtn, { borderColor: colors.border }]}
+                  accessibilityLabel="Decrease launch threshold"
+                >
+                  <Text style={[styles.sensStepBtnText, { color: colors.foreground }]}>−</Text>
+                </Pressable>
+                <View style={styles.sensStepVal}>
+                  <Text style={[styles.sensStepValMain, { color: colors.foreground }]}>
+                    {appSettings.customThreshold.toFixed(1)} m/s²
+                  </Text>
+                  <Text style={[styles.sensStepValSub, { color: colors.mutedForeground }]}>
+                    {(appSettings.customThreshold / 9.81).toFixed(2)}g · gentle is 0.15g
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    settings.set({
+                      customThreshold: Math.min(6.0, Math.round((appSettings.customThreshold + 0.1) * 10) / 10),
+                    });
+                  }}
+                  hitSlop={10}
+                  style={[styles.sensStepBtn, { borderColor: colors.border }]}
+                  accessibilityLabel="Increase launch threshold"
+                >
+                  <Text style={[styles.sensStepBtnText, { color: colors.foreground }]}>+</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+
+          <View style={[styles.divider, { borderColor: colors.border }]} />
+
           <View style={styles.toggleRow}>
             <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={[styles.rowVal, { color: colors.foreground }]}>Sportsman Tree</Text>
@@ -588,6 +679,16 @@ const styles = StyleSheet.create({
   warn: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
   toggleRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4 },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, marginVertical: 10 },
+  sensChipRow: { flexDirection: "row", gap: 5, flexWrap: "wrap" },
+  sensChip: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, alignItems: "center" },
+  sensChipLabel: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1.5 },
+  sensChipSub: { fontSize: 9, fontFamily: "Inter_400Regular", marginTop: 1 },
+  sensStepRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+  sensStepBtn: { width: 34, height: 34, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  sensStepBtnText: { fontSize: 20, fontFamily: "Inter_600SemiBold", lineHeight: 24 },
+  sensStepVal: { alignItems: "center", flex: 1 },
+  sensStepValMain: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontVariant: ["tabular-nums"] },
+  sensStepValSub: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 1 },
   sectionLabel: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 2, marginTop: 6, paddingHorizontal: 4 },
   sensBlock: { gap: 4, paddingVertical: 6 },
   sensLabel: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 1 },
