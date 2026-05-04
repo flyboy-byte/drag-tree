@@ -286,25 +286,50 @@ export default function DiagnosticScreen() {
           <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>PREFERENCES</Text>
           <View style={styles.toggleRow}>
             <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={[styles.rowVal, { color: colors.foreground }]}>Practice Mode</Text>
+              <Text style={[styles.rowVal, { color: colors.foreground }]}>FLOOR IT Button</Text>
               <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
-                Replace the motion sensor with an on-screen FLOOR IT button.
-                Useful for practicing at home without a car.
+                Show an on-screen button to trigger your launch and red-light.
+                Useful for home practice or testing timing without a car.
               </Text>
             </View>
             <Switch
-              value={appSettings.practiceMode}
+              value={appSettings.showFloorIt}
               onValueChange={(v) => {
                 Haptics.selectionAsync();
-                settings.set({ practiceMode: v });
+                settings.set({ showFloorIt: v });
               }}
               disabled={appSettings.sessionLocked}
               trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={appSettings.practiceMode ? colors.primaryForeground : colors.mutedForeground}
-              accessibilityLabel="Practice Mode toggle"
-              accessibilityHint="Replaces the motion sensor with an on-screen Floor It button"
+              thumbColor={appSettings.showFloorIt ? colors.primaryForeground : colors.mutedForeground}
+              accessibilityLabel="FLOOR IT button toggle"
+              accessibilityHint="Shows an on-screen launch button on the home screen"
             />
           </View>
+
+          <View style={[styles.divider, { borderColor: colors.border }]} />
+
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={[styles.rowVal, { color: colors.foreground }]}>Motion Sensor</Text>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+                Use the accelerometer to detect your real launch. Turn off to
+                use tap input only.
+              </Text>
+            </View>
+            <Switch
+              value={appSettings.sensorEnabled}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                settings.set({ sensorEnabled: v });
+              }}
+              disabled={appSettings.sessionLocked}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={appSettings.sensorEnabled ? colors.primaryForeground : colors.mutedForeground}
+              accessibilityLabel="Motion sensor toggle"
+              accessibilityHint="Enables or disables accelerometer launch detection"
+            />
+          </View>
+
           {appSettings.sessionLocked && (
             <Text style={[styles.rowSub, { color: colors.mutedForeground, marginTop: 6 }]}>
               Finish or reset the current run to change this.
