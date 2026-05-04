@@ -70,12 +70,18 @@ const listeners = new Set<() => void>();
   }
 })();
 
+// Debounced write — coalesces rapid stepper taps into a single I/O call.
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
 function persist(): void {
-  const { showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode } = current;
-  AsyncStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({ showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode }),
-  ).catch(() => {});
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    const { showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode } = current;
+    AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode }),
+    ).catch(() => {});
+  }, 250);
 }
 
 export const settings = {
