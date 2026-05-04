@@ -5,6 +5,9 @@
 export interface AppSettings {
   // Show an on-screen FLOOR IT / RED LIGHT button on the home screen.
   showFloorIt: boolean;
+  // Custom launch-detection threshold in m/s². Only used when
+  // sensitivity is set to "custom" on the home screen.
+  customThreshold: number;
   // Arm the motion sensor for launch detection.
   // When false, sensor is subscribed but never fires — taps take over.
   sensorEnabled: boolean;
@@ -18,6 +21,7 @@ export interface AppSettings {
 
 let current: AppSettings = {
   showFloorIt: false,
+  customThreshold: 2.0,
   sensorEnabled: true,
   sessionLocked: false,
   treeMode: "pro",
