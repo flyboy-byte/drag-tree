@@ -1,6 +1,9 @@
-// Tiny in-memory pub/sub for user preferences.
+// Tiny pub/sub store for user preferences.
 // Mirrors the launchTelemetry pattern so the home screen and the settings
 // screen can both read/write the same flags without a context provider.
+// Persistent fields are saved to AsyncStorage and reloaded on next launch.
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export type SensitivityKey = "gentle" | "normal" | "hard" | "custom";
 
@@ -16,11 +19,16 @@ export interface AppSettings {
   sensorEnabled: boolean;
   // Set by the home screen while a run is in progress; the settings screen
   // uses this to lock toggles that would corrupt an active session.
+  // NOT persisted — it's a runtime-only flag.
   sessionLocked: boolean;
   // "pro" = Pro Tree (.400s, all ambers together)
   // "full" = Sportsman Tree (.500s, ambers count down one at a time)
   treeMode: "pro" | "full";
 }
+
+// Fields written to AsyncStorage. sessionLocked is runtime-only and excluded.
+const STORAGE_KEY = "dragtree.settings.v1";
+const VALID_SENSITIVITY: SensitivityKey[] = ["gentle", "normal", "hard", "custom"];
 
 let current: AppSettings = {
   showFloorIt: false,
@@ -33,6 +41,48 @@ let current: AppSettings = {
 
 const listeners = new Set<() => void>();
 
+// Load persisted preferences on module init.
+// Runs once asynchronously; notifies subscribers when the patch is applied
+// so the UI picks up the saved values on first render (typically < 10 ms).
+(async () => {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const saved: Partial<AppSettings> = JSON.parse(raw);
+    const patch: Partial<AppSettings> = {};
+
+    if (typeof saved.showFloorIt === "boolean")
+      patch.showFloorIt = saved.showFloorIt;
+
+    if (typeof saved.sensitivity === "string" && (VALID_SENSITIVITY as string[]).includes(saved.sensitivity))
+      patch.sensitivity = saved.sensitivity as SensitivityKey;
+
+    if (typeof saved.customThreshold === "number" && Number.isFinite(saved.customThreshold))
+      patch.customThreshold = Math.max(0.8, Math.min(6.0, saved.customThreshold));
+
+    if (typeof saved.sensorEnabled === "boolean")
+      patch.sensorEnabled = saved.sensorEnabled;
+
+    if (saved.treeMode === "pro" || saved.treeMode === "full")
+      patch.treeMode = saved.treeMode;
+
+    if (Object.keys(patch).length > 0) {
+      current = { ...current, ...patch };
+      listeners.forEach(fn => fn());
+    }
+  } catch {
+    // Storage unavailable — proceed with defaults, no user-facing error.
+  }
+})();
+
+function persist(): void {
+  const { showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode } = current;
+  AsyncStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({ showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode }),
+  ).catch(() => {});
+}
+
 export const settings = {
   get(): AppSettings {
     return current;
@@ -40,6 +90,10 @@ export const settings = {
   set(patch: Partial<AppSettings>): void {
     current = { ...current, ...patch };
     listeners.forEach(fn => fn());
+    // Don't persist the runtime-only sessionLocked field.
+    if (Object.keys(patch).some(k => k !== "sessionLocked")) {
+      persist();
+    }
   },
   subscribe(fn: () => void): () => void {
     listeners.add(fn);
