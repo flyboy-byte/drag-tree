@@ -98,7 +98,8 @@ export interface LaunchTelemetry {
 
 interface UseAccelerometerOptions {
   armed: boolean;
-  sensitivity: LaunchSensitivity;
+  /** Launch-detection threshold in m/s². Use SENSITIVITY_THRESHOLDS for presets. */
+  threshold: number;
   // candidateTime is the JERK-ONSET timestamp (rewound from the confirmation
   // sample), so RT reflects the start of acceleration — not the moment we
   // crossed threshold or the moment we confirmed.
@@ -111,7 +112,7 @@ interface UseAccelerometerOptions {
 
 export function useAccelerometer({
   armed,
-  sensitivity,
+  threshold,
   onLaunch,
   onRedLight,
   watchForRedLight,
@@ -176,7 +177,6 @@ export function useAccelerometer({
     }
 
     DeviceMotion.setUpdateInterval(SAMPLE_INTERVAL_MS);
-    const threshold = SENSITIVITY_THRESHOLDS[sensitivity];
 
     const sub = DeviceMotion.addListener(({ acceleration, interval }) => {
       if (!acceleration) return;
@@ -269,7 +269,7 @@ export function useAccelerometer({
     return () => sub.remove();
   // Callbacks intentionally omitted — they're read via refs so the
   // subscription never tears down just because the parent re-rendered.
-  }, [isAvailable, armed, watchForRedLight, sensitivity]);
+  }, [isAvailable, armed, watchForRedLight, threshold]);
 
   // ── Web / simulator ───────────────────────────────────────────────────────
   const clearSimTimers = () => {
