@@ -83,7 +83,6 @@ export default function HomeScreen() {
     grade,
     records,
     bestTime,
-    handleManualLaunch,
     startSequence,
     reset,
     triggerLaunch,
