@@ -71,8 +71,9 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [sensitivity, setSensitivity] = useState<LaunchSensitivity>("normal");
   const appSettings = useSyncExternalStore(settings.subscribe, settings.get, settings.get);
-  const practiceMode = appSettings.practiceMode;
-  const treeMode = appSettings.treeMode;
+  const showFloorIt   = appSettings.showFloorIt;
+  const sensorEnabled = appSettings.sensorEnabled;
+  const treeMode      = appSettings.treeMode;
 
   const {
     phase,
@@ -101,9 +102,9 @@ export default function HomeScreen() {
   }, [treeMode]);
 
   const { currentG, isAvailable, simulateLaunch, simulateRedLight } = useAccelerometer({
-    // Disarm the sensor entirely in Practice Mode — taps drive everything
-    // and we don't want a phone wobble racing against a tap to fire a launch.
-    armed: isArmed && !practiceMode,
+    // Gate sensor on both phase and the Motion Sensor toggle.
+    // When sensorEnabled=false the subscription is idle and taps take over.
+    armed: isArmed && sensorEnabled,
     sensitivity,
     onLaunch: (candidateTime: number) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -113,7 +114,7 @@ export default function HomeScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       triggerRedLight();
     },
-    watchForRedLight: isWatchingRedLight && !practiceMode,
+    watchForRedLight: isWatchingRedLight && sensorEnabled,
     onLaunchTelemetry: (t) => {
       // Combine sensor telemetry with the live greenAt and write to the
       // shared store so the Diagnostics screen can render a real-launch
@@ -180,8 +181,11 @@ export default function HomeScreen() {
     return () => { settings.set({ sessionLocked: false }); };
   }, [isActive]);
 
-  // On native with sensor: arms automatically. On web or when practice toggled: tap button.
-  const useSimulation = !isAvailable || practiceMode;
+  // sensorActive: sensor hardware present AND enabled in settings.
+  // useSimulation: tap input is active — either FLOOR IT button is on,
+  // or the sensor isn't active (not available or disabled).
+  const sensorActive  = isAvailable && sensorEnabled;
+  const useSimulation = !sensorActive || showFloorIt;
 
   const gColor =
     currentG > 0.8 ? colors.greenOn :
@@ -241,16 +245,16 @@ export default function HomeScreen() {
               <Text style={[styles.badgeText, { color: colors.primary }]}>{bestTime.toFixed(3)}</Text>
             </View>
           )}
-          {isAvailable && !practiceMode && (
+          {sensorActive && (
             <View style={[styles.badge, { borderColor: colors.greenOn, borderWidth: 1 }]}>
               <MaterialCommunityIcons name="car-speed-limiter" size={10} color={colors.greenOn} />
               <Text style={[styles.badgeText, { color: colors.greenOn }]}>ACCEL</Text>
             </View>
           )}
-          {practiceMode && (
+          {showFloorIt && (
             <View style={[styles.badge, { borderColor: colors.primary, borderWidth: 1 }]}>
               <MaterialCommunityIcons name="gesture-tap" size={10} color={colors.primary} />
-              <Text style={[styles.badgeText, { color: colors.primary }]}>PRACTICE</Text>
+              <Text style={[styles.badgeText, { color: colors.primary }]}>FLOOR IT</Text>
             </View>
           )}
           <Pressable
@@ -378,12 +382,16 @@ export default function HomeScreen() {
       {/* Contextual hint */}
       {phase === "idle" && (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          {useSimulation
+          {sensorActive && showFloorIt
+            ? "Sensor armed — tap FLOOR IT or launch to detect"
+            : sensorActive
+            ? "Floor it when green — sensor detects your launch"
+            : showFloorIt
             ? "Tap FLOOR IT when the green lights"
-            : "Floor it when green — sensor detects your launch"}
+            : "Enable the sensor or FLOOR IT button in Settings"}
         </Text>
       )}
-      {useSimulation && phase === "countdown" && (
+      {showFloorIt && phase === "countdown" && (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
           Tap RED LIGHT to simulate an early launch
         </Text>
