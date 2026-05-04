@@ -407,8 +407,9 @@ const styles = StyleSheet.create({
     fontWeight: "700" as const,
     letterSpacing: 6,
     fontFamily: "Inter_700Bold",
+    flex: 1,
   },
-  badges: { flexDirection: "row", gap: 6 },
+  badges: { flexDirection: "row", gap: 6, flexShrink: 0 },
   badge: {
     flexDirection: "row",
     alignItems: "center",
