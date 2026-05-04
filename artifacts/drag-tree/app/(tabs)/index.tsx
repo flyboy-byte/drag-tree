@@ -30,7 +30,6 @@ import { launchTelemetry } from "@/lib/launchTelemetry";
 import { settings } from "@/lib/settings";
 import { coachingHint } from "@/lib/coaching";
 
-
 function getStatusLabel(phase: string): string {
   switch (phase) {
     case "idle":      return "READY";
@@ -175,8 +174,8 @@ export default function HomeScreen() {
   const isActive = phase === "staging" || phase === "countdown" || phase === "go";
   const isDone   = phase === "result" || phase === "redlight";
 
-  // Lock the Practice Mode toggle (in Settings) while a run is active so the
-  // user can't change modes mid-sequence and end up in a half-armed state.
+  // Lock Settings toggles while a run is active so the user can't change
+  // modes mid-sequence and end up in a half-armed state.
   React.useEffect(() => {
     settings.set({ sessionLocked: isActive });
     return () => { settings.set({ sessionLocked: false }); };
