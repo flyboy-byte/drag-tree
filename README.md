@@ -1,34 +1,14 @@
-<div align="center">
+# DragTree — NHRA Pro Tree Reaction Timer
 
-# DragTree
+An Android app that simulates a real **NHRA Pro Tree** (all 3 ambers fire simultaneously, green 0.400 s later) and measures your reaction time using the phone's accelerometer. Mount your phone on the dash, stage up, watch the tree, and floor it — the app detects launch G-force and records your RT automatically.
 
-### NHRA-style Pro Tree reaction timer for your phone
+**No internet required.** Runs fully offline after installation.
 
-*Mount it. Stage it. Floor it. Know your reaction time to the millisecond.*
+**Also works in a browser** with a simulated FLOOR IT button for desktop practice.
 
-<br />
-
-[![Play Store](https://img.shields.io/badge/Google_Play-Internal_Testing-414141?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.flyboybyte.dragtree)
-[![License](https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Android-3ddc84?style=for-the-badge&logo=android&logoColor=white)](#2-build-the-android-apk-with-eas)
-[![Expo SDK](https://img.shields.io/badge/Expo_SDK-54-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev)
-
-<br />
-
-![DragTree feature graphic](https://raw.githubusercontent.com/flyboy-byte/drag-tree/main/docs/feature-graphic.png)
-
-</div>
-
----
-
-## What it does
-
-DragTree simulates a real **NHRA Pro Tree** — all three ambers fire simultaneously, the green lights up **0.400 s** later — and uses your phone's accelerometer to measure how long it takes you to *physically launch* once green appears.
-
-Mount the phone on the dash. Stage up. Watch the tree. Floor it. The app detects the launch G-force and records your reaction time to the millisecond — automatically, with no tapping.
-
-> **Works offline.** No accounts, no ads, no tracking, no internet required after install.
-> **Also runs in the browser** with a simulated FLOOR IT button for desktop practice.
+<p align="center">
+  <img src="docs/screenshot-tree.png" alt="DragTree Pro Tree idle screen" width="320" />
+</p>
 
 ---
 
@@ -37,11 +17,9 @@ Mount the phone on the dash. Stage up. Watch the tree. Floor it. The app detects
 1. [Run in the browser (quickest start)](#1-run-in-the-browser-quickest-start)
 2. [Build the Android APK with EAS](#2-build-the-android-apk-with-eas)
 3. [Updating your local copy and rebuilding](#3-updating-your-local-copy-and-rebuilding)
-4. [How the launch detection works](#4-how-the-launch-detection-works)
+4. [Accelerometer — how it works & known issues](#4-accelerometer--how-it-works--known-issues)
 5. [Troubleshooting](#5-troubleshooting)
 6. [App features](#6-app-features)
-7. [Tech stack](#tech-stack)
-8. [License](#license)
 
 ---
 
@@ -49,30 +27,41 @@ Mount the phone on the dash. Stage up. Watch the tree. Floor it. The app detects
 
 No EAS account or Android device needed — runs in any desktop browser.
 
-#### Prerequisites
+### Prerequisites
 
-| Tool    | Min version | Install                          |
-| ------- | ----------- | -------------------------------- |
-| Node.js | 18          | <https://nodejs.org>             |
-| pnpm    | 9+          | `npm install -g pnpm`            |
+| Tool | Min version | Install |
+|------|-------------|---------|
+| Node.js | 18 | https://nodejs.org |
+| pnpm | 9+ | `npm install -g pnpm` |
 
-#### Steps
+### Steps
 
 ```bash
+# 1. Clone
 git clone https://github.com/flyboy-byte/drag-tree.git
+
+# 2. Install — run from the repo root (the drag-tree/ folder you just cloned)
 cd drag-tree
 pnpm install
+
+# 3. Navigate into the app directory — one level deeper than the repo root
 cd artifacts/drag-tree
+
+# 4. Start the web version using the project's own Expo (not npx)
 pnpm web
 ```
 
-Expo opens the app in your default browser. If it doesn't, look for `Web is waiting on http://localhost:8081` in the terminal and open that URL.
+Expo opens the app in your default browser automatically. If it doesn't, look for a line like:
 
-> [!WARNING]
-> **Do not use `npx expo start --web`.** npx pulls whichever Expo version is current, which won't match this project's Expo 54 and will cause version-mismatch errors. Always use `pnpm web` from inside `artifacts/drag-tree`.
+```
+Web is waiting on http://localhost:8081
+```
 
-> [!NOTE]
-> **Accelerometer on web:** Browsers don't expose the phone-grade accelerometer API that Expo uses, so the sensor is disabled in browser mode. Use the on-screen **FLOOR IT** button to simulate a launch — it animates the G-meter and fires the timer exactly as the real sensor would.
+and open that URL.
+
+> **Do not use `npx expo start --web`** — npx downloads whichever Expo version is current (may differ from the project's Expo 54) and will cause version mismatch errors. Always use `pnpm web` from inside `artifacts/drag-tree`.
+
+> **Accelerometer on web:** The browser does not expose the phone accelerometer API that Expo uses, so the sensor is disabled in browser mode. Use the **FLOOR IT** button on screen to simulate a launch — it animates the G-meter and fires the timer exactly as the real sensor would.
 
 ---
 
@@ -80,269 +69,323 @@ Expo opens the app in your default browser. If it doesn't, look for `Web is wait
 
 EAS builds the APK in the cloud — no Android SDK, no Java, nothing extra to install on your machine.
 
-#### Prerequisites
+### Prerequisites
 
-| Tool          | Min version | Install                          |
-| ------------- | ----------- | -------------------------------- |
-| Node.js       | 18          | <https://nodejs.org>             |
-| pnpm          | 9+          | `npm install -g pnpm`            |
-| EAS CLI       | 16+         | `npm install -g eas-cli`         |
-| Expo account  | —           | <https://expo.dev/signup> (free) |
+| Tool | Min version | Install command |
+|------|-------------|-----------------|
+| Node.js | 18 | https://nodejs.org |
+| pnpm | 9+ | `npm install -g pnpm` |
+| EAS CLI | 16+ | `npm install -g eas-cli` |
+| Expo account | — | https://expo.dev/signup (free) |
 
-> [!IMPORTANT]
 > **Why pnpm?** This is a pnpm workspace (monorepo). Using `npm install` or `yarn` will break the build.
 
-<details>
-<summary><b>Step 1 — Install EAS CLI</b></summary>
+### Step 1 — Install EAS CLI
 
 ```bash
 npm install -g eas-cli
+```
+
+This installs the EAS command-line tool globally. You only need to do this once per machine. Verify it installed:
+
+```bash
 eas --version
 ```
 
-You only need to do this once per machine.
+---
 
-</details>
-
-<details>
-<summary><b>Step 2 — Clone the repo</b></summary>
+### Step 2 — Clone
 
 ```bash
 git clone https://github.com/flyboy-byte/drag-tree.git
 cd drag-tree
 ```
 
-</details>
+---
 
-<details>
-<summary><b>Step 3 — Install dependencies</b></summary>
+### Step 3 — Install dependencies
 
 ```bash
 pnpm install
 ```
 
-Run this from the **repo root** (`drag-tree/`), not from inside `artifacts/drag-tree`. Wrong directory is the most common build failure.
+Run this from the **repo root** (`drag-tree/`), not from inside `artifacts/drag-tree`. This installs all workspace packages together. Running it from the wrong directory is the most common build failure.
 
-</details>
+---
 
-<details>
-<summary><b>Step 4 — Log in to Expo</b></summary>
+### Step 4 — Log in to Expo
 
 ```bash
 eas login
 ```
 
-Create a free account at <https://expo.dev/signup> if you don't have one.
+You will be prompted:
+```
+Log in to EAS with email or username
+Email or username … your@email.com
+Password … ************
+Logged in
+```
 
-</details>
+Create a free account at https://expo.dev/signup if you don't have one.
 
-<details>
-<summary><b>Step 5 — Link the EAS project (first time only)</b></summary>
+---
+
+### Step 5 — Link the EAS project (first time only)
 
 ```bash
 cd artifacts/drag-tree
 eas init
 ```
 
-Confirm with **yes** when prompted. EAS creates the project on expo.dev, gets a project ID, and writes it into `app.json` automatically.
+You will be prompted:
+```
+Would you like to create a project for @yourusername/drag-tree? … yes
+```
 
-</details>
+Press **Enter** to accept. EAS creates the project on expo.dev, gets a project ID, and writes it into `app.json` automatically. You will see:
 
-<details>
-<summary><b>Step 6 — Build the APK</b></summary>
+```
+Project successfully linked (ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) (modified app.json)
+```
+
+You only do this once. The project ID stays in `app.json` from now on.
+
+---
+
+### Step 6 — Build the APK
 
 ```bash
 eas build --platform android --profile preview
 ```
 
-When prompted **"Generate a new Android Keystore?"** — type **yes** and press Enter. EAS generates and stores the signing keystore in the cloud; you don't need to manage it.
+> **Common typo:** `android` not `adroid` — EAS will tell you if you mistype the platform name.
 
-After upload you'll see a build URL like `https://expo.dev/accounts/yourname/projects/drag-tree/builds/...`. You can press **Ctrl+C** safely — the build keeps running in the cloud.
+During the build you will see several prompts and messages — here is what to expect and what to do:
 
-| Detail        | Value                                  |
-| ------------- | -------------------------------------- |
-| Build time    | 10–20 minutes                          |
-| Free tier     | 30 builds / month                      |
-| Output        | Downloadable `.apk` from the build page |
+**"No environment variables with visibility 'Plain text' found"**
+→ Safe to ignore. This app uses no server-side env vars.
 
-</details>
+**"Using remote Android credentials (Expo server)"**
+**"Generate a new Android Keystore?"** → type **yes** and press Enter
+→ EAS generates and stores the signing keystore in the cloud. You do not need to manage it yourself.
 
-<details>
-<summary><b>Step 7 — Install on your Android phone</b></summary>
+After that, EAS uploads your project and queues the build:
 
-1. On the phone: **Settings → Apps → Special app access → Install unknown apps** — enable for your browser or Files app.
-2. Open the EAS build page on your phone, tap **Download**.
-3. Tap the downloaded `.apk` and follow the install prompts.
+```
+Compressing project files and uploading to EAS Build...
+Uploaded to EAS
+Computed project fingerprint
+See logs: https://expo.dev/accounts/yourname/projects/drag-tree/builds/...
+Waiting for build to complete. You can press Ctrl+C to exit.
+Build queued...
+```
+
+**You can safely press Ctrl+C** — the build continues running in the cloud. Come back to https://expo.dev/accounts/yourname/projects/drag-tree/builds to check progress or download the APK when done.
+
+- Builds in the cloud — takes **10–20 minutes**
+- Free tier: **30 builds/month**
+- When done, the build page shows a **Download** button for the `.apk` file
+
+---
+
+### Step 7 — Install on your Android phone
+
+1. On the phone: **Settings → Apps → Special app access → Install unknown apps**
+   Enable it for your browser or Files app.
+2. Open the EAS build page on your phone's browser and tap **Download**.
+3. Tap the downloaded `.apk` file and follow the install prompts.
 4. Open **DragTree** — no internet required.
-
-</details>
 
 ---
 
 ## 3. Updating your local copy and rebuilding
 
-When changes land on GitHub, pull them down, optionally re-install, and queue a new EAS build.
+When changes are pushed to the GitHub repo you need to pull them down, optionally re-install dependencies, and queue a new EAS build.
+
+### Pull the latest changes
 
 ```bash
-# From the repo root
+# From the repo root (drag-tree/)
 git pull origin main
+```
 
-# Re-install if package.json / pnpm-workspace.yaml / pnpm-lock.yaml changed
-# (safe to always run — no-op if nothing changed)
+You will see a summary of what changed, e.g.:
+
+```
+Updating 1a0a795..245de81
+Fast-forward
+ artifacts/drag-tree/hooks/useTreeSession.ts | 14 ++++--
+ README.md                                   | 42 +++++++++++++------
+ 2 files changed, 40 insertions(+), 16 deletions(-)
+```
+
+### Check what actually changed
+
+```bash
+# One-line log of recent commits
+git log --oneline -10
+
+# See exactly which files changed in the last commit
+git show --stat HEAD
+
+# See the full diff of what changed
+git diff HEAD~1 HEAD
+```
+
+### Re-install dependencies (only if needed)
+
+If the pull changed `package.json`, `pnpm-workspace.yaml`, or `pnpm-lock.yaml` you need to re-install. Safe to always run — it's a no-op if nothing changed:
+
+```bash
+# From repo root
 pnpm install
+```
 
-# Queue a new build
+### Queue a new EAS build
+
+```bash
 cd artifacts/drag-tree
 eas build --platform android --profile preview
 ```
 
-The keystore prompt won't appear again — EAS already has it.
+The keystore prompt will not appear again — EAS already has it stored from your first build. You go straight to upload and queue.
 
-<details>
-<summary><b>Inspect what changed</b></summary>
-
-```bash
-git log --oneline -10            # recent commits
-git show --stat HEAD             # files changed in last commit
-git diff HEAD~1 HEAD             # full diff
-```
-
-</details>
-
-<details>
-<summary><b>Build a specific commit or tag</b></summary>
-
-```bash
-git log --oneline                # find a commit
-git checkout abc1234             # detached HEAD — read-only
-# or: git checkout v1.0.0
-
-cd artifacts/drag-tree
-eas build --platform android --profile preview
-
-git checkout main                # return to tip when done
-```
-
-</details>
-
-<details>
-<summary><b>Roll back a bad build</b></summary>
-
-```bash
-git log --oneline                # find last known-good hash
-git reset --hard abc1234         # ⚠ throws away uncommitted changes
-pnpm install
-cd artifacts/drag-tree
-eas build --platform android --profile preview
-```
-
-</details>
+Each build produces a new versioned APK. Install it over the top of the old one; Android will preserve your session history.
 
 ---
 
-## 4. How the launch detection works
+### Build a specific git commit or tag
 
-### Sensor model — orientation-independent
+If you want to build from a specific point in history rather than the latest:
 
-DragTree uses the phone's **raw accelerometer** (gravity included). At rest, the magnitude is always **~9.81 m/s² (1g)**, regardless of how the phone is mounted. When the car launches, forward force adds to the gravity vector and the magnitude rises. The app measures the **delta above a continuously-averaged baseline** and fires when it crosses the chosen threshold.
+```bash
+# See available commits
+git log --oneline
 
-That means:
-- **Mount the phone any way you want** — portrait, landscape, tilted on the dash. The math doesn't care.
-- **No calibration step.** While idle, the app rolls an 8-sample (~800 ms) average to lock a stable baseline the moment you tap STAGE.
+# Check out a specific commit (detached HEAD — read-only)
+git checkout abc1234
+
+# Or check out a tag if you have any
+git checkout v1.0.0
+
+# Then build from that state
+cd artifacts/drag-tree
+eas build --platform android --profile preview
+
+# Return to the tip of main when done
+git checkout main
+```
+
+---
+
+### Roll back if a new build has a problem
+
+```bash
+# Find the last known-good commit hash
+git log --oneline
+
+# Reset your local copy to that commit (keeps files, undoes commits)
+git reset --hard abc1234
+
+# Re-install and rebuild
+pnpm install
+cd artifacts/drag-tree
+eas build --platform android --profile preview
+```
+
+> `git reset --hard` throws away any local uncommitted changes. Make sure you don't have anything important unsaved before running it.
+
+---
+
+## 4. Accelerometer — how it works & known issues
+
+### How the sensor detects launch
+
+The app uses the phone's raw accelerometer (includes gravity). When the phone sits still at any orientation, the sensor magnitude is always ~9.81 m/s² (1g of gravity). When the car accelerates, forward force adds to the vector and magnitude increases. The app measures the **delta above the resting baseline** and fires when it crosses the sensitivity threshold.
+
+This means:
+- **Orientation doesn't matter** — you can mount the phone portrait, landscape, tilted — the math still works.
+- **No calibration step required** — the app continuously averages the last 8 sensor readings (~800 ms) while idle to build a stable baseline. When you tap STAGE, that averaged baseline is locked in and used for the run.
 
 ### Sensitivity presets
 
-| Preset  | Threshold       | Sustained samples         | Typical use                          |
-| ------- | --------------- | ------------------------- | ------------------------------------ |
-| Gentle  | ~0.15 g (1.5 m/s²) | 5 in a row (~40 ms)       | FWD street car, light throttle       |
-| Normal  | ~0.25 g (2.5 m/s²) | 5 in a row (~40 ms)       | RWD or sport car, moderate launch    |
-| Hard    | ~0.46 g (4.5 m/s²) | 5 in a row (~40 ms)       | Drag-prepped car, slicks, hard launch |
+| Preset | Threshold | Required duration | Typical use |
+|--------|-----------|-------------------|-------------|
+| Gentle | ~0.15g (1.5 m/s²) | 3 consecutive readings (~48 ms) | FWD street car, light throttle |
+| Normal | ~0.25g (2.5 m/s²) | 3 consecutive readings (~48 ms) | RWD or sport car, moderate launch |
+| Hard   | ~0.46g (4.5 m/s²) | 3 consecutive readings (~48 ms) | Drag-prepped car, slicks, hard launch |
 
-The sensor runs at **125 Hz** (8 ms between samples). The G-force has to stay above threshold for **5 consecutive samples (~40 ms)** before firing. A real launch is sustained for 300–500 ms; road bumps and taps die out in under 30 ms — they can't trigger it. Drop below threshold once and the counter resets.
+The sensor requires the G-force to stay above the threshold for **3 readings in a row (~48 ms)** before firing. A real launch is sustained for 300–500 ms. Road bumps, taps, and vibration spikes are over in under 30 ms and will not trigger it. If G drops below threshold even once, the counter resets — the full 48 ms window must start over.
 
-> Start with **Gentle** for any street car. Move to Normal or Hard only if you get false triggers.
-
-### Reaction-time precision — jerk-onset rewind
-
-Naive threshold-crossing always over-reports RT, because the threshold is crossed *partway up* the launch acceleration ramp. DragTree maintains a rolling 150 ms buffer and, after a launch is confirmed, walks **backward** through the buffer to find the first sample where the smoothed slope started rising. That earlier sample becomes the launch timestamp.
-
-This shaves **50–100 ms** off measured RT compared to threshold-only detection — without weakening false-positive rejection, since the sustained-samples gate has to fire first.
-
-The green-light timestamp is also captured at the next vsync via `requestAnimationFrame` (not at the JS `setState` call) so it lines up with when the green pixels actually paint — removing another ~30–40 ms of pre-paint bias.
-
-> Verify on your device with the **Diagnostics screen** (DIAG button, top-right of home) — see *App features* below.
+**Start with Gentle** for any street car. Move to Normal or Hard only if you get false triggers.
 
 ### Phone mounting — important
 
-- Mount the phone **rigidly** to the dash or cage. A loose phone bounces independently of the car and will produce garbage readings.
-- Any solid mount works: RAM mount, vent clip with lock, windshield suction with arm.
+- Mount the phone **rigidly** to the dash or cage. A loosely placed phone bounces independently of the car and will produce incorrect readings.
+- Any solid phone mount works: RAM mount, vent clip with lock, windshield suction with arm.
 - Keep the screen visible from the driver's seat — you need to see the tree.
 
 ### Known Android limitations
 
-| Issue                                | Cause                                       | Workaround                                                                |
-| ------------------------------------ | ------------------------------------------- | ------------------------------------------------------------------------- |
-| Fires on a bump before launch        | Baseline jitter on rough pavement           | Use Normal or Hard sensitivity                                            |
-| Fires the instant you tap STAGE      | Phone was moving when staged                | Wait ~1 s after tapping STAGE before staging the car                      |
-| Doesn't fire at all                  | Device caps below 125 Hz despite permission | Try Gentle; check achieved Hz on the Diagnostics screen; report your model |
-| "Sensor not available"               | Rare — some Android emulators lack sensors  | Use a real device                                                         |
-| Slight G reading at rest             | Normal — vibration, idle RPM, A/C compressor | Baseline averages it out automatically                                    |
+| Issue | Cause | Workaround |
+|-------|-------|------------|
+| Sensor fires on a bump before launch | Baseline jitter on rough pavement | Use Normal or Hard sensitivity |
+| Sensor fires the instant you tap STAGE | Phone was moving when staged | Wait ~1 second after tapping STAGE before staging the car |
+| Sensor doesn't fire at all | Device accelerometer rate capped below 60 Hz | Try Gentle sensitivity; report your device model |
+| App shows "Sensor not available" | Very rare — some Android emulators lack virtual sensors | Use a real device |
+| Slight G reading even at rest | Normal — vibration, idle RPM, A/C compressor cycling | Baseline averages it out automatically |
 
 ### Permissions
 
-The app requests one Android permission: **`HIGH_SAMPLING_RATE_SENSORS`**. Required on Android 12+ (API 31+) for the 125 Hz accelerometer rate — without it, Android caps sensor updates at 5 Hz, far too slow for drag-strip RT. Granted automatically at install time, no runtime prompt. Does **not** grant access to location, camera, microphone, or any sensitive data.
-
-The app also explicitly **blocks** `ACTIVITY_RECOGNITION` (otherwise pulled in transitively by `expo-sensors`) so DragTree is not classified as a Health app under Play Store policy.
+The Android accelerometer runs below 200 Hz — **no special permissions are required.** The app declares `permissions: []` in its manifest, so Android will not prompt for sensor access.
 
 ### New Architecture (React Native)
 
-This app runs React Native **New Architecture** (`newArchEnabled: true`). All deps — `expo-sensors 15.x`, `react-native-reanimated 4.x`, `react-native-worklets` — fully support it. If you hit a launch crash mentioning "TurboModule" or "Fabric", file an issue with the full stack trace.
+This app runs React Native **New Architecture** (`newArchEnabled: true`). All dependencies — `expo-sensors 15.x`, `react-native-reanimated 4.x`, `react-native-worklets` — fully support New Architecture as of their current versions. If you hit a crash on launch that mentions "TurboModule" or "Fabric", report the full stack trace.
 
 ---
 
 ## 5. Troubleshooting
 
-<details>
-<summary><code>pnpm: command not found</code></summary>
+### `pnpm: command not found`
 
 ```bash
 npm install -g pnpm
 ```
+
 Then re-run `pnpm install` from the repo root.
 
-</details>
+---
 
-<details>
-<summary><code>eas: command not found</code></summary>
+### `eas: command not found`
 
 ```bash
 npm install -g eas-cli
 ```
 
-</details>
+---
 
-<details>
-<summary><code>Not logged in</code> / <code>Authentication required</code></summary>
+### `Not logged in` / `Authentication required`
 
 ```bash
 eas login
 ```
 
-</details>
+---
 
-<details>
-<summary><code>Project not linked</code> / <code>EAS project ID not found</code></summary>
+### `Project not linked` / `EAS project ID not found`
 
 ```bash
 cd artifacts/drag-tree
 eas init
 ```
+
 Select **Create new project** when prompted.
 
-</details>
+---
 
-<details>
-<summary><code>Unable to resolve module</code> during EAS build</summary>
+### `Unable to resolve module` during EAS build
 
 You ran `pnpm install` from `artifacts/drag-tree` instead of the repo root.
 
@@ -353,10 +396,9 @@ cd artifacts/drag-tree
 eas build --platform android --profile preview
 ```
 
-</details>
+---
 
-<details>
-<summary><code>Cannot find module 'expo'</code></summary>
+### `Cannot find module 'expo'`
 
 Same root cause — wrong install directory. Also verify pnpm version:
 
@@ -364,90 +406,51 @@ Same root cause — wrong install directory. Also verify pnpm version:
 pnpm --version        # must be 9.x or 10.x
 ```
 
-</details>
+---
 
-<details>
-<summary><code>error: EMFILE: too many open files</code> (macOS only)</summary>
+### `error: EMFILE: too many open files` (macOS only)
 
 ```bash
 ulimit -n 65536
 ```
+
 Retry the build.
 
-</details>
+---
 
-<details>
-<summary>Web app won't open in browser</summary>
+### Web app won't open in browser
+
+If `npx expo start --web` starts but the browser shows a blank page or connection error:
 
 ```bash
+# Make sure you're in the right directory
 cd artifacts/drag-tree
-pnpm web
+npx expo start --web
 ```
-Look for the local URL in the terminal (`http://localhost:8081`) and open it manually.
 
-</details>
+Look for the local URL printed in the terminal (`http://localhost:8081`) and open it manually.
 
-<details>
-<summary>EAS build failed — what to do</summary>
+---
 
-Every EAS build prints a full log URL. Open it. Scroll to the bottom — the last 20–30 lines have the actual error. Copy that block and file an issue.
+### EAS build failed — what to do
 
-</details>
+Every EAS build has a full log URL printed in the terminal. Open it. Scroll to the bottom — the last 20–30 lines contain the actual error. Copy the error block and report it for help.
 
 ---
 
 ## 6. App features
 
-- **Pro Tree** — all 3 ambers fire simultaneously, green 0.400 s later
-- **High-precision launch detection** — 125 Hz sampling · sensor-timestamped samples · jerk-onset rewind · vsync-aligned green-light timestamp
-- **Three sensitivity presets** — Gentle / Normal / Hard, switchable when idle
-- **Reaction grading** — Perfect · Pro · Great · Good · Late · Red Light
-- **Session history** — every run logged, personal best highlighted
-- **Diagnostics screen** — open via the **DIAG** badge (top-right of home). Shows live G with a real-time acceleration sparkline, 5-second sample-rate capture (mean interval, jitter σ, achieved Hz), per-sensitivity onset/threshold/confirm timing breakdown, and an auto-updating **LAST REAL LAUNCH** card with the full green→onset→threshold→confirm breakdown for the most recent green-light run on your phone
-- **Browser / simulator mode** — FLOOR IT button animates the G-meter and fires the timer
+- **Pro Tree** — all 3 ambers fire simultaneously, green 0.400 s later (no Full Tree mode)
+- **Accelerometer launch detection** — rolling-average baseline, no calibration step
+- **Three sensitivity presets** — Gentle / Normal / Hard, adjustable when idle
+- **Reaction grading** — Perfect / Pro / Great / Good / Late / Red Light  
+- **Session history** — all runs logged, personal best highlighted
+- **Browser / simulator mode** — FLOOR IT button animates G-meter and fires timer
 
 ---
 
 ## Tech stack
 
-<table>
-<tr>
-<td>
-
-**Runtime**
-- Expo SDK 54
-- React Native 0.81.5
-- New Architecture enabled
-
-</td>
-<td>
-
-**Core libraries**
-- expo-router
-- expo-sensors
-- React Native Reanimated 4
-- react-native-worklets
-
-</td>
-<td>
-
-**Tooling**
-- pnpm workspace monorepo
-- TypeScript (strict)
-- EAS Build (cloud Android)
-
-</td>
-</tr>
-</table>
-
----
-
-## License
-
-[MIT](LICENSE) © flyboybyte — free to fork, free to ship, free to race.
-
-<div align="center">
-
-<sub><b>Not affiliated with NHRA or any sanctioning body.</b> "Pro Tree" refers to the public timing protocol, not the trademark.</sub>
-
-</div>
+- Expo SDK 54 · React Native 0.81.5
+- expo-router · expo-sensors · React Native Reanimated 4
+- New Architecture enabled · pnpm workspace monorepo
