@@ -454,6 +454,30 @@ export default function DiagnosticScreen() {
               accessibilityHint="Switches from Pro Tree (.400s) to Sportsman Tree (.500s)"
             />
           </View>
+
+          <View style={[styles.divider, { borderColor: colors.border }]} />
+
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={[styles.rowVal, { color: colors.foreground }]}>Sound</Text>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+                Play audio cues during the tree countdown and at result. Fires even on silent/vibrate.
+                No sound plays during the sensor-armed window.
+              </Text>
+            </View>
+            <Switch
+              value={appSettings.soundEnabled}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                settings.set({ soundEnabled: v });
+              }}
+              disabled={isSessionLocked}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={appSettings.soundEnabled ? colors.primaryForeground : colors.mutedForeground}
+              accessibilityLabel="Sound toggle"
+              accessibilityHint="Enables or disables audio cues during the tree sequence"
+            />
+          </View>
         </View>
 
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
