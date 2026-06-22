@@ -12,6 +12,62 @@ export interface RunRecord {
   mode: TreeMode;
 }
 
+// ── Series types ───────────────────────────────────────────────────────────
+export interface SeriesRun {
+  reactionTime: number;
+  grade: ReactionGrade;
+}
+
+export interface SeriesSummary {
+  size: number;
+  runs: SeriesRun[];
+  avgRT: number | null;
+  bestRT: number | null;
+  worstRT: number | null;
+  redLightCount: number;
+  consistency: string;
+}
+
+function computeSeriesSummary(runs: SeriesRun[], size: number): SeriesSummary {
+  const cleanTimes = runs
+    .filter(r => r.grade !== "redlight" && r.grade !== "late" && r.reactionTime >= 0)
+    .map(r => r.reactionTime);
+
+  const avgRT = cleanTimes.length > 0
+    ? cleanTimes.reduce((s, t) => s + t, 0) / cleanTimes.length
+    : null;
+  const bestRT = cleanTimes.length > 0 ? Math.min(...cleanTimes) : null;
+  const worstRT = cleanTimes.length > 0 ? Math.max(...cleanTimes) : null;
+  const redLightCount = runs.filter(r => r.grade === "redlight").length;
+
+  let consistency = "—";
+  if (cleanTimes.length >= 3) {
+    const mean = avgRT!;
+    const variance = cleanTimes.reduce((s, t) => s + (t - mean) ** 2, 0) / cleanTimes.length;
+    const stdDev = Math.sqrt(variance);
+    const half = Math.floor(cleanTimes.length / 2);
+    const firstAvg = cleanTimes.slice(0, half).reduce((s, t) => s + t, 0) / half;
+    const secondAvg = cleanTimes.slice(Math.ceil(cleanTimes.length / 2)).reduce((s, t) => s + t, 0)
+      / (cleanTimes.length - Math.ceil(cleanTimes.length / 2));
+    const trend = firstAvg - secondAvg; // positive = getting faster
+    if (stdDev < 0.020) consistency = "Consistent";
+    else if (trend > 0.030) consistency = "Improving";
+    else if (trend < -0.030) consistency = "Fading";
+    else consistency = "Mixed";
+  } else if (cleanTimes.length === 2) {
+    const diff = cleanTimes[0] - cleanTimes[1];
+    if (Math.abs(diff) < 0.020) consistency = "Consistent";
+    else if (diff > 0) consistency = "Improving";
+    else consistency = "Fading";
+  } else if (cleanTimes.length === 1) {
+    consistency = "One clean run";
+  } else {
+    consistency = "No clean runs";
+  }
+
+  return { size, runs, avgRT, bestRT, worstRT, redLightCount, consistency };
+}
+
 export type SessionPhase =
   | "idle"
   | "staging"
@@ -61,6 +117,14 @@ export function useTreeSession() {
   // reading the initial values, otherwise the first render's empty state
   // would clobber the stored history.
   const hydratedRef = useRef(false);
+
+  // ── Series state ──────────────────────────────────────────────────────
+  const seriesEnabledRef  = useRef(false);
+  const seriesSizeRef     = useRef<3 | 5 | 10>(5);
+  const seriesRunsRef     = useRef<SeriesRun[]>([]);
+  const seriesCompleteRef = useRef(false);
+  const [seriesCount, setSeriesCount]       = useState(0);
+  const [seriesSummary, setSeriesSummary]   = useState<SeriesSummary | null>(null);
 
   // ── Hydrate persisted history + best on mount ─────────────────────────
   useEffect(() => {
@@ -137,6 +201,17 @@ export function useTreeSession() {
     if (g !== "redlight") {
       setBestTime(prev => (prev === null || rt < prev ? rt : prev));
     }
+    // ── Series accumulation ──────────────────────────────────────────────
+    if (seriesEnabledRef.current) {
+      const newRuns = [...seriesRunsRef.current, { reactionTime: rt, grade: g }];
+      seriesRunsRef.current = newRuns;
+      const newCount = newRuns.length;
+      setSeriesCount(newCount);
+      if (newCount >= seriesSizeRef.current) {
+        seriesCompleteRef.current = true;
+        setSeriesSummary(computeSeriesSummary(newRuns, seriesSizeRef.current));
+      }
+    }
   }, []);
 
   const reset = useCallback(() => {
@@ -146,6 +221,26 @@ export function useTreeSession() {
     setReactionTime(null);
     setGrade(null);
     greenAtRef.current = null;
+    // Clear series state when the series is done (user starting a new series)
+    // or when series is not active. Mid-series: keep accumulated runs.
+    if (seriesCompleteRef.current || !seriesEnabledRef.current) {
+      seriesRunsRef.current = [];
+      seriesCompleteRef.current = false;
+      setSeriesCount(0);
+      setSeriesSummary(null);
+    }
+  }, []);
+
+  // Configure series mode from settings. Disabling clears any in-progress state.
+  const setSeries = useCallback((enabled: boolean, size: 3 | 5 | 10) => {
+    seriesEnabledRef.current = enabled;
+    seriesSizeRef.current = size;
+    if (!enabled) {
+      seriesRunsRef.current = [];
+      seriesCompleteRef.current = false;
+      setSeriesCount(0);
+      setSeriesSummary(null);
+    }
   }, []);
 
   // Wipe persisted history (called by the History "clear" button).
@@ -238,6 +333,25 @@ export function useTreeSession() {
   // using it here keeps RT accurate despite the 3-sample confirmation delay.
   const triggerLaunch = useCallback((candidateTime: number) => {
     if (phaseRef.current !== "go" || greenAtRef.current === null) return;
+    // Guard: if onset rewind reaches back before green fired (e.g. the sensor
+    // confirmation arrived just after green but the onset predates it), record
+    // a red-light result inline rather than letting a negative RT through.
+    // Cannot call triggerRedLight() here — it's defined after this hook and
+    // its own phase guard (staging|countdown only) would reject a "go" call.
+    if (candidateTime < greenAtRef.current) {
+      clearTimers();
+      updatePhase("redlight");
+      setTree(t => ({
+        ...t,
+        amber1: false,
+        amber2: false,
+        amber3: false,
+        green: false,
+        red: true,
+      }));
+      recordResult(-0.1, "redlight");
+      return;
+    }
     clearTimers();
     const rt = (candidateTime - greenAtRef.current) / 1000;
     const g = gradeRT(rt);
@@ -252,8 +366,6 @@ export function useTreeSession() {
     if (current !== "staging" && current !== "countdown") return;
     clearTimers();
     updatePhase("redlight");
-    setGrade("redlight");
-    setReactionTime(-0.1);
     setTree(t => ({
       ...t,
       amber1: false,
@@ -262,37 +374,10 @@ export function useTreeSession() {
       green: false,
       red: true,
     }));
-    const record: RunRecord = {
-      id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
-      // Negative RT marks redlight runs unambiguously; matches gradeRT() rule
-      // and the live setReactionTime(-0.1) above, so history sorts and any
-      // future analytics treat redlights consistently.
-      reactionTime: -0.1,
-      grade: "redlight",
-      mode: modeRef.current,
-    };
-    setRecords(prev => [record, ...prev].slice(0, 30));
-  }, []);
-
-  // Manual tap fallback (for web / no sensor)
-  const handleManualLaunch = useCallback(() => {
-    const current = phaseRef.current;
-    if (current === "idle") {
-      startSequence();
-      return;
-    }
-    if (current === "result" || current === "redlight") {
-      reset();
-      return;
-    }
-    if (current === "staging" || current === "countdown") {
-      triggerRedLight();
-      return;
-    }
-    if (current === "go") {
-      triggerLaunch(performance.now());
-    }
-  }, [startSequence, reset, triggerRedLight, triggerLaunch]);
+    // Route through recordResult so series accumulation always fires.
+    // Negative RT marks redlight runs unambiguously; matches gradeRT() rule.
+    recordResult(-0.1, "redlight");
+  }, [recordResult]);
 
   const switchMode = useCallback((m: TreeMode) => {
     modeRef.current = m;
@@ -303,6 +388,12 @@ export function useTreeSession() {
   const isWatchingRedLight = phase === "staging" || phase === "countdown";
   const isArmed = phase === "go";
 
+  // seriesProgress: non-null while series is active and at least one run done.
+  // Computed at render time from reactive seriesCount + current refs.
+  const seriesProgress = seriesEnabledRef.current && seriesCount > 0
+    ? { count: seriesCount, size: seriesSizeRef.current }
+    : null;
+
   return {
     phase,
     tree,
@@ -312,7 +403,6 @@ export function useTreeSession() {
     grade,
     records,
     bestTime,
-    handleManualLaunch,
     startSequence,
     reset,
     clearHistory,
@@ -324,5 +414,9 @@ export function useTreeSession() {
     // attach session context to per-launch sensor telemetry without making
     // greenAt itself reactive (it would cause needless re-renders).
     getGreenAt: () => greenAtRef.current,
+    // Series mode
+    setSeries,
+    seriesProgress,
+    seriesSummary,
   };
 }
