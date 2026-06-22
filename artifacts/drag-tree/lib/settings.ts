@@ -20,6 +20,8 @@ export interface AppSettings {
   // "pro" = Pro Tree (.400s, all ambers together)
   // "full" = Sportsman Tree (.500s, ambers count down one at a time)
   treeMode: "pro" | "full";
+  // Play audio cues during the tree countdown and at result. Default off.
+  soundEnabled: boolean;
 }
 
 // Fields written to AsyncStorage on every change.
@@ -32,6 +34,7 @@ let current: AppSettings = {
   customThreshold: 2.0,
   sensorEnabled: true,
   treeMode: "pro",
+  soundEnabled: false,
 };
 
 const listeners = new Set<() => void>();
@@ -61,6 +64,9 @@ const listeners = new Set<() => void>();
     if (saved.treeMode === "pro" || saved.treeMode === "full")
       patch.treeMode = saved.treeMode;
 
+    if (typeof saved.soundEnabled === "boolean")
+      patch.soundEnabled = saved.soundEnabled;
+
     if (Object.keys(patch).length > 0) {
       current = { ...current, ...patch };
       listeners.forEach(fn => fn());
@@ -76,10 +82,10 @@ function persist(): void {
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
     persistTimer = null;
-    const { showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode } = current;
+    const { showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled } = current;
     AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode }),
+      JSON.stringify({ showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled }),
     ).catch(() => {});
   }, 250);
 }
