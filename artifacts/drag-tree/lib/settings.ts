@@ -22,6 +22,10 @@ export interface AppSettings {
   treeMode: "pro" | "full";
   // Play audio cues during the tree countdown and at result. Default off.
   soundEnabled: boolean;
+  // Run back-to-back stages and see a summary after N runs.
+  seriesEnabled: boolean;
+  // Number of runs per series (3, 5, or 10).
+  seriesSize: 3 | 5 | 10;
 }
 
 // Fields written to AsyncStorage on every change.
@@ -35,6 +39,8 @@ let current: AppSettings = {
   sensorEnabled: true,
   treeMode: "pro",
   soundEnabled: false,
+  seriesEnabled: false,
+  seriesSize: 5,
 };
 
 const listeners = new Set<() => void>();
@@ -67,6 +73,12 @@ const listeners = new Set<() => void>();
     if (typeof saved.soundEnabled === "boolean")
       patch.soundEnabled = saved.soundEnabled;
 
+    if (typeof saved.seriesEnabled === "boolean")
+      patch.seriesEnabled = saved.seriesEnabled;
+
+    if (saved.seriesSize === 3 || saved.seriesSize === 5 || saved.seriesSize === 10)
+      patch.seriesSize = saved.seriesSize;
+
     if (Object.keys(patch).length > 0) {
       current = { ...current, ...patch };
       listeners.forEach(fn => fn());
@@ -82,10 +94,10 @@ function persist(): void {
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
     persistTimer = null;
-    const { showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled } = current;
+    const { showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize } = current;
     AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled }),
+      JSON.stringify({ showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize }),
     ).catch(() => {});
   }, 250);
 }
