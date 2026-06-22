@@ -23,7 +23,7 @@ import { ChristmasTree } from "@/components/ChristmasTree";
 import { ReactionDisplay } from "@/components/ReactionDisplay";
 import { HistoryList } from "@/components/HistoryList";
 import { FooterLinks } from "@/components/FooterLinks";
-import { useTreeSession } from "@/hooks/useTreeSession";
+import { useTreeSession, type SeriesSummary } from "@/hooks/useTreeSession";
 import { useAccelerometer, SENSITIVITY_THRESHOLDS } from "@/hooks/useAccelerometer";
 import { useColors } from "@/hooks/useColors";
 import { launchTelemetry } from "@/lib/launchTelemetry";
@@ -62,6 +62,118 @@ const gStyles = StyleSheet.create({
   bar: { height: 3, borderRadius: 2 },
 });
 
+// ── Series summary card ────────────────────────────────────────────────────
+function SeriesSummaryCard({ summary }: { summary: SeriesSummary }) {
+  const colors = useColors();
+  return (
+    <View style={[summaryStyles.card, { borderColor: colors.border }]}>
+      <Text style={[summaryStyles.header, { color: colors.mutedForeground }]}>
+        SERIES DONE · {summary.size} RUNS
+      </Text>
+      {summary.avgRT !== null ? (
+        <>
+          <Text style={[summaryStyles.avg, { color: colors.foreground }]}>
+            {summary.avgRT.toFixed(3)}s
+          </Text>
+          <Text style={[summaryStyles.avgLabel, { color: colors.mutedForeground }]}>avg reaction</Text>
+        </>
+      ) : (
+        <Text style={[summaryStyles.noClean, { color: colors.mutedForeground }]}>no clean runs</Text>
+      )}
+      <View style={summaryStyles.statsRow}>
+        {summary.bestRT !== null && (
+          <View style={summaryStyles.stat}>
+            <Text style={[summaryStyles.statVal, { color: colors.greenOn }]}>{summary.bestRT.toFixed(3)}</Text>
+            <Text style={[summaryStyles.statLab, { color: colors.mutedForeground }]}>BEST</Text>
+          </View>
+        )}
+        {summary.worstRT !== null && summary.worstRT !== summary.bestRT && (
+          <View style={summaryStyles.stat}>
+            <Text style={[summaryStyles.statVal, { color: colors.foreground }]}>{summary.worstRT.toFixed(3)}</Text>
+            <Text style={[summaryStyles.statLab, { color: colors.mutedForeground }]}>WORST</Text>
+          </View>
+        )}
+        {summary.redLightCount > 0 && (
+          <View style={summaryStyles.stat}>
+            <Text style={[summaryStyles.statVal, { color: "#ef4444" }]}>{summary.redLightCount}</Text>
+            <Text style={[summaryStyles.statLab, { color: colors.mutedForeground }]}>
+              {summary.redLightCount === 1 ? "RED" : "REDS"}
+            </Text>
+          </View>
+        )}
+      </View>
+      <Text style={[summaryStyles.consistency, { color: colors.primary }]}>
+        {summary.consistency.toUpperCase()}
+      </Text>
+    </View>
+  );
+}
+const summaryStyles = StyleSheet.create({
+  card: {
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    marginBottom: 0,
+    gap: 2,
+    width: "100%",
+  },
+  header: {
+    fontSize: 10,
+    fontWeight: "700" as const,
+    letterSpacing: 2,
+    fontFamily: "Inter_700Bold",
+    marginBottom: 4,
+  },
+  avg: {
+    fontSize: 48,
+    fontWeight: "700" as const,
+    letterSpacing: -1,
+    fontFamily: "Inter_700Bold",
+    lineHeight: 52,
+  },
+  avgLabel: {
+    fontSize: 12,
+    fontWeight: "500" as const,
+    letterSpacing: 1,
+    fontFamily: "Inter_500Medium",
+    marginBottom: 8,
+  },
+  noClean: {
+    fontSize: 16,
+    fontWeight: "500" as const,
+    fontFamily: "Inter_500Medium",
+    marginVertical: 10,
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 20,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  stat: { alignItems: "center", gap: 2 },
+  statVal: {
+    fontSize: 20,
+    fontWeight: "700" as const,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: -0.5,
+  },
+  statLab: {
+    fontSize: 9,
+    fontWeight: "700" as const,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1.5,
+  },
+  consistency: {
+    fontSize: 13,
+    fontWeight: "700" as const,
+    letterSpacing: 3,
+    fontFamily: "Inter_700Bold",
+    marginTop: 4,
+  },
+});
+
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -72,6 +184,8 @@ export default function HomeScreen() {
   const sensitivity      = appSettings.sensitivity;
   const customThreshold  = appSettings.customThreshold;
   const soundEnabled     = appSettings.soundEnabled;
+  const seriesEnabled    = appSettings.seriesEnabled;
+  const seriesSize       = appSettings.seriesSize;
   // Resolved threshold in m/s² — presets look up from the table, custom uses the stored value.
   const thresholdValue: number =
     sensitivity === "custom"
@@ -94,6 +208,9 @@ export default function HomeScreen() {
     getGreenAt,
     clearHistory,
     switchMode,
+    setSeries,
+    seriesProgress,
+    seriesSummary,
   } = useTreeSession();
 
   // Keep the session's tree mode in sync with the settings store.
@@ -102,6 +219,11 @@ export default function HomeScreen() {
   React.useEffect(() => {
     switchMode(treeMode);
   }, [treeMode]);
+
+  // Sync series settings into the session hook whenever they change.
+  React.useEffect(() => {
+    setSeries(seriesEnabled, seriesSize);
+  }, [seriesEnabled, seriesSize]);
 
   const { currentG, isAvailable, simulateLaunch, simulateRedLight } = useAccelerometer({
     // Gate sensor on both phase and the Motion Sensor toggle.
@@ -323,10 +445,12 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Tree mode banner */}
+      {/* Tree mode banner + series progress */}
       <View style={[styles.proLabel, { borderColor: colors.border }]}>
         <Text style={[styles.proText, { color: colors.mutedForeground }]}>
           {treeMode === "pro" ? "PRO TREE  •  0.400s" : "SPORTSMAN  •  0.500s"}
+          {seriesProgress != null ? `  •  ${seriesProgress.count} / ${seriesProgress.size}` : ""}
+          {seriesEnabled && seriesProgress == null ? `  •  S${seriesSize}` : ""}
         </Text>
       </View>
 
@@ -335,8 +459,11 @@ export default function HomeScreen() {
         <ChristmasTree state={tree} />
       </View>
 
-      {/* Reaction display */}
-      <ReactionDisplay reactionTime={reactionTime} grade={grade} />
+      {/* Reaction display — replaced by series summary card on final run */}
+      {seriesSummary != null
+        ? <SeriesSummaryCard summary={seriesSummary} />
+        : <ReactionDisplay reactionTime={reactionTime} grade={grade} />
+      }
 
       {/* Status + G meter */}
       <View style={styles.statusRow}>
@@ -409,8 +536,8 @@ export default function HomeScreen() {
         </Text>
       )}
 
-      {/* Subtle coaching hint — only fires after a repeating mistake pattern */}
-      {isDone && (() => {
+      {/* Coaching hint — only after a repeating mistake pattern; hidden when series summary is up */}
+      {isDone && seriesSummary == null && (() => {
         const tip = coachingHint(records);
         return tip ? (
           <Text style={[styles.hint, { color: colors.mutedForeground, fontStyle: "italic" }]}>
