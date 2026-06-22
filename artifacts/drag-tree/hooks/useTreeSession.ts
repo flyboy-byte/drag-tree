@@ -125,7 +125,6 @@ export function useTreeSession() {
   const seriesCompleteRef = useRef(false);
   const [seriesCount, setSeriesCount]       = useState(0);
   const [seriesSummary, setSeriesSummary]   = useState<SeriesSummary | null>(null);
-  const [seriesBestRT, setSeriesBestRT]     = useState<number | null>(null);
 
   // ── Hydrate persisted history + best on mount ─────────────────────────
   useEffect(() => {
@@ -208,10 +207,6 @@ export function useTreeSession() {
       seriesRunsRef.current = newRuns;
       const newCount = newRuns.length;
       setSeriesCount(newCount);
-      // Track best clean RT within this series
-      if (g !== "redlight" && g !== "late" && rt >= 0) {
-        setSeriesBestRT(prev => (prev === null || rt < prev ? rt : prev));
-      }
       if (newCount >= seriesSizeRef.current) {
         seriesCompleteRef.current = true;
         setSeriesSummary(computeSeriesSummary(newRuns, seriesSizeRef.current));
@@ -233,7 +228,6 @@ export function useTreeSession() {
       seriesCompleteRef.current = false;
       setSeriesCount(0);
       setSeriesSummary(null);
-      setSeriesBestRT(null);
     }
   }, []);
 
@@ -246,7 +240,6 @@ export function useTreeSession() {
       seriesCompleteRef.current = false;
       setSeriesCount(0);
       setSeriesSummary(null);
-      setSeriesBestRT(null);
     }
   }, []);
 
@@ -262,7 +255,6 @@ export function useTreeSession() {
     seriesCompleteRef.current = false;
     setSeriesCount(0);
     setSeriesSummary(null);
-    setSeriesBestRT(null);
   }, []);
 
   // Wipe persisted history (called by the History "clear" button).
@@ -410,11 +402,21 @@ export function useTreeSession() {
   const isWatchingRedLight = phase === "staging" || phase === "countdown";
   const isArmed = phase === "go";
 
-  // seriesProgress: non-null while series is active and at least one run done.
-  // Computed at render time from reactive seriesCount + current refs.
+  // seriesProgress / seriesBestRT: derived at render time from seriesCount
+  // (the reactive trigger) + seriesRunsRef (always up-to-date before setState).
+  // Deriving here instead of tracking as separate state means the value can
+  // never be stale or carry over from a previous series.
   const seriesProgress = seriesEnabledRef.current && seriesCount > 0
     ? { count: seriesCount, size: seriesSizeRef.current }
     : null;
+
+  const seriesBestRT: number | null = seriesRunsRef.current.reduce<number | null>(
+    (best, r) =>
+      r.grade !== "redlight" && r.grade !== "late" && r.reactionTime >= 0
+        ? (best === null || r.reactionTime < best ? r.reactionTime : best)
+        : best,
+    null,
+  );
 
   return {
     phase,
