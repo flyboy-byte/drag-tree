@@ -187,6 +187,7 @@ export default function HomeScreen() {
   const soundEnabled     = appSettings.soundEnabled;
   const seriesEnabled    = appSettings.seriesEnabled;
   const seriesSize       = appSettings.seriesSize;
+  const showTrend        = appSettings.showTrend;
   // Resolved threshold in m/s² — presets look up from the table, custom uses the stored value.
   const thresholdValue: number =
     sensitivity === "custom"
@@ -558,7 +559,7 @@ export default function HomeScreen() {
       {/* History */}
       <View style={styles.history}>
         <HistoryList records={records} onClear={clearHistory} />
-        <RunHistoryChart records={records} bestTime={bestTime} />
+        {showTrend && <RunHistoryChart records={records} bestTime={bestTime} />}
       </View>
 
       {/* Footer: privacy + source links */}
