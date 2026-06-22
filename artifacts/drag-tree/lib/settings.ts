@@ -26,6 +26,8 @@ export interface AppSettings {
   seriesEnabled: boolean;
   // Number of runs per series (3, 5, or 10).
   seriesSize: 3 | 5 | 10;
+  // Show the run-history trend chart on the home screen.
+  showTrend: boolean;
 }
 
 // Fields written to AsyncStorage on every change.
@@ -41,6 +43,7 @@ let current: AppSettings = {
   soundEnabled: false,
   seriesEnabled: false,
   seriesSize: 5,
+  showTrend: true,
 };
 
 const listeners = new Set<() => void>();
@@ -79,6 +82,9 @@ const listeners = new Set<() => void>();
     if (saved.seriesSize === 3 || saved.seriesSize === 5 || saved.seriesSize === 10)
       patch.seriesSize = saved.seriesSize;
 
+    if (typeof saved.showTrend === "boolean")
+      patch.showTrend = saved.showTrend;
+
     if (Object.keys(patch).length > 0) {
       current = { ...current, ...patch };
       listeners.forEach(fn => fn());
@@ -94,10 +100,10 @@ function persist(): void {
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
     persistTimer = null;
-    const { showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize } = current;
+    const { showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize, showTrend } = current;
     AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize }),
+      JSON.stringify({ showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize, showTrend }),
     ).catch(() => {});
   }, 250);
 }
