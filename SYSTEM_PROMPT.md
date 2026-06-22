@@ -78,7 +78,8 @@ drag-tree/                          ← repo root
 │   │   │   ├── settings.ts         ← Pub/sub settings store (AsyncStorage)
 │   │   │   ├── sessionLock.ts      ← Pub/sub session lock (separate store)
 │   │   │   ├── launchTelemetry.ts  ← Pub/sub last-launch telemetry store
-│   │   │   └── coaching.ts         ← Coaching messages by grade
+│   │   │   ├── coaching.ts         ← Coaching messages by grade
+│   │   │   └── audio.ts            ← Synthesized audio cues (expo-av, data-URI WAV)
 │   │   ├── app.json                ← Expo config (version, versionCode, plugins)
 │   │   ├── eas.json                ← EAS build profiles
 │   │   ├── package.json
@@ -105,6 +106,7 @@ drag-tree/                          ← repo root
 | Sensor | Expo Sensors — `DeviceMotion` (accelerometer) |
 | Persistence | `@react-native-async-storage/async-storage` 2.2.0 |
 | Haptics | `expo-haptics` |
+| Audio | `expo-av` ~16.0.8 |
 | External links | `expo-web-browser` |
 | Fonts | `@expo-google-fonts/inter` |
 | Monorepo | pnpm workspaces, Node 24 |
@@ -161,9 +163,10 @@ interface AppSettings {
   customThreshold: number;    // m/s² — only used when sensitivity === "custom"
   sensorEnabled: boolean;     // Arm accelerometer for auto-detection
   treeMode: "pro" | "full";
+  soundEnabled: boolean;     // Play audio cues (off by default)
 }
 ```
-Default: `{ showFloorIt: false, sensitivity: "normal", customThreshold: 2.0, sensorEnabled: true, treeMode: "pro" }`
+Default: `{ showFloorIt: false, sensitivity: "normal", customThreshold: 2.0, sensorEnabled: true, treeMode: "pro", soundEnabled: false }`
 
 **`lib/sessionLock.ts`** — Boolean flag: `true` while a run is active.
 Kept separate from `settings.ts` so that home-screen phase transitions
@@ -263,7 +266,40 @@ Reads from: `launchTelemetry`, `settings`, `sessionLock` (all via `useSyncExtern
 
 ---
 
-## Sensitivity Thresholds (`hooks/useAccelerometer.ts`)
+## Audio Cues (`lib/audio.ts`)
+
+  Synthesized audio feedback using `expo-av`. All sounds are generated as 16-bit
+  PCM mono WAV data URIs at first use — no bundled asset files required.
+
+  **Sounds:**
+  - **Amber click** (~40 ms, 900 Hz multi-harmonic decay) — fires on each amber stage.
+    Pro Tree: count jumps 0→3 in one render = one click. Full Tree: three separate
+    clicks 500 ms apart.
+  - **Green chirp** (~70 ms, 1400→2000 Hz sweep) — fires when phase becomes "go",
+    **only when sensor is inactive** (simulation/FLOOR IT mode). Skipped during the
+    real sensor-armed window to avoid masking the physical launch event.
+  - **Result-good ping** (~110 ms, 1600→2100 Hz rising) — fires for any non-redlight,
+    non-late grade.
+  - **Result red-light buzz** (~180 ms, 220→60 Hz with square distortion) — fires
+    for `redlight`.
+  - **Late / null** → intentional silence.
+
+  **Audio mode:** `playsInSilentModeIOS: true`, `shouldDuckAndroid: false` — fires
+  through the silent switch and mixes alongside background music.
+
+  **Lazy init:** `ensureReady()` calls `Audio.setAudioModeAsync` and loads all four
+  `Audio.Sound` objects on first play. Subsequent plays reuse via
+  `setPositionAsync(0) + playAsync()`. Guarded by a single `initPromise`.
+
+  **Settings guard:** each function no-ops immediately if
+  `settings.get().soundEnabled === false`.
+
+  **Wired from:** `app/(tabs)/index.tsx` — three `useEffect` hooks with `useRef`
+  prev-value tracking for amber/green/result transitions.
+
+  ---
+
+  ## Sensitivity Thresholds (`hooks/useAccelerometer.ts`)
 
 ```ts
 export const SENSITIVITY_THRESHOLDS = {
@@ -281,7 +317,7 @@ Custom threshold is set via a numeric stepper in settings; range clamped to
 
 | Key | Content |
 |---|---|
-| `"dragtree.settings.v1"` | User preferences (showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode) |
+| `"dragtree.settings.v1"` | User preferences (showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled) |
 | `"dragtree.history.v1"` | Array of last 30 `RunRecord` objects |
 | `"dragtree.bestTime.v1"` | Best reaction time as a string (parsed to float) |
 
@@ -292,7 +328,15 @@ in the hydration IIFE.
 
 ## Version History (Abbreviated)
 
-### v1.4.0 / versionCode 8 (May 2026)
+### Unreleased (audio cues)
+  - Added optional audio cues: amber click per stage, green chirp at "go",
+    result ping / red-light buzz. Default OFF, toggled via Sound setting, persisted.
+  - Added `soundEnabled: boolean` (default `false`) to `AppSettings` + storage.
+  - New `lib/audio.ts`: programmatic 16-bit PCM WAV synthesis, lazy-loaded
+    `expo-av` Sounds, no bundled asset files, fires through silent switch.
+  - Added `expo-av ~16.0.8` dependency.
+
+  ### v1.4.0 / versionCode 8 (May 2026)
 - Removed 122 ms simulation delay (`runSimulation` → instant `simulateLaunch` /
   `simulateRedLight`)
 - Extracted `sessionLocked` out of `AppSettings` into separate `lib/sessionLock.ts`
