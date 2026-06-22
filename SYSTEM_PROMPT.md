@@ -66,7 +66,6 @@ drag-tree/                          ← repo root
 │   │   │   ├── ReactionDisplay.tsx ← Shows RT + grade after a run
 │   │   │   ├── HistoryList.tsx     ← Run history list
 │   │   │   ├── FooterLinks.tsx     ← Version string, privacy, source links
-│   │   │   ├── KeyboardAwareScrollViewCompat.tsx
 │   │   │   ├── ErrorBoundary.tsx
 │   │   │   └── ErrorFallback.tsx
 │   │   ├── constants/
@@ -268,9 +267,9 @@ Reads from: `launchTelemetry`, `settings`, `sessionLock` (all via `useSyncExtern
 
 ```ts
 export const SENSITIVITY_THRESHOLDS = {
-  gentle: 1.2,   // m/s²
-  normal: 2.0,
-  hard:   3.5,
+  gentle: 1.5,   // m/s²
+  normal: 2.5,
+  hard:   4.5,
 };
 ```
 Custom threshold is set via a numeric stepper in settings; range clamped to
@@ -299,7 +298,7 @@ in the hydration IIFE.
 - Extracted `sessionLocked` out of `AppSettings` into separate `lib/sessionLock.ts`
   pub/sub store — phase transitions no longer trigger home screen settings re-renders
 - Removed dead `simTimerRef` (leftover from removed `runSimulation`)
-- Removed unused `handleManualLaunch` from home screen destructuring
+- Removed unused `handleManualLaunch` from home screen destructuring and from hook definition/return
 - Added 250 ms debounce to `persist()` in `settings.ts`
 - Completed 3-pass button lag audit — zero artificial delays in any settings combination
 
@@ -348,9 +347,7 @@ eas build --profile preview --platform android
    behind. Always read from GitHub first, patch version fields, then push back.
    Never push local `app.json` verbatim — it may be missing `projectId`/`owner`.
 
-2. **GitHub push pattern used in this repo:** Python `urllib` + `GITHUB_TOKEN`
-   environment variable, GitHub Contents API `PUT` with sha lookup. No `git`
-   commands needed.
+2. **GitHub push pattern used in this repo:** Use the Replit GitHub connector (`@replit/connectors-sdk` `ReplitConnectors`) via `connectors.proxy("github", path, { method, headers, body })`. The `GITHUB_TOKEN` secret is expired — do NOT use it. Always fetch the file's `sha` before a `PUT`.
 
 3. **`sessionLocked` does NOT live in `AppSettings`.** It lives exclusively in
    `lib/sessionLock.ts`. If you see old references to `appSettings.sessionLocked`,
