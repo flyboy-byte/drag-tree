@@ -536,6 +536,28 @@ export default function DiagnosticScreen() {
               </View>
             </View>
           )}
+
+          <View style={[styles.divider, { borderColor: colors.border }]} />
+
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={[styles.rowVal, { color: colors.foreground }]}>Trend Chart</Text>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+                Show the run-history bar chart on the home screen after 2+ runs.
+              </Text>
+            </View>
+            <Switch
+              value={appSettings.showTrend}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                settings.set({ showTrend: v });
+              }}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={appSettings.showTrend ? colors.primaryForeground : colors.mutedForeground}
+              accessibilityLabel="Trend chart toggle"
+              accessibilityHint="Shows or hides the run-history trend chart on the home screen"
+            />
+          </View>
         </View>
 
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
