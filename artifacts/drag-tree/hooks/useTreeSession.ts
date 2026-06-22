@@ -125,6 +125,7 @@ export function useTreeSession() {
   const seriesCompleteRef = useRef(false);
   const [seriesCount, setSeriesCount]       = useState(0);
   const [seriesSummary, setSeriesSummary]   = useState<SeriesSummary | null>(null);
+  const [seriesBestRT, setSeriesBestRT]     = useState<number | null>(null);
 
   // ── Hydrate persisted history + best on mount ─────────────────────────
   useEffect(() => {
@@ -207,6 +208,10 @@ export function useTreeSession() {
       seriesRunsRef.current = newRuns;
       const newCount = newRuns.length;
       setSeriesCount(newCount);
+      // Track best clean RT within this series
+      if (g !== "redlight" && g !== "late" && rt >= 0) {
+        setSeriesBestRT(prev => (prev === null || rt < prev ? rt : prev));
+      }
       if (newCount >= seriesSizeRef.current) {
         seriesCompleteRef.current = true;
         setSeriesSummary(computeSeriesSummary(newRuns, seriesSizeRef.current));
@@ -228,6 +233,7 @@ export function useTreeSession() {
       seriesCompleteRef.current = false;
       setSeriesCount(0);
       setSeriesSummary(null);
+      setSeriesBestRT(null);
     }
   }, []);
 
@@ -240,7 +246,23 @@ export function useTreeSession() {
       seriesCompleteRef.current = false;
       setSeriesCount(0);
       setSeriesSummary(null);
+      setSeriesBestRT(null);
     }
+  }, []);
+
+  // Force-reset series mid-run (user taps RESET on the status bar).
+  const resetSeries = useCallback(() => {
+    clearTimers();
+    updatePhase("idle");
+    setTree(INITIAL_TREE);
+    setReactionTime(null);
+    setGrade(null);
+    greenAtRef.current = null;
+    seriesRunsRef.current = [];
+    seriesCompleteRef.current = false;
+    setSeriesCount(0);
+    setSeriesSummary(null);
+    setSeriesBestRT(null);
   }, []);
 
   // Wipe persisted history (called by the History "clear" button).
@@ -416,7 +438,9 @@ export function useTreeSession() {
     getGreenAt: () => greenAtRef.current,
     // Series mode
     setSeries,
+    resetSeries,
     seriesProgress,
     seriesSummary,
+    seriesBestRT,
   };
 }
