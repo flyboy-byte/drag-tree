@@ -31,7 +31,7 @@ import { launchTelemetry } from "@/lib/launchTelemetry";
 import { settings } from "@/lib/settings";
 import { sessionLock } from "@/lib/sessionLock";
 import { coachingHint } from "@/lib/coaching";
-import { playAmberClick, playGreenBeep, playResultTone } from "@/lib/audio";
+import { playGreenBeep, playResultTone } from "@/lib/audio";
 
 function getStatusLabel(phase: string): string {
   switch (phase) {
@@ -320,17 +320,6 @@ export default function HomeScreen() {
   // Refs track previous values so effects only fire on transitions (not on
   // every render). soundEnabled is read live inside the async functions so
   // these effects don't need it as a dependency.
-
-  // Amber click: fires each time a new amber lights up. Pro tree: count
-  // jumps 0→3 in one render → single click. Full tree: three clicks 500ms apart.
-  const prevAmberCountRef = React.useRef(0);
-  const amberCount = (tree.amber1 ? 1 : 0) + (tree.amber2 ? 1 : 0) + (tree.amber3 ? 1 : 0);
-  React.useEffect(() => {
-    if (amberCount > prevAmberCountRef.current) {
-      void playAmberClick();
-    }
-    prevAmberCountRef.current = amberCount;
-  }, [amberCount]);
 
   // Green beep: fires when phase becomes "go".
   const prevIsArmedRef = React.useRef(false);
