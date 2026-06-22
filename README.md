@@ -440,11 +440,15 @@ Every EAS build has a full log URL printed in the terminal. Open it. Scroll to t
 
 ## 6. App features
 
-- **Pro Tree** — all 3 ambers fire simultaneously, green 0.400 s later (no Full Tree mode)
+- **Pro Tree** — all 3 ambers fire simultaneously, green 0.400 s later
+- **Sportsman Tree** — ambers count down one at a time, green 0.500 s after the last amber; toggle in Settings
 - **Accelerometer launch detection** — rolling-average baseline, no calibration step
-- **Three sensitivity presets** — Gentle / Normal / Hard, adjustable when idle
-- **Reaction grading** — Perfect / Pro / Great / Good / Late / Red Light  
-- **Session history** — all runs logged, personal best highlighted
+- **Three sensitivity presets** — Gentle / Normal / Hard plus a Custom dial, adjustable when idle
+- **Reaction grading** — Perfect / Pro / Great / Good / Late / Red Light
+- **Audio cues** *(optional, default off)* — amber click per stage, green chirp at "go", result ping or red-light buzz; fires through the silent switch
+- **Series mode** *(optional, default off)* — run 3, 5, or 10 back-to-back stages; see average RT, best, worst, red-light count, and a consistency score (Consistent / Improving / Fading / Mixed) after the final run
+- **Session history** — last 30 runs logged, personal best highlighted
+- **Reaction time trend chart** — bar chart of recent runs below the history list; personal best marked in amber; red-light stubs shown in red
 - **Browser / simulator mode** — FLOOR IT button animates G-meter and fires timer
 
 ---
@@ -452,5 +456,5 @@ Every EAS build has a full log URL printed in the terminal. Open it. Scroll to t
 ## Tech stack
 
 - Expo SDK 54 · React Native 0.81.5
-- expo-router · expo-sensors · React Native Reanimated 4
+- expo-router · expo-sensors · expo-av · React Native Reanimated 4
 - New Architecture enabled · pnpm workspace monorepo
