@@ -46,34 +46,18 @@ function buildWavUri(samples: Float32Array): string {
   return "data:audio/wav;base64," + btoa(bin);
 }
 
-// Short mechanical click for each amber stage (~40ms, 900 Hz decaying)
-function makeAmberSamples(): Float32Array {
-  const n = Math.floor(SR * 0.040);
-  const out = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    const t = i / SR;
-    const env = Math.exp(-t * 90);
-    out[i] = 0.40 * env * (
-      0.55 * Math.sin(2 * Math.PI * 900  * t) +
-      0.35 * Math.sin(2 * Math.PI * 1800 * t) +
-      0.10 * Math.sin(2 * Math.PI * 450  * t)
-    );
-  }
-  return out;
-}
-
-// Rising chirp for green (~70ms, sweeps 1400→2000 Hz)
+// Rising chirp for green (~60ms, sweeps 1400→2000 Hz)
 function makeGreenSamples(): Float32Array {
-  const n = Math.floor(SR * 0.070);
+  const n = Math.floor(SR * 0.060);
   const out = new Float32Array(n);
   let phase = 0;
   const attackN = Math.floor(SR * 0.008);
   for (let i = 0; i < n; i++) {
     const t = i / SR;
     const env = Math.min(1, i / attackN) * Math.exp(-t * 16);
-    const freq = 1400 + (t / 0.070) * 600;
+    const freq = 1400 + (t / 0.060) * 600;
     phase += (2 * Math.PI * freq) / SR;
-    out[i] = 0.32 * env * Math.sin(phase);
+    out[i] = 0.27 * env * Math.sin(phase);
   }
   return out;
 }
@@ -115,15 +99,14 @@ function makeResultRedLightSamples(): Float32Array {
 
 type SoundSlot = { sound: Audio.Sound } | null;
 
-const cache: Record<"amber" | "green" | "good" | "redlight", SoundSlot> = {
-  amber:    null,
+const cache: Record<"green" | "good" | "redlight", SoundSlot> = {
   green:    null,
   good:     null,
   redlight: null,
 };
 
 // Lazily-built WAV data URIs — generated once the first time ensureReady() runs.
-let wavUris: Record<"amber" | "green" | "good" | "redlight", string> | null = null;
+let wavUris: Record<"green" | "good" | "redlight", string> | null = null;
 
 let initPromise: Promise<void> | null = null;
 
@@ -133,7 +116,6 @@ async function ensureReady(): Promise<void> {
     // Build WAV data URIs on first use (sync ~1–2ms on device).
     if (!wavUris) {
       wavUris = {
-        amber:    buildWavUri(makeAmberSamples()),
         green:    buildWavUri(makeGreenSamples()),
         good:     buildWavUri(makeResultGoodSamples()),
         redlight: buildWavUri(makeResultRedLightSamples()),
@@ -148,7 +130,7 @@ async function ensureReady(): Promise<void> {
       playThroughEarpieceAndroid: false,
     });
 
-    const keys = ["amber", "green", "good", "redlight"] as const;
+    const keys = ["green", "good", "redlight"] as const;
     await Promise.all(
       keys.map(async (key) => {
         if (cache[key]) return;
@@ -167,24 +149,17 @@ async function ensureReady(): Promise<void> {
   return initPromise;
 }
 
-async function playSlot(key: "amber" | "green" | "good" | "redlight"): Promise<void> {
+async function playSlot(key: "green" | "good" | "redlight"): Promise<void> {
   const slot = cache[key];
   if (!slot) return;
   try {
-    await slot.sound.setPositionAsync(0);
-    await slot.sound.playAsync();
+    await slot.sound.replayAsync();
   } catch {
     // Best-effort — ignore playback errors.
   }
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
-
-export async function playAmberClick(): Promise<void> {
-  if (!settings.get().soundEnabled) return;
-  await ensureReady();
-  await playSlot("amber");
-}
 
 export async function playGreenBeep(): Promise<void> {
   if (!settings.get().soundEnabled) return;
