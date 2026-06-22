@@ -332,15 +332,14 @@ export default function HomeScreen() {
     prevAmberCountRef.current = amberCount;
   }, [amberCount]);
 
-  // Green beep: fires when phase becomes "go". Skip when sensor is active
-  // to avoid masking the physical launch event.
+  // Green beep: fires when phase becomes "go".
   const prevIsArmedRef = React.useRef(false);
   React.useEffect(() => {
-    if (isArmed && !prevIsArmedRef.current && !sensorActive) {
+    if (isArmed && !prevIsArmedRef.current) {
       void playGreenBeep();
     }
     prevIsArmedRef.current = isArmed;
-  }, [isArmed, sensorActive]);
+  }, [isArmed]);
 
   // Result tone: fires on first render where isDone is true.
   const prevIsDoneRef = React.useRef(false);
