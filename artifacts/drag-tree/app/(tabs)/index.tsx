@@ -30,6 +30,7 @@ import { launchTelemetry } from "@/lib/launchTelemetry";
 import { settings } from "@/lib/settings";
 import { sessionLock } from "@/lib/sessionLock";
 import { coachingHint } from "@/lib/coaching";
+import { playAmberClick, playGreenBeep, playResultTone } from "@/lib/audio";
 
 function getStatusLabel(phase: string): string {
   switch (phase) {
@@ -70,6 +71,7 @@ export default function HomeScreen() {
   const treeMode         = appSettings.treeMode;
   const sensitivity      = appSettings.sensitivity;
   const customThreshold  = appSettings.customThreshold;
+  const soundEnabled     = appSettings.soundEnabled;
   // Resolved threshold in m/s² — presets look up from the table, custom uses the stored value.
   const thresholdValue: number =
     sensitivity === "custom"
@@ -188,6 +190,41 @@ export default function HomeScreen() {
   // or the sensor isn't active (not available or disabled).
   const sensorActive  = isAvailable && sensorEnabled;
   const useSimulation = !sensorActive || showFloorIt;
+
+  // ── Audio cues ────────────────────────────────────────────────────────
+  // Refs track previous values so effects only fire on transitions (not on
+  // every render). soundEnabled is read live inside the async functions so
+  // these effects don't need it as a dependency.
+
+  // Amber click: fires each time a new amber lights up. Pro tree: count
+  // jumps 0→3 in one render → single click. Full tree: three clicks 500ms apart.
+  const prevAmberCountRef = React.useRef(0);
+  const amberCount = (tree.amber1 ? 1 : 0) + (tree.amber2 ? 1 : 0) + (tree.amber3 ? 1 : 0);
+  React.useEffect(() => {
+    if (amberCount > prevAmberCountRef.current) {
+      void playAmberClick();
+    }
+    prevAmberCountRef.current = amberCount;
+  }, [amberCount]);
+
+  // Green beep: fires when phase becomes "go". Skip when sensor is active
+  // to avoid masking the physical launch event.
+  const prevIsArmedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (isArmed && !prevIsArmedRef.current && !sensorActive) {
+      void playGreenBeep();
+    }
+    prevIsArmedRef.current = isArmed;
+  }, [isArmed, sensorActive]);
+
+  // Result tone: fires on first render where isDone is true.
+  const prevIsDoneRef = React.useRef(false);
+  React.useEffect(() => {
+    if (isDone && !prevIsDoneRef.current && grade) {
+      void playResultTone(grade);
+    }
+    prevIsDoneRef.current = isDone;
+  }, [isDone, grade]);
 
   const gColor =
     currentG > 0.8 ? colors.greenOn :
@@ -485,11 +522,6 @@ const styles = StyleSheet.create({
     fontWeight: "700" as const,
     letterSpacing: 4,
     fontFamily: "Inter_700Bold",
-  },
-  fallbackHint: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginBottom: 8,
   },
   hint: {
     fontSize: 11,
