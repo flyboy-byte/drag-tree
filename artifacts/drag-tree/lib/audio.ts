@@ -53,7 +53,7 @@ function makeAmberSamples(): Float32Array {
   for (let i = 0; i < n; i++) {
     const t = i / SR;
     const env = Math.exp(-t * 90);
-    out[i] = 0.65 * env * (
+    out[i] = 0.40 * env * (
       0.55 * Math.sin(2 * Math.PI * 900  * t) +
       0.35 * Math.sin(2 * Math.PI * 1800 * t) +
       0.10 * Math.sin(2 * Math.PI * 450  * t)
@@ -73,7 +73,7 @@ function makeGreenSamples(): Float32Array {
     const env = Math.min(1, i / attackN) * Math.exp(-t * 16);
     const freq = 1400 + (t / 0.070) * 600;
     phase += (2 * Math.PI * freq) / SR;
-    out[i] = 0.50 * env * Math.sin(phase);
+    out[i] = 0.32 * env * Math.sin(phase);
   }
   return out;
 }
@@ -89,7 +89,7 @@ function makeResultGoodSamples(): Float32Array {
     const env = Math.min(1, i / attackN) * Math.exp(-t * 9);
     const freq = 1600 + (t / 0.110) * 500;
     phase += (2 * Math.PI * freq) / SR;
-    out[i] = 0.42 * env * Math.sin(phase);
+    out[i] = 0.26 * env * Math.sin(phase);
   }
   return out;
 }
@@ -106,7 +106,7 @@ function makeResultRedLightSamples(): Float32Array {
     const freq = Math.max(60, 220 - (t / 0.180) * 160);
     phase += (2 * Math.PI * freq) / SR;
     const sine = Math.sin(phase);
-    out[i] = 0.46 * env * (0.7 * sine + 0.3 * Math.sign(sine));
+    out[i] = 0.29 * env * (0.7 * sine + 0.3 * Math.sign(sine));
   }
   return out;
 }
@@ -155,7 +155,7 @@ async function ensureReady(): Promise<void> {
         try {
           const { sound } = await Audio.Sound.createAsync(
             { uri: wavUris![key] },
-            { shouldPlay: false, volume: 0.8 },
+            { shouldPlay: false, volume: 0.55 },
           );
           cache[key] = { sound };
         } catch {
