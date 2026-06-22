@@ -22,6 +22,7 @@ import Animated, {
 import { ChristmasTree } from "@/components/ChristmasTree";
 import { ReactionDisplay } from "@/components/ReactionDisplay";
 import { HistoryList } from "@/components/HistoryList";
+import { RunHistoryChart } from "@/components/RunHistoryChart";
 import { FooterLinks } from "@/components/FooterLinks";
 import { useTreeSession, type SeriesSummary } from "@/hooks/useTreeSession";
 import { useAccelerometer, SENSITIVITY_THRESHOLDS } from "@/hooks/useAccelerometer";
@@ -211,6 +212,8 @@ export default function HomeScreen() {
     setSeries,
     seriesProgress,
     seriesSummary,
+    seriesBestRT,
+    resetSeries,
   } = useTreeSession();
 
   // Keep the session's tree mode in sync with the settings store.
@@ -445,12 +448,10 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Tree mode banner + series progress */}
+      {/* Tree mode banner */}
       <View style={[styles.proLabel, { borderColor: colors.border }]}>
         <Text style={[styles.proText, { color: colors.mutedForeground }]}>
           {treeMode === "pro" ? "PRO TREE  •  0.400s" : "SPORTSMAN  •  0.500s"}
-          {seriesProgress != null ? `  •  ${seriesProgress.count} / ${seriesProgress.size}` : ""}
-          {seriesEnabled && seriesProgress == null ? `  •  S${seriesSize}` : ""}
         </Text>
       </View>
 
@@ -489,6 +490,26 @@ export default function HomeScreen() {
           </View>
         )}
       </View>
+
+      {/* Series status bar — visible whenever series mode is on and summary not yet shown */}
+      {seriesEnabled && seriesSummary == null && (
+        <View style={[styles.seriesBar, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          <Text style={[styles.seriesBarLabel, { color: colors.mutedForeground }]}>
+            {seriesProgress != null ? `Run ${seriesProgress.count} / ${seriesProgress.size}` : `Ready  •  S${seriesSize}`}
+          </Text>
+          <Text style={[styles.seriesBarBest, { color: colors.mutedForeground }]}>
+            {seriesBestRT != null ? `Best: ${seriesBestRT.toFixed(3)}s` : "Best: —"}
+          </Text>
+          <Pressable
+            onPress={resetSeries}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Reset series"
+          >
+            <Text style={[styles.seriesBarReset, { color: colors.mutedForeground }]}>RESET</Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* Main button */}
       <Pressable
@@ -549,6 +570,7 @@ export default function HomeScreen() {
       {/* History */}
       <View style={styles.history}>
         <HistoryList records={records} onClear={clearHistory} />
+        <RunHistoryChart records={records} bestTime={bestTime} />
       </View>
 
       {/* Footer: privacy + source links */}
@@ -632,6 +654,39 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     fontWeight: "600" as const,
     minWidth: 40,
+    textAlign: "right",
+  },
+  seriesBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  seriesBarLabel: {
+    fontSize: 11,
+    fontWeight: "600" as const,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 1,
+    flex: 1,
+  },
+  seriesBarBest: {
+    fontSize: 11,
+    fontWeight: "600" as const,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 0.5,
+    flex: 1,
+    textAlign: "center",
+  },
+  seriesBarReset: {
+    fontSize: 11,
+    fontWeight: "700" as const,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1,
     textAlign: "right",
   },
   mainBtn: {
