@@ -164,9 +164,11 @@ interface AppSettings {
   sensorEnabled: boolean;     // Arm accelerometer for auto-detection
   treeMode: "pro" | "full";
   soundEnabled: boolean;     // Play audio cues (off by default)
+  seriesEnabled: boolean;    // Enable back-to-back series mode (default false)
+  seriesSize: 3 | 5 | 10;   // Runs per series (default 5)
 }
 ```
-Default: `{ showFloorIt: false, sensitivity: "normal", customThreshold: 2.0, sensorEnabled: true, treeMode: "pro", soundEnabled: false }`
+Default: `{ showFloorIt: false, sensitivity: "normal", customThreshold: 2.0, sensorEnabled: true, treeMode: "pro", soundEnabled: false, seriesEnabled: false, seriesSize: 5 }`
 
 **`lib/sessionLock.ts`** — Boolean flag: `true` while a run is active.
 Kept separate from `settings.ts` so that home-screen phase transitions
@@ -299,6 +301,33 @@ Reads from: `launchTelemetry`, `settings`, `sessionLock` (all via `useSyncExtern
 
   ---
 
+  ## Series Mode (`hooks/useTreeSession.ts`)
+
+  When `seriesEnabled` is true, consecutive runs are accumulated into a series.
+  After N runs (where N = `seriesSize`), the home screen replaces `ReactionDisplay`
+  with a `SeriesSummaryCard` showing:
+
+  - **Average RT** (clean runs only — excludes redlight and late)
+  - **Best / worst** clean RT
+  - **Red-light count**
+  - **Consistency label**: `Consistent` (σ < 20 ms), `Improving`, `Fading`, or `Mixed`
+    computed from std-deviation + first-half vs second-half trend
+
+  **Session-only** — series accumulation does not persist across restarts.
+  Individual run records still appear in History normally.
+
+  **Wired from:** `app/(tabs)/index.tsx` via `setSeries(enabled, size)` effect
+  (synced from `appSettings.seriesEnabled / seriesSize` on every settings change).
+
+  Series counter **"N / total"** appears inline in the tree-mode banner when a series
+  is in progress.  A plain **"S${size}"** label shows when series is enabled but no
+  runs have been completed yet.
+
+  **Settings UI:** toggle + size chips [3] [5] [10] in the PREFERENCES card in
+  `app/diagnostic.tsx`, gated by the session lock.
+
+  ---
+
   ## Sensitivity Thresholds (`hooks/useAccelerometer.ts`)
 
 ```ts
@@ -317,7 +346,7 @@ Custom threshold is set via a numeric stepper in settings; range clamped to
 
 | Key | Content |
 |---|---|
-| `"dragtree.settings.v1"` | User preferences (showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled) |
+| `"dragtree.settings.v1"` | User preferences (showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize) |
 | `"dragtree.history.v1"` | Array of last 30 `RunRecord` objects |
 | `"dragtree.bestTime.v1"` | Best reaction time as a string (parsed to float) |
 
@@ -328,13 +357,18 @@ in the hydration IIFE.
 
 ## Version History (Abbreviated)
 
-### Unreleased (audio cues)
+### Unreleased (audio cues + series mode)
   - Added optional audio cues: amber click per stage, green chirp at "go",
     result ping / red-light buzz. Default OFF, toggled via Sound setting, persisted.
   - Added `soundEnabled: boolean` (default `false`) to `AppSettings` + storage.
   - New `lib/audio.ts`: programmatic 16-bit PCM WAV synthesis, lazy-loaded
     `expo-av` Sounds, no bundled asset files, fires through silent switch.
   - Added `expo-av ~16.0.8` dependency.
+- Added Series Mode: back-to-back N-run sessions with avg RT, best/worst, red-light
+  count, and consistency score. Session-only state. Settings: Series toggle + size
+  chips [3/5/10] in PREFERENCES. Counter "N/size" in tree-mode banner. Final run
+  shows `SeriesSummaryCard` instead of `ReactionDisplay`.
+- Added `seriesEnabled: boolean` + `seriesSize: 3|5|10` (defaults false/5) to `AppSettings`.
 
   ### v1.4.0 / versionCode 8 (May 2026)
 - Removed 122 ms simulation delay (`runSimulation` → instant `simulateLaunch` /
