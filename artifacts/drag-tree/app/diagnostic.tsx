@@ -478,6 +478,64 @@ export default function DiagnosticScreen() {
               accessibilityHint="Enables or disables audio cues during the tree sequence"
             />
           </View>
+
+          <View style={[styles.divider, { borderColor: colors.border }]} />
+
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={[styles.rowVal, { color: colors.foreground }]}>Series Mode</Text>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+                Run back-to-back stages and see your average RT, best, worst, and a
+                consistency score after N runs.
+              </Text>
+            </View>
+            <Switch
+              value={appSettings.seriesEnabled}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                settings.set({ seriesEnabled: v });
+              }}
+              disabled={isSessionLocked}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={appSettings.seriesEnabled ? colors.primaryForeground : colors.mutedForeground}
+              accessibilityLabel="Series mode toggle"
+              accessibilityHint="Enables back-to-back series practice with a summary after N runs"
+            />
+          </View>
+
+          {appSettings.seriesEnabled && (
+            <View style={{ gap: 8, marginTop: 4 }}>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>Runs per series</Text>
+              <View style={styles.sensChipRow}>
+                {([3, 5, 10] as const).map(n => (
+                  <Pressable
+                    key={n}
+                    style={[
+                      styles.sensChip,
+                      {
+                        backgroundColor: appSettings.seriesSize === n ? colors.secondary : "transparent",
+                        borderColor: appSettings.seriesSize === n ? colors.border : "transparent",
+                        opacity: isSessionLocked ? 0.5 : 1,
+                      },
+                    ]}
+                    onPress={() => {
+                      if (isSessionLocked) return;
+                      Haptics.selectionAsync();
+                      settings.set({ seriesSize: n });
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set series size to ${n} runs`}
+                    accessibilityState={{ selected: appSettings.seriesSize === n, disabled: isSessionLocked }}
+                  >
+                    <Text style={[styles.sensChipLabel, { color: appSettings.seriesSize === n ? colors.foreground : colors.mutedForeground }]}>
+                      {n}
+                    </Text>
+                    <Text style={[styles.sensChipSub, { color: colors.mutedForeground }]}>runs</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
         </View>
 
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
