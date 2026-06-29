@@ -1,0 +1,1 @@
+Added reaction time trend chart below run history. Added Series mode for back-to-back runs with avg RT, best/worst, and consistency score. Optional audio cues (amber click, green chirp, result ping). Improved accelerometer precision with jerk-onset detection.
