@@ -1,5 +1,5 @@
 Categories:
-  - Sports & Health
+  - Sport Game
 License: MIT
 AuthorName: flyboy-byte
 WebSite: https://flyboy-byte.github.io/drag-tree/
@@ -33,8 +33,11 @@ Builds:
     subdir: artifacts/drag-tree/android/app
     sudo:
       - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-      - wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | apt-key add -
-      - echo "deb https://packages.adoptium.net/artifactory/deb trixie main" >> /etc/apt/sources.list
+      - mkdir -p /etc/apt/keyrings
+      - curl -fsSLO https://packages.adoptium.net/artifactory/api/gpg/key/public
+      - gpg --dearmor < public > /etc/apt/keyrings/adoptium.gpg
+      - echo 'deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb
+        trixie main' >> /etc/apt/sources.list
       - apt-get update
       - apt-get install -y nodejs temurin-17-jdk
       - npm install -g pnpm

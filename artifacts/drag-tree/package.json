@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "babel-preset-expo": "~54.0.11",
     "@expo-google-fonts/inter": "^0.4.0",
     "@expo/cli": "54.0.23",
     "@expo/ngrok": "^4.1.0",
