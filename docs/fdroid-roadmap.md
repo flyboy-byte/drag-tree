@@ -33,7 +33,7 @@ The app is clean. No action needed for any of these.
 
 ## Steps
 
-### Step 1 — Get the Gradle project into the repo `[ ]` (MEDIUM)
+### Step 1 — Get the Gradle project into the repo `[x]` (MEDIUM)
 
 Expo's `expo prebuild` generates a standard Gradle project in `android/` — the same thing EAS hands to Gradle to produce the APK. F-Droid uses Gradle too, so there's no fundamental incompatibility. The only question is whether `android/` needs to be committed to the repo first or whether the fdroiddata init script can generate it.
 
@@ -64,7 +64,7 @@ F-Droid's build environment has Node.js. This generates `android/` before Gradle
 
 ---
 
-### Step 2 — Add Git version tags `[ ]` (EASY)
+### Step 2 — Add Git version tags `[x]` (EASY)
 
 F-Droid's autoupdate system detects new versions by reading Git tags. Each release commit needs a tag matching `versionName` in `app.json`.
 
@@ -79,7 +79,7 @@ For every future release: bump `version` and `versionCode` in `artifacts/drag-tr
 
 ---
 
-### Step 3 — Add Fastlane metadata `[ ]` (EASY)
+### Step 3 — Add Fastlane metadata `[x]` (EASY)
 
 F-Droid reads store listing text from Fastlane-style files in the repo. This is also used if you ever submit to the Play Store via Fastlane.
 
@@ -108,7 +108,7 @@ NHRA Pro Tree reaction timer — accelerometer launch detection, no internet nee
 
 ---
 
-### Step 4 — Strip EAS project ID for F-Droid build `[ ]` (EASY)
+### Step 4 — Strip EAS project ID for F-Droid build `[x]` (SKIPPED)
 
 `artifacts/drag-tree/app.json` contains:
 ```json
@@ -127,7 +127,7 @@ This is EAS build tooling only — not used at runtime. F-Droid reviewers may qu
 
 ---
 
-### Step 5 — Write fdroiddata metadata YAML `[ ]` (MEDIUM)
+### Step 5 — Write fdroiddata metadata YAML `[x]` (MEDIUM)
 
 This is the file that tells F-Droid how to build and describe the app.
 
@@ -186,7 +186,7 @@ CurrentVersionCode: 12
 
 ---
 
-### Step 6 — Test the metadata locally (optional but recommended) `[ ]`
+### Step 6 — Test the metadata locally (optional but recommended) `[ ]` (SKIP FOR NOW)
 
 F-Droid provides `fdroidserver` to test locally before submitting.
 
@@ -209,7 +209,7 @@ fdroid build com.flyboybyte.dragtree
 
 ---
 
-### Step 7 — Submit the merge request `[ ]`
+### Step 7 — Submit the merge request `[~]` (YOUR TURN)
 
 Once the fdroiddata metadata YAML is ready:
 1. Commit with label `New App: DragTree`

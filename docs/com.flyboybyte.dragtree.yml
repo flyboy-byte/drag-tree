@@ -1,0 +1,45 @@
+# F-Droid build metadata for DragTree
+# File goes in: fdroiddata/metadata/com.flyboybyte.dragtree.yml
+# Reference: https://f-droid.org/docs/Build_Metadata_Reference/
+
+Categories:
+  - Sports & Health
+License: MIT
+AuthorName: flyboy-byte
+SourceCode: https://github.com/flyboy-byte/drag-tree
+IssueTracker: https://github.com/flyboy-byte/drag-tree/issues
+WebSite: https://flyboy-byte.github.io/drag-tree/
+
+AutoName: DragTree
+
+Description: |-
+  Simulates a real NHRA Pro Tree (all 3 ambers fire simultaneously, green
+  0.400 s later) and measures your reaction time using the phone's
+  accelerometer. Mount your phone on the dash, stage up, watch the tree,
+  and floor it — the app detects launch G-force and records your RT
+  automatically. No tapping required when the sensor is enabled.
+
+  Features Pro Tree and Sportsman Tree modes, three sensitivity presets,
+  reaction grading, run history, trend chart, optional audio cues, and
+  series mode for back-to-back runs. Fully offline — no internet required.
+
+  Permissions note: HIGH_SAMPLING_RATE_SENSORS is required for 125 Hz
+  accelerometer sampling. Other permissions (INTERNET, VIBRATE, etc.) are
+  included by Expo's Android template and React Native defaults; none are
+  exercised at runtime by the app itself.
+
+RepoType: git
+Repo: https://github.com/flyboy-byte/drag-tree
+
+Builds:
+  - versionName: 1.7.0
+    versionCode: 12
+    commit: v1.7.0
+    subdir: artifacts/drag-tree/android/app
+    gradle:
+      - yes
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 1.7.0
+CurrentVersionCode: 12
