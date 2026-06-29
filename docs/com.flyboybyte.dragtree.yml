@@ -36,6 +36,8 @@ Builds:
       - apt-get install -y nodejs
       - npm install -g pnpm
     init: cd ../../../../ && pnpm install --no-frozen-lockfile --ignore-scripts
+    scanignore:
+      - node_modules
     gradle:
       - yes
 
