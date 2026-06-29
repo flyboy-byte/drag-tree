@@ -25,9 +25,21 @@ cd artifacts/drag-tree && eas build --profile preview --platform android
 cd artifacts/drag-tree && eas build --profile play --platform android
 ```
 
-**Do not use `npx expo start`** — always use `pnpm web` to ensure Expo 54 is used, not whatever npx downloads.
+**Do not use `npx expo start`** — always use `pnpm web` to ensure Expo 54 is used.
 
 **Do not run `pnpm run dev` at the workspace root** — there is no root dev script.
+
+**`pnpm install` must run from repo root**, not from `artifacts/drag-tree`. Running it from the wrong directory causes `Unable to resolve module` build failures.
+
+---
+
+## EAS Build Profiles (`eas.json`)
+
+| Profile | Output | Use |
+|---|---|---|
+| `play` | AAB, auto-increments versionCode | Play Store submission |
+| `preview` | APK | Sideload to device for testing |
+| `production` | APK | Legacy, unused |
 
 ---
 
@@ -37,22 +49,20 @@ cd artifacts/drag-tree && eas build --profile play --platform android
 
 ```
 drag-tree/                     ← repo root (tooling only)
-├── artifacts/drag-tree/       ← THE main app (all feature work lives here)
-│   ├── app/
-│   │   ├── (tabs)/index.tsx   ← Home screen (tree, button, history)
-│   │   └── diagnostic.tsx     ← Dev screen (sensor data, settings, telemetry)
-│   ├── components/            ← ChristmasTree, ReactionDisplay, HistoryList, etc.
-│   ├── hooks/
-│   │   ├── useTreeSession.ts  ← Session state machine + history persistence
-│   │   └── useAccelerometer.ts← Sensor subscription, sustain gate, onset rewind
-│   ├── lib/
-│   │   ├── settings.ts        ← Pub/sub settings store (AsyncStorage-backed)
-│   │   ├── sessionLock.ts     ← Pub/sub boolean (written by home, read by diag)
-│   │   ├── launchTelemetry.ts ← Pub/sub last-launch sensor breakdown
-│   │   └── audio.ts           ← Synthesized WAV audio cues (expo-av)
-│   └── constants/colors.ts    ← All color tokens (light + dark)
-├── lib/db/                    ← PostgreSQL + Drizzle ORM (wired but unused)
-└── artifacts/api-server/      ← Express health-check only (not used by app)
+└── artifacts/drag-tree/       ← THE main app (all feature work lives here)
+    ├── app/
+    │   ├── (tabs)/index.tsx   ← Home screen (tree, button, history)
+    │   └── diagnostic.tsx     ← Settings + diagnostics (sensor data, telemetry)
+    ├── components/            ← ChristmasTree, ReactionDisplay, HistoryList, etc.
+    ├── hooks/
+    │   ├── useTreeSession.ts  ← Session state machine + history persistence
+    │   └── useAccelerometer.ts← Sensor subscription, sustain gate, onset rewind
+    ├── lib/
+    │   ├── settings.ts        ← Pub/sub settings store (AsyncStorage-backed)
+    │   ├── sessionLock.ts     ← Pub/sub boolean (written by home, read by diag)
+    │   ├── launchTelemetry.ts ← Pub/sub last-launch sensor breakdown
+    │   └── audio.ts           ← Synthesized WAV audio cues (expo-av)
+    └── constants/colors.ts    ← All color tokens (light + dark)
 ```
 
 ### State architecture
@@ -61,9 +71,25 @@ All global state uses a hand-rolled pub/sub pattern — no Redux, no Zustand, no
 
 **`lib/settings.ts`** — User preferences, persisted to `"dragtree.settings.v1"` in AsyncStorage. `persist()` is debounced 250 ms to coalesce rapid stepper taps.
 
+```ts
+interface AppSettings {
+  showFloorIt: boolean;
+  sensitivity: "gentle" | "normal" | "hard" | "custom";
+  customThreshold: number;    // m/s² — only when sensitivity === "custom"
+  sensorEnabled: boolean;
+  treeMode: "pro" | "full";
+  soundEnabled: boolean;
+  seriesEnabled: boolean;
+  seriesSize: 3 | 5 | 10;
+  showTrend: boolean;         // Show RT trend chart below run history
+}
+```
+
+Sensitivity thresholds: `gentle: 1.5`, `normal: 2.5`, `hard: 4.5` m/s²
+
 **`lib/sessionLock.ts`** — Boolean `true` while a run is active. Kept separate from settings so home-screen phase transitions don't trigger a settings re-render. The home screen only **writes** to it; `diagnostic.tsx` **reads** it.
 
-**`lib/launchTelemetry.ts`** — Last real-sensor launch breakdown (onset → threshold → confirm times, peak G). Written via `onLaunchTelemetry` in home screen; read in `diagnostic.tsx`.
+**`lib/launchTelemetry.ts`** — Last real-sensor launch breakdown (onset → threshold → confirm times, peak G, `source: "native"|"js"`). Written via `onLaunchTelemetry` in home screen; read in `diagnostic.tsx`.
 
 ### Session state machine (`useTreeSession.ts`)
 
@@ -75,7 +101,7 @@ idle → staging → countdown → go → result
 
 Key refs guard against stale closures and prevent unnecessary re-renders:
 - `phaseRef` — mirrors `phase`; guards `triggerLaunch`/`triggerRedLight` against double-fire
-- `greenAtRef` — `performance.now()` timestamp of green light (set at paint time via rAF, not at state-set time)
+- `greenAtRef` — `performance.now()` timestamp of green light (set at paint time via rAF)
 - `hydratedRef` — prevents first-render empty state from clobbering AsyncStorage
 
 **AsyncStorage keys:**
@@ -86,15 +112,15 @@ To migrate incompatibly: bump `.v1` → `.v2` and handle the old key in the hydr
 
 ### Accelerometer (`useAccelerometer.ts`)
 
-Sensor: `DeviceMotion` from `expo-sensors` at 8 ms intervals (125 Hz target). Uses `DeviceMotion.acceleration` which provides linear acceleration (gravity already removed by Android sensor fusion).
+Sensor: `DeviceMotion` from `expo-sensors` at 8 ms intervals (125 Hz target). Uses `DeviceMotion.acceleration` — linear acceleration with gravity removed by Android sensor fusion.
 
 Detection flow:
 1. Each sample pushed into a 24-sample rolling buffer
 2. When magnitude ≥ threshold for `SUSTAINED_SAMPLES` (5) consecutive samples (~40 ms), fire
-3. On fire: walk back through buffer via slope analysis to find the **jerk-onset timestamp** — RT is reported from onset, not from confirmation, so it accurately reflects when the car actually moved
+3. On fire: walk back through buffer via slope analysis to find the **jerk-onset timestamp** — RT is reported from onset, not confirmation
 4. `watchForRedLight=true` during staging/countdown: fire → `onRedLight()` instead
 
-**Critical design:** `onLaunch`, `onRedLight`, `onLaunchTelemetry` are stored in refs updated each render. Without this, the DeviceMotion subscription would teardown/recreate 125×/s (each `setCurrentG` call triggers a re-render). `firedRef` prevents double-fire between sensor and FLOOR IT button.
+**Critical design:** `onLaunch`, `onRedLight`, `onLaunchTelemetry` are stored in refs updated each render. Without this, the DeviceMotion subscription would teardown/recreate 125×/s. `firedRef` prevents double-fire between sensor and FLOOR IT button.
 
 ### Home screen button logic
 
@@ -107,9 +133,12 @@ When sensor is active and FLOOR IT is off, the button shows "ARMED" and is disab
 
 ### Audio (`lib/audio.ts`)
 
-All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asset files. Lazy-initialized on first play via `ensureReady()`. Each function no-ops if `settings.get().soundEnabled === false`.
+All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asset files. Lazy-initialized on first play via `ensureReady()`. Each function no-ops if `soundEnabled === false`.
 
-Green chirp fires **only when sensor is inactive** (`useSimulation` mode) to avoid masking the physical launch event.
+- **Amber click** (~40 ms, 900 Hz) — fires on each amber stage
+- **Green chirp** (~70 ms, 1400→2000 Hz sweep) — fires at "go", **only in simulation mode** (skipped when sensor-armed to avoid masking launch)
+- **Result ping** (~110 ms) — fires for any non-redlight, non-late grade
+- **Red-light buzz** (~180 ms, 220→60 Hz) — fires for redlight
 
 ---
 
@@ -117,12 +146,27 @@ Green chirp fires **only when sensor is inactive** (`useSimulation` mode) to avo
 
 1. **`sessionLocked` does NOT live in `AppSettings`** — it's in `lib/sessionLock.ts` only. Any reference to `appSettings.sessionLocked` is a stale bug.
 
-2. **`app.json` in the repo may lag behind the GitHub-pushed version** (which has `projectId`/`owner` from EAS init). Never overwrite GitHub's `app.json` with the local one verbatim.
+2. **`app.json` in the repo may lag behind the pushed version** (which has `projectId`/`owner` from EAS). Never overwrite the repo's `app.json` with a local copy that's missing those fields.
 
 3. **Reanimated 4 syntax** — use `useSharedValue`, `useAnimatedStyle`, `withTiming`, `withRepeat`, `withSequence`. Do not use v2/v3 `useAnimatedGestureHandler`.
 
-4. **User tone: minimal, plain, no nagging.** Any user-visible text (labels, hints, coaching) must be short and non-pushy.
+4. **User tone: minimal, plain, no nagging.** Any user-visible text must be short and non-pushy.
 
 5. **`persist()` is debounced 250 ms.** Rapid `settings.set()` calls coalesce into one write.
 
-6. **`pnpm install` must run from repo root**, not from `artifacts/drag-tree`. Running it from the wrong directory causes `Unable to resolve module` build failures.
+---
+
+## F-Droid
+
+The app targets F-Droid distribution alongside Play Store. Key notes:
+
+- **No Firebase, no GMS** — F-Droid bans them. App is fully offline by design.
+- **`android/` is committed** to the repo (`artifacts/drag-tree/android/`). F-Droid builds by cloning the repo and running Gradle directly — same as EAS.
+- **Rebuild `android/` when native changes** — after any Expo version bump or new native plugin, re-run `expo prebuild --platform android --clean` from `artifacts/drag-tree/` and commit the updated `android/` directory.
+- **Tag every release** — F-Droid autoupdate tracks `git tag` matching `versionName` (e.g. `v1.7.0`).
+- **Fastlane metadata** is in `fastlane/metadata/android/en-US/` — update `changelogs/<versionCode>.txt` each release.
+- **`subdir`** for fdroiddata YAML: `artifacts/drag-tree/android/app`
+
+### Permissions note
+
+AndroidManifest.xml has several permissions added by Expo/RN defaults (INTERNET, RECORD_AUDIO, SYSTEM_ALERT_WINDOW, etc.). These were kept intentionally — Replit added them during accelerometer bug fixing and removing them risks breaking sensor quality. `HIGH_SAMPLING_RATE_SENSORS` is the only one actively used by the app.
