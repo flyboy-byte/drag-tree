@@ -1,14 +1,10 @@
-# F-Droid build metadata for DragTree
-# File goes in: fdroiddata/metadata/com.flyboybyte.dragtree.yml
-# Reference: https://f-droid.org/docs/Build_Metadata_Reference/
-
 Categories:
   - Sports & Health
 License: MIT
 AuthorName: flyboy-byte
+WebSite: https://flyboy-byte.github.io/drag-tree/
 SourceCode: https://github.com/flyboy-byte/drag-tree
 IssueTracker: https://github.com/flyboy-byte/drag-tree/issues
-WebSite: https://flyboy-byte.github.io/drag-tree/
 
 AutoName: DragTree
 
@@ -36,6 +32,11 @@ Builds:
     versionCode: 12
     commit: v1.7.0
     subdir: artifacts/drag-tree/android/app
+    sudo:
+      - apt-get install -y nodejs npm
+      - npm install -g pnpm
+    init:
+      - cd ../../../../ && pnpm install
     gradle:
       - yes
 
