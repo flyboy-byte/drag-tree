@@ -29,7 +29,7 @@ Repo: https://github.com/flyboy-byte/drag-tree
 Builds:
   - versionName: 1.7.1
     versionCode: 13
-    commit: v1.7.1
+    commit: 2b9bf0115a33702999af22993a24d4b0017eddd9
     subdir: artifacts/drag-tree/android
     sudo:
       - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
