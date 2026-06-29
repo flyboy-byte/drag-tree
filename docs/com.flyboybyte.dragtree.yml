@@ -27,10 +27,10 @@ RepoType: git
 Repo: https://github.com/flyboy-byte/drag-tree
 
 Builds:
-  - versionName: 1.7.0
-    versionCode: 12
-    commit: v1.7.0
-    subdir: artifacts/drag-tree/android/app
+  - versionName: 1.7.1
+    versionCode: 13
+    commit: v1.7.1
+    subdir: artifacts/drag-tree/android
     sudo:
       - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
       - mkdir -p /etc/apt/keyrings
@@ -41,14 +41,15 @@ Builds:
       - apt-get update
       - apt-get install -y nodejs temurin-17-jdk
       - npm install -g pnpm
-    init: cd ../../../../ && pnpm install --no-frozen-lockfile --ignore-scripts
+    init: cd ../../.. && pnpm install --no-frozen-lockfile --ignore-scripts
     gradle:
       - yes
+    output: app/build/outputs/apk/release/app-release-unsigned.apk
     scanignore:
       - node_modules
-    ndk: r27c
+    ndk: 27.1.12297006
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.7.0
-CurrentVersionCode: 12
+CurrentVersion: 1.7.1
+CurrentVersionCode: 13
