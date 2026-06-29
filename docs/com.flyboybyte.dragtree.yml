@@ -7,7 +7,6 @@ SourceCode: https://github.com/flyboy-byte/drag-tree
 IssueTracker: https://github.com/flyboy-byte/drag-tree/issues
 
 AutoName: DragTree
-
 Description: |-
   Simulates a real NHRA Pro Tree (all 3 ambers fire simultaneously, green
   0.400 s later) and measures your reaction time using the phone's
@@ -33,10 +32,10 @@ Builds:
     commit: v1.7.0
     subdir: artifacts/drag-tree/android/app
     sudo:
-      - apt-get install -y nodejs npm
+      - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+      - apt-get install -y nodejs
       - npm install -g pnpm
-    init:
-      - cd ../../../../ && pnpm install
+    init: cd ../../../../ && pnpm install
     gradle:
       - yes
 
