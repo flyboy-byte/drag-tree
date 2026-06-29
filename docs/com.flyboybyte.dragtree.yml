@@ -35,7 +35,7 @@ Builds:
       - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
       - apt-get install -y nodejs
       - npm install -g pnpm
-    init: cd ../../../../ && pnpm install --no-frozen-lockfile
+    init: cd ../../../../ && pnpm install --no-frozen-lockfile --ignore-scripts
     gradle:
       - yes
 
