@@ -33,14 +33,17 @@ Builds:
     subdir: artifacts/drag-tree/android/app
     sudo:
       - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-      - apt-get install -y nodejs openjdk-17-jdk
+      - wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | apt-key add -
+      - echo "deb https://packages.adoptium.net/artifactory/deb trixie main" >> /etc/apt/sources.list
+      - apt-get update
+      - apt-get install -y nodejs temurin-17-jdk
       - npm install -g pnpm
     init: cd ../../../../ && pnpm install --no-frozen-lockfile --ignore-scripts
-    ndk: r27c
     gradle:
       - yes
     scanignore:
       - node_modules
+    ndk: r27c
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
