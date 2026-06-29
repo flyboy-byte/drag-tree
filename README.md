@@ -9,7 +9,9 @@ An Android app that simulates a real **NHRA Pro Tree** (all 3 ambers fire simult
 **Build it yourself — no Android Studio needed.** This project uses [Expo EAS Build](https://docs.expo.dev/build/introduction/), which compiles the APK in the cloud. All you need is Node.js and a free Expo account — no local Android SDK, no Java, no Android Studio. Clone the repo, run `pnpm install`, and `eas build` handles the rest from any machine.
 
 <p align="center">
-  <img src="docs/screenshot-tree.png" alt="DragTree Pro Tree idle screen" width="320" />
+  <img src="docs/screenshot-tree.png" alt="DragTree Pro Tree idle screen" width="300" />
+  &nbsp;&nbsp;
+  <img src="docs/settings_menu.jpg" alt="DragTree settings screen" width="300" />
 </p>
 
 ---
