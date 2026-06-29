@@ -33,13 +33,14 @@ Builds:
     subdir: artifacts/drag-tree/android/app
     sudo:
       - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-      - apt-get install -y nodejs
+      - apt-get install -y nodejs openjdk-17-jdk
       - npm install -g pnpm
     init: cd ../../../../ && pnpm install --no-frozen-lockfile --ignore-scripts
-    scanignore:
-      - node_modules
+    ndk: r27c
     gradle:
       - yes
+    scanignore:
+      - node_modules
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
