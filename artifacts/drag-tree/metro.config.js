@@ -7,7 +7,7 @@ const monorepoRoot = path.resolve(__dirname, "../..");
 const config = getDefaultConfig(__dirname);
 
 // Let Metro resolve workspace packages (symlinked by pnpm)
-config.watchFolders = [monorepoRoot];
+config.watchFolders = [...(config.watchFolders ?? []), monorepoRoot];
 
 // Tell Metro where to look for node_modules
 config.resolver.nodeModulesPaths = [
