@@ -6,6 +6,8 @@ An Android app that simulates a real **NHRA Pro Tree** (all 3 ambers fire simult
 
 **Also works in a browser** with a simulated FLOOR IT button for desktop practice.
 
+**Build it yourself — no Android Studio needed.** This project uses [Expo EAS Build](https://docs.expo.dev/build/introduction/), which compiles the APK in the cloud. All you need is Node.js and a free Expo account — no local Android SDK, no Java, no Android Studio. Clone the repo, run `pnpm install`, and `eas build` handles the rest from any machine.
+
 <p align="center">
   <img src="docs/screenshot-tree.png" alt="DragTree Pro Tree idle screen" width="320" />
 </p>
@@ -65,7 +67,7 @@ and open that URL.
 
 ---
 
-## 2. Build the Android APK with EAS
+## 2. Build the Android APK with EAS (no Android Studio needed)
 
 EAS builds the APK in the cloud — no Android SDK, no Java, nothing extra to install on your machine.
 
@@ -338,7 +340,7 @@ The sensor requires the G-force to stay above the threshold for **3 readings in 
 
 ### Permissions
 
-The Android accelerometer runs below 200 Hz — **no special permissions are required.** The app declares `permissions: []` in its manifest, so Android will not prompt for sensor access.
+The app declares `HIGH_SAMPLING_RATE_SENSORS` in its manifest, which is required on Android 12+ to request accelerometer data above 200 Hz. Android grants this automatically — no user prompt. The app does not use location, camera, microphone, or any network permissions at runtime.
 
 ### New Architecture (React Native)
 
