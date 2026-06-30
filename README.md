@@ -6,13 +6,21 @@ An Android app that simulates a real **NHRA Pro Tree** (all 3 ambers fire simult
 
 **Also works in a browser** with a simulated FLOOR IT button for desktop practice.
 
-**Build it yourself — no Android Studio needed.** This project uses [Expo EAS Build](https://docs.expo.dev/build/introduction/), which compiles the APK in the cloud. All you need is Node.js and a free Expo account — no local Android SDK, no Java, no Android Studio. Clone the repo, run `pnpm install`, and `eas build` handles the rest from any machine.
-
 <p align="center">
   <img src="docs/screenshot-tree.png" alt="DragTree Pro Tree idle screen" width="300" />
   &nbsp;&nbsp;
   <img src="docs/settings_menu.jpg" alt="DragTree settings screen" width="300" />
 </p>
+
+---
+
+## Get the app
+
+| | |
+|---|---|
+| **Play Store** | [Open Testing](https://play.google.com/store/apps/details?id=com.flyboybyte.dragtree) — join open testing to install |
+| **F-Droid** | Submission pending review |
+| **Build it yourself** | No Android Studio needed — see [Build the Android APK with EAS](#2-build-the-android-apk-with-eas) |
 
 ---
 
@@ -459,6 +467,7 @@ Every EAS build has a full log URL printed in the terminal. Open it. Scroll to t
 
 ## Tech stack
 
-- Expo SDK 54 · React Native 0.81.5
+- Expo SDK 54 · React Native 0.81.5 · v1.7.1
 - expo-router · expo-sensors · expo-av · React Native Reanimated 4
 - New Architecture enabled · pnpm workspace monorepo
+- Distributed via Play Store and F-Droid · MIT license · fully offline

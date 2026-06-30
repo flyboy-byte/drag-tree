@@ -158,15 +158,48 @@ All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asse
 
 ## F-Droid
 
-The app targets F-Droid distribution alongside Play Store. Key notes:
+The app targets F-Droid distribution alongside Play Store. MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671 (pipeline passing, awaiting review as of June 2026).
 
 - **No Firebase, no GMS** — F-Droid bans them. App is fully offline by design.
-- **`android/` is committed** to the repo (`artifacts/drag-tree/android/`). F-Droid builds by cloning the repo and running Gradle directly — same as EAS.
+- **`android/` is committed** to the repo (`artifacts/drag-tree/android/`). F-Droid builds by cloning the repo and running Gradle directly.
 - **Rebuild `android/` when native changes** — after any Expo version bump or new native plugin, re-run `expo prebuild --platform android --clean` from `artifacts/drag-tree/` and commit the updated `android/` directory.
-- **Tag every release** — F-Droid autoupdate tracks `git tag` matching `versionName` (e.g. `v1.7.0`).
-- **Fastlane metadata** is in `fastlane/metadata/android/en-US/` — update `changelogs/<versionCode>.txt` each release.
-- **`subdir`** for fdroiddata YAML: `artifacts/drag-tree/android/app`
+- **Tag every release** — F-Droid AutoUpdateMode tracks `git tag` matching `versionName` (e.g. `v1.7.1`). Tags are for auto-update tracking; the fdroiddata `commit:` field should use the **full SHA**, not the tag name.
+- **Fastlane metadata** is in `fastlane/metadata/android/en-US/` — update `changelogs/<versionCode>.txt` each release. Keep `short_description.txt` under 80 characters.
+- **`subdir`** for fdroiddata YAML: `artifacts/drag-tree/android` (not `android/app` — `output:` handles the APK path within subdir)
+
+### Working fdroiddata build block (v1.7.1)
+
+```yaml
+commit: 2b9bf0115a33702999af22993a24d4b0017eddd9
+subdir: artifacts/drag-tree/android
+sudo:
+  - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+  - mkdir -p /etc/apt/keyrings
+  - curl -fsSLO https://packages.adoptium.net/artifactory/api/gpg/key/public
+  - gpg --dearmor < public > /etc/apt/keyrings/adoptium.gpg
+  - echo 'deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb
+    trixie main' >> /etc/apt/sources.list
+  - apt-get update
+  - apt-get install -y nodejs temurin-17-jdk
+  - npm install -g pnpm
+init: cd ../../.. && pnpm install --no-frozen-lockfile --ignore-scripts
+gradle:
+  - yes
+output: app/build/outputs/apk/release/app-release-unsigned.apk
+scanignore:
+  - node_modules
+ndk: 27.1.12297006
+```
+
+Key build environment notes:
+- F-Droid sandbox is Debian trixie — no `openjdk-17-jdk`, no `wget`, no `apt-key`. Use Temurin from adoptium via curl+gpg dearmor.
+- `init: cd ../../..` — three levels up from `subdir` to repo root, so pnpm can see the workspace root `package.json`.
+- `--no-frozen-lockfile` required because catalog: aliases in pnpm-lock.yaml resolve differently in CI.
+- `--ignore-scripts` required because pnpm 10 exits non-zero when native postinstall scripts (esbuild) are blocked.
+- `scanignore: node_modules` required — F-Droid's binary scanner rejects compiled native binaries in node_modules.
+- `output:` path is relative to `subdir`. Full path from repo root: `artifacts/drag-tree/android/app/build/outputs/apk/release/app-release-unsigned.apk`.
+- `org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g` in `gradle.properties` — D8 dex merge requires more heap than the default 2 GiB on F-Droid's saas-linux-medium runner.
 
 ### Permissions note
 
-AndroidManifest.xml has several permissions added by Expo/RN defaults (INTERNET, RECORD_AUDIO, SYSTEM_ALERT_WINDOW, etc.). These were kept intentionally — Replit added them during accelerometer bug fixing and removing them risks breaking sensor quality. `HIGH_SAMPLING_RATE_SENSORS` is the only one actively used by the app.
+AndroidManifest.xml has several permissions added by Expo/RN defaults (INTERNET, RECORD_AUDIO, SYSTEM_ALERT_WINDOW, etc.). These were kept intentionally — removing them risks breaking sensor quality. `HIGH_SAMPLING_RATE_SENSORS` is the only one actively used at runtime.
