@@ -7,21 +7,6 @@ SourceCode: https://github.com/flyboy-byte/drag-tree
 IssueTracker: https://github.com/flyboy-byte/drag-tree/issues
 
 AutoName: DragTree
-Description: |-
-  Simulates a real NHRA Pro Tree (all 3 ambers fire simultaneously, green
-  0.400 s later) and measures your reaction time using the phone's
-  accelerometer. Mount your phone on the dash, stage up, watch the tree,
-  and floor it — the app detects launch G-force and records your RT
-  automatically. No tapping required when the sensor is enabled.
-
-  Features Pro Tree and Sportsman Tree modes, three sensitivity presets,
-  reaction grading, run history, trend chart, optional audio cues, and
-  series mode for back-to-back runs. Fully offline — no internet required.
-
-  Permissions note: HIGH_SAMPLING_RATE_SENSORS is required for 125 Hz
-  accelerometer sampling. Other permissions (INTERNET, VIBRATE, etc.) are
-  included by Expo's Android template and React Native defaults; none are
-  exercised at runtime by the app itself.
 
 RepoType: git
 Repo: https://github.com/flyboy-byte/drag-tree
@@ -30,23 +15,34 @@ Builds:
   - versionName: 1.7.1
     versionCode: 13
     commit: 2b9bf0115a33702999af22993a24d4b0017eddd9
-    subdir: artifacts/drag-tree/android
+    subdir: artifacts/drag-tree/android/app
     sudo:
-      - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-      - mkdir -p /etc/apt/keyrings
-      - curl -fsSLO https://packages.adoptium.net/artifactory/api/gpg/key/public
-      - gpg --dearmor < public > /etc/apt/keyrings/adoptium.gpg
-      - echo 'deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb
-        trixie main' >> /etc/apt/sources.list
       - apt-get update
-      - apt-get install -y nodejs temurin-17-jdk
+      - apt-get install -y npm default-jdk
       - npm install -g pnpm
-    init: cd ../../.. && pnpm install --no-frozen-lockfile --ignore-scripts
+    init:
+      - cd ../../../..
+      - pnpm install --no-frozen-lockfile --ignore-scripts
     gradle:
       - yes
-    output: app/build/outputs/apk/release/app-release-unsigned.apk
+    prebuild:
+      - cd ../..
+      - sed -i -e '1a "expo":{"autolinking":{"android":{"buildFromSource":[".*"]}}},'
+        package.json
+      - sed -i '/jvmToolchain\|JavaVersion/s/17/21/' node_modules/@react-native/gradle-plugin/*/build.gradle.kts
+        node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/JdkConfiguratorUtils.kt
+      - sed -i -e '/installreferrer/d' node_modules/expo-application/android/build.gradle
+      - sed -i -e '/com.android.installreferrer.api/d' -e '/StringBuilder()/,/^      })/d'
+        -e '/getInstallReferrerAsync/apromise.resolve("")'
+        node_modules/expo-application/android/src/main/java/expo/modules/application/ApplicationModule.kt
+      - npx expo prebuild -p android --clean
+      - sed -i -e '/signingConfig /d' android/app/build.gradle
     scanignore:
-      - node_modules
+      - artifacts/drag-tree/node_modules/react-native/sdks/hermesc/linux64-bin/hermesc
+      - artifacts/drag-tree/node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
+      - artifacts/drag-tree/node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle
+    scandelete:
+      - artifacts/drag-tree/node_modules
     ndk: 27.1.12297006
 
 AllowedAPKSigningKeys: ff739cf565d8fe3af4ff97e641f6336fa69ebcf3eec222a7a7c5ab9f8e3d837a

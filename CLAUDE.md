@@ -161,17 +161,16 @@ All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asse
 The app targets F-Droid distribution alongside Play Store. MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671 (pipeline passing, awaiting review as of June 2026).
 
 - **No Firebase, no GMS** — F-Droid bans them. App is fully offline by design.
-- **`android/` is committed** to the repo (`artifacts/drag-tree/android/`). F-Droid builds by cloning the repo and running Gradle directly.
-- **Rebuild `android/` when native changes** — after any Expo version bump or new native plugin, re-run `expo prebuild --platform android --clean` from `artifacts/drag-tree/` and commit the updated `android/` directory.
+- **`android/` is committed** to the repo (`artifacts/drag-tree/android/`). The fdroiddata build re-runs `expo prebuild --clean` during the build anyway (template requirement), overwriting it.
 - **Tag every release** — F-Droid AutoUpdateMode tracks `git tag` matching `versionName` (e.g. `v1.7.1`). Tags are for auto-update tracking; the fdroiddata `commit:` field should use the **full SHA**, not the tag name.
-- **Fastlane metadata** is in `fastlane/metadata/android/en-US/` — update `changelogs/<versionCode>.txt` each release. Keep `short_description.txt` under 80 characters.
-- **`subdir`** for fdroiddata YAML: `artifacts/drag-tree/android` (not `android/app` — `output:` handles the APK path within subdir)
+- **Fastlane metadata** is in `fastlane/metadata/android/en-US/` — update `changelogs/<versionCode>.txt` and `title.txt` each release. Keep `short_description.txt` under 80 characters. `Description:` and `AutoName:` are NOT in the YAML — F-Droid pulls them from fastlane.
+- **`subdir`** for fdroiddata YAML: `artifacts/drag-tree/android/app` (the app module dir, matching the template pattern)
 
-### Working fdroiddata build block (v1.7.1)
+### Working fdroiddata build block (v1.7.1, template-compliant)
 
 ```yaml
 commit: 2b9bf0115a33702999af22993a24d4b0017eddd9
-subdir: artifacts/drag-tree/android
+subdir: artifacts/drag-tree/android/app
 sudo:
   - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   - mkdir -p /etc/apt/keyrings
@@ -182,21 +181,48 @@ sudo:
   - apt-get update
   - apt-get install -y nodejs temurin-17-jdk
   - npm install -g pnpm
-init: cd ../../.. && pnpm install --no-frozen-lockfile --ignore-scripts
+init:
+  - cd ../../../..
+  - pnpm install --no-frozen-lockfile --ignore-scripts
+prebuild:
+  - cd ../..
+  - pnpm exec expo prebuild -p android --clean
+  - sed -i -e '/signingConfig /d' android/app/build.gradle
 gradle:
   - yes
-output: app/build/outputs/apk/release/app-release-unsigned.apk
+output: build/outputs/apk/release/app-release-unsigned.apk
 scanignore:
-  - node_modules
+  - artifacts/drag-tree/android/build.gradle
+  - artifacts/drag-tree/node_modules/react-native/sdks/hermesc
+  - artifacts/drag-tree/node_modules/jsc-android
+  - artifacts/drag-tree/node_modules/expo/android/build.gradle
+  - artifacts/drag-tree/node_modules/expo-av/android/build.gradle
+  - artifacts/drag-tree/node_modules/expo-constants/android/build.gradle
+  - artifacts/drag-tree/node_modules/expo-file-system/android/build.gradle
+  - artifacts/drag-tree/node_modules/expo-font/android/build.gradle
+  - artifacts/drag-tree/node_modules/expo-modules-core/android/build.gradle
+  - artifacts/drag-tree/node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle
+  - artifacts/drag-tree/node_modules/expo-sensors/android/build.gradle
+  - artifacts/drag-tree/node_modules/expo-splash-screen/android/build.gradle
+  - artifacts/drag-tree/node_modules/expo-web-browser/android/build.gradle
+  - artifacts/drag-tree/node_modules/@react-native-async-storage/async-storage/android/build.gradle
+  - artifacts/drag-tree/node_modules/react-native-reanimated/android/build.gradle
+  - artifacts/drag-tree/node_modules/react-native-safe-area-context/android/build.gradle
+  - artifacts/drag-tree/node_modules/react-native-screens/android/build.gradle
+  - artifacts/drag-tree/node_modules/react-native-worklets/android/build.gradle
+scandelete:
+  - artifacts/drag-tree/node_modules
 ndk: 27.1.12297006
 ```
 
 Key build environment notes:
 - F-Droid sandbox is Debian trixie — no `openjdk-17-jdk`, no `wget`, no `apt-key`. Use Temurin from adoptium via curl+gpg dearmor.
-- `init: cd ../../..` — three levels up from `subdir` to repo root, so pnpm can see the workspace root `package.json`.
+- `subdir: artifacts/drag-tree/android/app` — Gradle runs from the app module dir (matches `templates/build-react-native.yml`).
+- `init: cd ../../../..` — four levels up from `android/app` to repo root for pnpm workspace install.
+- `prebuild: cd ../..` — two levels up to `artifacts/drag-tree`, then expo prebuild regenerates `android/`.
 - `--no-frozen-lockfile` required because catalog: aliases in pnpm-lock.yaml resolve differently in CI.
 - `--ignore-scripts` required because pnpm 10 exits non-zero when native postinstall scripts (esbuild) are blocked.
-- `scanignore: node_modules` required — F-Droid's binary scanner rejects compiled native binaries in node_modules.
+- `scandelete` and `scanignore` paths are repo-root-relative; prefix with `artifacts/drag-tree/` for our monorepo.
 - `output:` path is relative to `subdir`. Full path from repo root: `artifacts/drag-tree/android/app/build/outputs/apk/release/app-release-unsigned.apk`.
 - `org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g` in `gradle.properties` — D8 dex merge requires more heap than the default 2 GiB on F-Droid's saas-linux-medium runner.
 

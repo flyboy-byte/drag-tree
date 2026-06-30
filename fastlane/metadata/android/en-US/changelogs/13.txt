@@ -1,0 +1,1 @@
+Babel preset fix for F-Droid build compatibility. Raised Gradle JVM heap to prevent dex merge OOM.
