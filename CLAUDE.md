@@ -169,7 +169,7 @@ The app targets F-Droid distribution alongside Play Store. MR: https://gitlab.co
 ### Working fdroiddata build block (v1.7.1, template-compliant)
 
 ```yaml
-commit: 2b9bf0115a33702999af22993a24d4b0017eddd9
+commit: 7d3e4533a11a0c012ebd8b6abbef447ef65bd95d
 subdir: artifacts/drag-tree/android/app
 sudo:
   - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
@@ -179,52 +179,36 @@ sudo:
   - echo 'deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb
     trixie main' >> /etc/apt/sources.list
   - apt-get update
-  - apt-get install -y nodejs temurin-17-jdk
+  - apt-get install -y nodejs temurin-17-jdk temurin-21-jdk
   - npm install -g pnpm
 init:
   - cd ../../../..
-  - pnpm install --no-frozen-lockfile --ignore-scripts
+  - pnpm install --no-frozen-lockfile --ignore-scripts --shamefully-hoist
 prebuild:
   - cd ../..
   - pnpm exec expo prebuild -p android --clean
+  - sed -i '/^org.gradle.jvmargs/s/-Xmx[^ ]*/-Xmx4g/' android/gradle.properties
+  - echo 'org.gradle.java.installations.auto-download=false' >> android/gradle.properties
   - sed -i -e '/signingConfig /d' android/app/build.gradle
 gradle:
   - yes
 output: build/outputs/apk/release/app-release-unsigned.apk
-scanignore:
-  - artifacts/drag-tree/android/build.gradle
-  - artifacts/drag-tree/node_modules/react-native/sdks/hermesc
-  - artifacts/drag-tree/node_modules/jsc-android
-  - artifacts/drag-tree/node_modules/expo/android/build.gradle
-  - artifacts/drag-tree/node_modules/expo-av/android/build.gradle
-  - artifacts/drag-tree/node_modules/expo-constants/android/build.gradle
-  - artifacts/drag-tree/node_modules/expo-file-system/android/build.gradle
-  - artifacts/drag-tree/node_modules/expo-font/android/build.gradle
-  - artifacts/drag-tree/node_modules/expo-modules-core/android/build.gradle
-  - artifacts/drag-tree/node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle
-  - artifacts/drag-tree/node_modules/expo-sensors/android/build.gradle
-  - artifacts/drag-tree/node_modules/expo-splash-screen/android/build.gradle
-  - artifacts/drag-tree/node_modules/expo-web-browser/android/build.gradle
-  - artifacts/drag-tree/node_modules/@react-native-async-storage/async-storage/android/build.gradle
-  - artifacts/drag-tree/node_modules/react-native-reanimated/android/build.gradle
-  - artifacts/drag-tree/node_modules/react-native-safe-area-context/android/build.gradle
-  - artifacts/drag-tree/node_modules/react-native-screens/android/build.gradle
-  - artifacts/drag-tree/node_modules/react-native-worklets/android/build.gradle
 scandelete:
-  - artifacts/drag-tree/node_modules
+  - node_modules
 ndk: 27.1.12297006
 ```
 
 Key build environment notes:
-- F-Droid sandbox is Debian trixie — no `openjdk-17-jdk`, no `wget`, no `apt-key`. Use Temurin from adoptium via curl+gpg dearmor.
+- F-Droid sandbox is Debian trixie — no `openjdk-21-jdk`, no `wget`, no `apt-key`. Use Temurin 17+21 from adoptium via curl+gpg dearmor; Node 22 via NodeSource `setup_22.x`.
+- `@react-native/gradle-plugin` subprojects use `jvmToolchain(17)` — both Temurin 17 and 21 must be installed so Gradle toolchain auto-detection satisfies the 17 requirement without downloading. DO NOT try to sed-patch `jvmToolchain(17)` in node_modules: with pnpm, the package only exists at `.pnpm/@react-native+gradle-plugin@0.81.5/node_modules/@react-native/gradle-plugin/` (not hoisted to a predictable glob path), so the sed silently no-ops.
 - `subdir: artifacts/drag-tree/android/app` — Gradle runs from the app module dir (matches `templates/build-react-native.yml`).
 - `init: cd ../../../..` — four levels up from `android/app` to repo root for pnpm workspace install.
 - `prebuild: cd ../..` — two levels up to `artifacts/drag-tree`, then expo prebuild regenerates `android/`.
 - `--no-frozen-lockfile` required because catalog: aliases in pnpm-lock.yaml resolve differently in CI.
 - `--ignore-scripts` required because pnpm 10 exits non-zero when native postinstall scripts (esbuild) are blocked.
-- `scandelete` and `scanignore` paths are repo-root-relative; prefix with `artifacts/drag-tree/` for our monorepo.
+- `scandelete: node_modules` — deletes individual binary files (hermesc, JARs, etc.) from node_modules at scan time. hermesc is restored when `pnpm exec expo prebuild` triggers its internal pnpm install (restores from global CAS store).
 - `output:` path is relative to `subdir`. Full path from repo root: `artifacts/drag-tree/android/app/build/outputs/apk/release/app-release-unsigned.apk`.
-- `org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g` in `gradle.properties` — D8 dex merge requires more heap than the default 2 GiB on F-Droid's saas-linux-medium runner.
+- `org.gradle.jvmargs=-Xmx4g` in `gradle.properties` — D8 dex merge requires more heap than the default 2 GiB on F-Droid's saas-linux-medium runner.
 
 ### Permissions note
 
