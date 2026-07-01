@@ -39,7 +39,6 @@ Builds:
       - sed -i -e '/signingConfig /d' android/app/build.gradle
     scanignore:
       - node_modules
-      - artifacts/drag-tree/node_modules
     ndk: 27.1.12297006
 
 AllowedAPKSigningKeys: ff739cf565d8fe3af4ff97e641f6336fa69ebcf3eec222a7a7c5ab9f8e3d837a

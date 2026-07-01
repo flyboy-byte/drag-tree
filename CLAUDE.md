@@ -195,7 +195,6 @@ gradle:
 output: build/outputs/apk/release/app-release-unsigned.apk
 scanignore:
   - node_modules
-  - artifacts/drag-tree/node_modules
 ndk: 27.1.12297006
 ```
 
@@ -208,8 +207,7 @@ Key build environment notes:
 - `prebuild: cd ../..` — two levels up to `artifacts/drag-tree`, then expo prebuild regenerates `android/`.
 - `--no-frozen-lockfile` required because catalog: aliases in pnpm-lock.yaml resolve differently in CI.
 - `--ignore-scripts` required because pnpm 10 exits non-zero when native postinstall scripts (esbuild) are blocked.
-- `scanignore: node_modules` — skips repo-root `node_modules/.pnpm/` (the pnpm virtual store) entirely. Without this, the F-Droid scanner removes local maven repo references from native module build.gradle files (react-native-safe-area-context, react-native-async-storage, react-native-keyboard-controller, etc.), which breaks their Gradle configuration with "No variants exist." `scandelete` only handles binary deletion, NOT maven repo removal — use `scanignore` to leave the native module build files intact.
-- `scanignore: artifacts/drag-tree/node_modules` — skips the app's node_modules symlink directory (points into the virtual store).
+- `scanignore: node_modules` — skips repo-root `node_modules/.pnpm/` (the pnpm virtual store) entirely. Without this, the F-Droid scanner removes local maven repo references from native module build.gradle files (react-native-safe-area-context, react-native-async-storage, react-native-keyboard-controller, etc.), which breaks their Gradle configuration with "No variants exist." `scandelete` only handles binary deletion, NOT maven repo removal — use `scanignore` to leave the native module build files intact. `artifacts/drag-tree/node_modules/` only contains symlinks into the virtual store (scanner resolves them to `.pnpm/` paths, already covered here), so adding it as a second scanignore entry causes an "Unused scanignore path" ERROR — one entry is sufficient.
 - `output:` path is relative to `subdir`. Full path from repo root: `artifacts/drag-tree/android/app/build/outputs/apk/release/app-release-unsigned.apk`.
 - `org.gradle.jvmargs=-Xmx4g` in `gradle.properties` — D8 dex merge requires more heap than the default 2 GiB on F-Droid's saas-linux-medium runner.
 
