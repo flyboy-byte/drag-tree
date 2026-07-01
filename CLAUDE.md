@@ -174,7 +174,7 @@ subdir: artifacts/drag-tree/android/app
 sudo:
   - apt-get update
   - apt-get install -y npm default-jdk
-  - npm install -g pnpm
+  - npm install -g pnpm@10
 init:
   - cd ../../../..
   - pnpm install --no-frozen-lockfile --ignore-scripts --shamefully-hoist
