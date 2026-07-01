@@ -183,7 +183,7 @@ sudo:
   - npm install -g pnpm
 init:
   - cd ../../../..
-  - pnpm install --no-frozen-lockfile --ignore-scripts --shamefully-hoist
+  - pnpm install --no-frozen-lockfile --ignore-scripts
 prebuild:
   - cd ../..
   - pnpm exec expo prebuild -p android --clean
@@ -193,20 +193,23 @@ prebuild:
 gradle:
   - yes
 output: build/outputs/apk/release/app-release-unsigned.apk
-scandelete:
+scanignore:
   - node_modules
+  - artifacts/drag-tree/node_modules
 ndk: 27.1.12297006
 ```
 
 Key build environment notes:
 - F-Droid sandbox is Debian trixie — no `openjdk-21-jdk`, no `wget`, no `apt-key`. Use Temurin 17+21 from adoptium via curl+gpg dearmor; Node 22 via NodeSource `setup_22.x`.
 - `@react-native/gradle-plugin` subprojects use `jvmToolchain(17)` — both Temurin 17 and 21 must be installed so Gradle toolchain auto-detection satisfies the 17 requirement without downloading. DO NOT try to sed-patch `jvmToolchain(17)` in node_modules: with pnpm, the package only exists at `.pnpm/@react-native+gradle-plugin@0.81.5/node_modules/@react-native/gradle-plugin/` (not hoisted to a predictable glob path), so the sed silently no-ops.
+- `settings.gradle` uses dynamic Node resolution (`require.resolve`) to locate `@react-native/gradle-plugin` — `--shamefully-hoist` is NOT needed since pnpm's standard workspace layout is traversed by Node module resolution automatically.
 - `subdir: artifacts/drag-tree/android/app` — Gradle runs from the app module dir (matches `templates/build-react-native.yml`).
 - `init: cd ../../../..` — four levels up from `android/app` to repo root for pnpm workspace install.
 - `prebuild: cd ../..` — two levels up to `artifacts/drag-tree`, then expo prebuild regenerates `android/`.
 - `--no-frozen-lockfile` required because catalog: aliases in pnpm-lock.yaml resolve differently in CI.
 - `--ignore-scripts` required because pnpm 10 exits non-zero when native postinstall scripts (esbuild) are blocked.
-- `scandelete: node_modules` — deletes individual binary files (hermesc, JARs, etc.) from node_modules at scan time. hermesc is restored when `pnpm exec expo prebuild` triggers its internal pnpm install (restores from global CAS store).
+- `scanignore: node_modules` — skips repo-root `node_modules/.pnpm/` (the pnpm virtual store) entirely. Without this, the F-Droid scanner removes local maven repo references from native module build.gradle files (react-native-safe-area-context, react-native-async-storage, react-native-keyboard-controller, etc.), which breaks their Gradle configuration with "No variants exist." `scandelete` only handles binary deletion, NOT maven repo removal — use `scanignore` to leave the native module build files intact.
+- `scanignore: artifacts/drag-tree/node_modules` — skips the app's node_modules symlink directory (points into the virtual store).
 - `output:` path is relative to `subdir`. Full path from repo root: `artifacts/drag-tree/android/app/build/outputs/apk/release/app-release-unsigned.apk`.
 - `org.gradle.jvmargs=-Xmx4g` in `gradle.properties` — D8 dex merge requires more heap than the default 2 GiB on F-Droid's saas-linux-medium runner.
 
