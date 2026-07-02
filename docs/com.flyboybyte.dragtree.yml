@@ -18,8 +18,8 @@ Builds:
     subdir: artifacts/drag-tree/android/app
     sudo:
       - apt-get update
-      - apt-get install -y npm default-jdk
-      - npm install -g pnpm@10
+      - apt-get install npm
+      - npm -g install pnpm@10
     init:
       - cd ../../../..
       - pnpm install --no-frozen-lockfile --ignore-scripts --shamefully-hoist
@@ -27,13 +27,17 @@ Builds:
       - yes
     prebuild:
       - cd ../../../..
+      - sed -i -e '1a "expo":{"autolinking":{"android":{"buildFromSource":[".*"]}}},'
+        artifacts/drag-tree/package.json
       - sed -i '/jvmToolchain\|JavaVersion/s/17/21/' node_modules/@react-native/gradle-plugin/*/build.gradle.kts
         node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/JdkConfiguratorUtils.kt
       - cd artifacts/drag-tree
-      - pnpm exec expo prebuild -p android --clean
+      - npx expo prebuild -p android --clean
       - sed -i -e '/signingConfig /d' android/app/build.gradle
     scanignore:
       - node_modules
+    scandelete:
+      - artifacts/drag-tree/node_modules
     ndk: 27.1.12297006
 
 AllowedAPKSigningKeys: ff739cf565d8fe3af4ff97e641f6336fa69ebcf3eec222a7a7c5ab9f8e3d837a
