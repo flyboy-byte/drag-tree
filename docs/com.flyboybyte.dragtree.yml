@@ -34,10 +34,6 @@ Builds:
       - cd artifacts/drag-tree
       - npx expo prebuild -p android --clean
       - sed -i -e '/signingConfig /d' android/app/build.gradle
-    scanignore:
-      - node_modules/react-native/sdks/hermesc/linux64-bin/hermesc
-      - node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
-      - node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle
     scandelete:
       - node_modules
     ndk: 27.1.12297006
