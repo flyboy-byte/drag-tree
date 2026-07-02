@@ -35,6 +35,7 @@ Builds:
       - npx expo prebuild -p android --clean
       - sed -i -e '/signingConfig /d' android/app/build.gradle
     scanignore:
+      - node_modules/.pnpm/react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0/node_modules/react-native/sdks/hermesc/linux64-bin/hermesc
       - node_modules/.pnpm/react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0/node_modules/react-native/ReactAndroid/publish.gradle
       - node_modules/.pnpm/@react-native-async-storage+async-storage@2.2.0_react-native@0.81.5_@babel+core@7.29.0__088e8303e028f6e6ca5c16cc3d46621a/node_modules/@react-native-async-storage/async-storage/android/build.gradle
       - node_modules/.pnpm/react-native-safe-area-context@5.6.2_react-native@0.81.5_@babel+core@7.29.0_@types+reac_db7e84308fa9a28cdc0cc9a7b78f5e93/node_modules/react-native-safe-area-context/android/build.gradle
