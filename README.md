@@ -314,21 +314,21 @@ eas build --platform android --profile preview
 
 ### How the sensor detects launch
 
-The app uses the phone's raw accelerometer (includes gravity). When the phone sits still at any orientation, the sensor magnitude is always ~9.81 m/s² (1g of gravity). When the car accelerates, forward force adds to the vector and magnitude increases. The app measures the **delta above the resting baseline** and fires when it crosses the sensitivity threshold.
+The app uses `DeviceMotion.acceleration` — linear acceleration with gravity already removed by Android's sensor fusion. The baseline at rest is ~0 m/s². When the car launches, forward G-force rises above zero and the app fires when it stays above the sensitivity threshold for 5 consecutive readings (~40 ms).
 
 This means:
 - **Orientation doesn't matter** — you can mount the phone portrait, landscape, tilted — the math still works.
-- **No calibration step required** — the app continuously averages the last 8 sensor readings (~800 ms) while idle to build a stable baseline. When you tap STAGE, that averaged baseline is locked in and used for the run.
+- **No calibration step required** — gravity is removed by the OS. The sensor reads near-zero at rest regardless of how the phone is angled.
 
 ### Sensitivity presets
 
 | Preset | Threshold | Required duration | Typical use |
 |--------|-----------|-------------------|-------------|
-| Gentle | ~0.15g (1.5 m/s²) | 3 consecutive readings (~48 ms) | FWD street car, light throttle |
-| Normal | ~0.25g (2.5 m/s²) | 3 consecutive readings (~48 ms) | RWD or sport car, moderate launch |
-| Hard   | ~0.46g (4.5 m/s²) | 3 consecutive readings (~48 ms) | Drag-prepped car, slicks, hard launch |
+| Gentle | ~0.15g (1.5 m/s²) | 5 consecutive readings (~40 ms) | FWD street car, light throttle |
+| Normal | ~0.25g (2.5 m/s²) | 5 consecutive readings (~40 ms) | RWD or sport car, moderate launch |
+| Hard   | ~0.46g (4.5 m/s²) | 5 consecutive readings (~40 ms) | Drag-prepped car, slicks, hard launch |
 
-The sensor requires the G-force to stay above the threshold for **3 readings in a row (~48 ms)** before firing. A real launch is sustained for 300–500 ms. Road bumps, taps, and vibration spikes are over in under 30 ms and will not trigger it. If G drops below threshold even once, the counter resets — the full 48 ms window must start over.
+The sensor requires the G-force to stay above the threshold for **5 readings in a row (~40 ms)** before firing. A real launch is sustained for 300–500 ms. Road bumps, taps, and vibration spikes are over in under 30 ms and will not trigger it. If G drops below threshold even once, the counter resets — the full window must start over.
 
 **Start with Gentle** for any street car. Move to Normal or Hard only if you get false triggers.
 
@@ -342,11 +342,11 @@ The sensor requires the G-force to stay above the threshold for **3 readings in 
 
 | Issue | Cause | Workaround |
 |-------|-------|------------|
-| Sensor fires on a bump before launch | Baseline jitter on rough pavement | Use Normal or Hard sensitivity |
-| Sensor fires the instant you tap STAGE | Phone was moving when staged | Wait ~1 second after tapping STAGE before staging the car |
+| Sensor fires on a bump before launch | Road bump exceeds threshold for ~40 ms | Use Normal or Hard sensitivity |
+| Sensor fires the instant you tap STAGE | Phone was moving when staged | Hold the phone still for ~1 second before tapping STAGE |
 | Sensor doesn't fire at all | Device accelerometer rate capped below 60 Hz | Try Gentle sensitivity; report your device model |
 | App shows "Sensor not available" | Very rare — some Android emulators lack virtual sensors | Use a real device |
-| Slight G reading even at rest | Normal — vibration, idle RPM, A/C compressor cycling | Baseline averages it out automatically |
+| Slight G reading even at rest | Normal — vibration, idle RPM, A/C compressor cycling | Use Normal or Hard sensitivity to raise the bar above idle noise |
 
 ### Permissions
 
