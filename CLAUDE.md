@@ -197,6 +197,7 @@ scanignore:
 scandelete:
   - node_modules
 ndk: 27.1.12297006
+Binaries: https://github.com/flyboy-byte/drag-tree/releases/download/v%v/drag-tree-v%v.apk
 ```
 
 Key build environment notes:
