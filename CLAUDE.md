@@ -158,13 +158,15 @@ All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asse
 
 ## F-Droid
 
-The app targets F-Droid distribution alongside Play Store. MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671 (pipeline passing, awaiting reviewer response as of July 2026).
+The app targets F-Droid distribution alongside Play Store. MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671 (pipeline passing, awaiting reviewer response on reproducible builds as of July 2026).
 
 - **No Firebase, no GMS** — F-Droid bans them. App is fully offline by design.
 - **`android/` is committed** to the repo (`artifacts/drag-tree/android/`). The fdroiddata build re-runs `expo prebuild --clean` during the build anyway (template requirement), overwriting it.
 - **Tag every release** — F-Droid AutoUpdateMode tracks `git tag` matching `versionName` (e.g. `v1.7.1`). Tags are for auto-update tracking; the fdroiddata `commit:` field should use the **full SHA**, not the tag name.
 - **Fastlane metadata** is in `fastlane/metadata/android/en-US/` — update `changelogs/<versionCode>.txt` and `title.txt` each release. Keep `short_description.txt` under 80 characters. `Description:` and `AutoName:` are NOT in the YAML — F-Droid pulls them from fastlane.
 - **`subdir`** for fdroiddata YAML: `artifacts/drag-tree/android/app` (the app module dir, matching the template pattern)
+- **GitHub Releases** — `v1.7.1` release exists with `drag-tree-v1.7.1.apk` (EAS-signed). For future releases attach APK as `drag-tree-v<versionName>.apk`. `AllowedAPKSigningKeys: ff739cf5...` is verified against this APK.
+- **Reproducible builds** — `Binaries:` field was attempted but byte-comparison fails: F-Droid runs `expo prebuild --clean` (fresh `android/`) while EAS uses the committed one; also different JDK/transitive dep versions. `Binaries:` removed for now. To fix: build the reference APK locally using the exact fdroiddata YAML steps, sign it, upload that instead of the EAS APK.
 
 ### Working fdroiddata build block (v1.7.1, template-compliant)
 
