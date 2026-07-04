@@ -43,8 +43,6 @@ Builds:
       - node_modules
     ndk: 27.1.12297006
 
-Binaries: https://github.com/flyboy-byte/drag-tree/releases/download/v%v/drag-tree-v%v.apk
-
 AllowedAPKSigningKeys: ff739cf565d8fe3af4ff97e641f6336fa69ebcf3eec222a7a7c5ab9f8e3d837a
 
 AutoUpdateMode: Version
