@@ -191,7 +191,6 @@ prebuild:
   - sed -i -e '/signingConfig /d' android/app/build.gradle
 scanignore:
   - node_modules/react-native/sdks/hermesc/linux64-bin/hermesc
-  - node_modules/react-native/ReactAndroid/publish.gradle
   - node_modules/@react-native-async-storage/async-storage/android/build.gradle
   - node_modules/react-native-safe-area-context/android/build.gradle
   - node_modules/react-native-keyboard-controller/android/build.gradle
