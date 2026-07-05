@@ -201,7 +201,8 @@ subdir: android/app
 sudo:
   - apt-get update
   - apt-get install npm
-init: cd ../.. && npm install --ignore-scripts
+init:
+  - cd ../.. && npm install --ignore-scripts
 gradle:
   - yes
 prebuild:
