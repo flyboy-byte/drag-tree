@@ -2,6 +2,16 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+// Load signing credentials from android/local.properties (gitignored).
+// local.properties must define: RELEASE_STORE_FILE, RELEASE_KEY_ALIAS,
+// RELEASE_STORE_PASSWORD, RELEASE_KEY_PASSWORD.
+// Falls back to debug keystore when not present (e.g. F-Droid build).
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('local.properties')
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withReader('UTF-8') { reader -> keystoreProperties.load(reader) }
+}
+
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
 /**
@@ -104,15 +114,19 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            storeFile keystoreProperties['RELEASE_STORE_FILE'] ? file(keystoreProperties['RELEASE_STORE_FILE']) : null
+            storePassword keystoreProperties['RELEASE_STORE_PASSWORD']
+            keyAlias keystoreProperties['RELEASE_KEY_ALIAS']
+            keyPassword keystoreProperties['RELEASE_KEY_PASSWORD']
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig keystoreProperties['RELEASE_STORE_FILE'] ? signingConfigs.release : signingConfigs.debug
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
