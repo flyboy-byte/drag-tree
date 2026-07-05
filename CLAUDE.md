@@ -6,30 +6,53 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-All development happens inside `artifacts/drag-tree/`. Always run `pnpm install` from the **repo root** first.
+All commands run from the **repo root**. The app is now at repo root — no subdirectory.
 
 ```bash
+# Install dependencies (generates/updates package-lock.json)
+npm install
+
 # Local dev (web mode in browser)
-cd artifacts/drag-tree && pnpm web
+npm run web
 
 # Typecheck the app
-cd artifacts/drag-tree && npx tsc --noEmit
+npm run typecheck
 
-# Full monorepo typecheck
-pnpm run typecheck        # from repo root
+# Local APK build (requires Android SDK + NDK 27.1.12297006 + JDK 21 + local.properties)
+cd android && ./gradlew assembleRelease
 
-# EAS build — internal APK (sideload to device)
-cd artifacts/drag-tree && eas build --profile preview --platform android
+# Local AAB build for Play Store
+cd android && ./gradlew bundleRelease
 
-# EAS build — Play Store AAB (auto-increments versionCode)
-cd artifacts/drag-tree && eas build --profile play --platform android
+# EAS build — still works if needed (internal APK via sideload)
+eas build --profile preview --platform android
 ```
 
-**Do not use `npx expo start`** — always use `pnpm web` to ensure Expo 54 is used.
+**Do not use `npx expo start`** — always use `npm run web` to ensure Expo 54 is used.
 
-**Do not run `pnpm run dev` at the workspace root** — there is no root dev script.
+**Local Gradle builds** require `npm install` at repo root first. The `settings.gradle` uses Node `require.resolve()` calls at Gradle configuration time — Node must be on PATH when running `./gradlew`.
 
-**`pnpm install` must run from repo root**, not from `artifacts/drag-tree`. Running it from the wrong directory causes `Unable to resolve module` build failures.
+**Signing** — release builds need `android/local.properties` (gitignored) with keystore credentials. See Session B of the EAS→local build migration plan.
+
+---
+
+## Local Build Environment (Session B — in progress)
+
+For `./gradlew assembleRelease` to work:
+
+1. **JDK 21** — use Debian/Ubuntu OpenJDK 21 (same flavor F-Droid uses, not Temurin)
+2. **Android SDK** — SDK 36, build-tools 36.0.0
+3. **NDK** — 27.1.12297006 (exact version)
+4. **`android/local.properties`** (gitignored, create manually):
+   ```
+   sdk.dir=/path/to/Android/Sdk
+   RELEASE_STORE_FILE=release.keystore
+   RELEASE_KEY_ALIAS=<alias>
+   RELEASE_STORE_PASSWORD=<pw>
+   RELEASE_KEY_PASSWORD=<pw>
+   ```
+5. **Production keystore** — download from EAS via `eas credentials`, place at `android/app/release.keystore` (gitignored)
+6. **`android/app/build.gradle`** — `signingConfigs.release` block not yet added (next step)
 
 ---
 
@@ -45,24 +68,24 @@ cd artifacts/drag-tree && eas build --profile play --platform android
 
 ## Architecture
 
-### Monorepo layout
+### Repo layout
 
 ```
-drag-tree/                     ← repo root (tooling only)
-└── artifacts/drag-tree/       ← THE main app (all feature work lives here)
-    ├── app/
-    │   ├── (tabs)/index.tsx   ← Home screen (tree, button, history)
-    │   └── diagnostic.tsx     ← Settings + diagnostics (sensor data, telemetry)
-    ├── components/            ← ChristmasTree, ReactionDisplay, HistoryList, etc.
-    ├── hooks/
-    │   ├── useTreeSession.ts  ← Session state machine + history persistence
-    │   └── useAccelerometer.ts← Sensor subscription, sustain gate, onset rewind
-    ├── lib/
-    │   ├── settings.ts        ← Pub/sub settings store (AsyncStorage-backed)
-    │   ├── sessionLock.ts     ← Pub/sub boolean (written by home, read by diag)
-    │   ├── launchTelemetry.ts ← Pub/sub last-launch sensor breakdown
-    │   └── audio.ts           ← Synthesized WAV audio cues (expo-av)
-    └── constants/colors.ts    ← All color tokens (light + dark)
+drag-tree/                     ← repo root = app root (no monorepo nesting)
+├── android/                   ← committed native project (do not regenerate casually)
+├── app/
+│   ├── (tabs)/index.tsx       ← Home screen (tree, button, history)
+│   └── diagnostic.tsx         ← Settings + diagnostics (sensor data, telemetry)
+├── components/                ← ChristmasTree, ReactionDisplay, HistoryList, etc.
+├── hooks/
+│   ├── useTreeSession.ts      ← Session state machine + history persistence
+│   └── useAccelerometer.ts    ← Sensor subscription, sustain gate, onset rewind
+├── lib/
+│   ├── settings.ts            ← Pub/sub settings store (AsyncStorage-backed)
+│   ├── sessionLock.ts         ← Pub/sub boolean (written by home, read by diag)
+│   ├── launchTelemetry.ts     ← Pub/sub last-launch sensor breakdown
+│   └── audio.ts               ← Synthesized WAV audio cues (expo-av)
+└── constants/colors.ts        ← All color tokens (light + dark)
 ```
 
 ### State architecture
@@ -161,34 +184,30 @@ All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asse
 The app targets F-Droid distribution alongside Play Store. MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671 (pipeline passing, awaiting reviewer response on reproducible builds as of July 2026).
 
 - **No Firebase, no GMS** — F-Droid bans them. App is fully offline by design.
-- **`android/` is committed** to the repo (`artifacts/drag-tree/android/`). The fdroiddata build re-runs `expo prebuild --clean` during the build anyway (template requirement), overwriting it.
+- **`android/` is committed** to the repo root. The fdroiddata build re-runs `expo prebuild --clean` during the build (template requirement), overwriting it.
 - **Tag every release** — F-Droid AutoUpdateMode tracks `git tag` matching `versionName` (e.g. `v1.7.1`). Tags are for auto-update tracking; the fdroiddata `commit:` field should use the **full SHA**, not the tag name.
 - **Fastlane metadata** is in `fastlane/metadata/android/en-US/` — update `changelogs/<versionCode>.txt` and `title.txt` each release. Keep `short_description.txt` under 80 characters. `Description:` and `AutoName:` are NOT in the YAML — F-Droid pulls them from fastlane.
-- **`subdir`** for fdroiddata YAML: `artifacts/drag-tree/android/app` (the app module dir, matching the template pattern)
+- **`subdir`** for fdroiddata YAML: `android/app` (the app module dir — two levels from repo root, not four)
 - **GitHub Releases** — `v1.7.1` release exists with `drag-tree-v1.7.1.apk` (EAS-signed). For future releases attach APK as `drag-tree-v<versionName>.apk`. `AllowedAPKSigningKeys: ff739cf5...` is verified against this APK.
-- **Reproducible builds** — `Binaries:` field was attempted but byte-comparison fails: F-Droid runs `expo prebuild --clean` (fresh `android/`) while EAS uses the committed one; also different JDK/transitive dep versions. `Binaries:` removed for now. To fix: build the reference APK locally using the exact fdroiddata YAML steps, sign it, upload that instead of the EAS APK.
+- **Reproducible builds** — `Binaries:` field was attempted but byte-comparison fails with EAS builds. With local Gradle builds (Session B), build the reference APK locally using the fdroiddata YAML steps, sign it, upload that. Re-add `Binaries:` once the byte match is confirmed.
 
-### Working fdroiddata build block (v1.7.1, template-compliant)
+### Updated fdroiddata build block (post-npm migration)
+
+The MR at https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671 needs updating to reflect the new repo structure (pnpm → npm, `artifacts/drag-tree/` → root). New YAML for next version:
 
 ```yaml
-commit: 7d3e4533a11a0c012ebd8b6abbef447ef65bd95d
-subdir: artifacts/drag-tree/android/app
+commit: <full SHA of release tag>
+subdir: android/app
 sudo:
   - apt-get update
   - apt-get install npm
-  - npm -g install pnpm@10
-init:
-  - cd ../../../..
-  - pnpm install --config.node-linker=hoisted --no-frozen-lockfile --ignore-scripts
+init: cd ../.. && npm install --ignore-scripts
 gradle:
   - yes
 prebuild:
-  - cd ../../../..
-  - sed -i -e '1a "expo":{"autolinking":{"android":{"buildFromSource":[".*"]}}},'
-    artifacts/drag-tree/package.json
+  - cd ../..
   - sed -i '/jvmToolchain\|JavaVersion/s/17/21/' node_modules/@react-native/gradle-plugin/*/build.gradle.kts
     node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/JdkConfiguratorUtils.kt
-  - cd artifacts/drag-tree
   - npx expo prebuild -p android --clean
   - sed -i -e '/signingConfig /d' android/app/build.gradle
 scanignore:
@@ -208,16 +227,14 @@ AllowedAPKSigningKeys: ff739cf565d8fe3af4ff97e641f6336fa69ebcf3eec222a7a7c5ab9f8
 ```
 
 Key build environment notes:
-- F-Droid sandbox is Debian trixie. `apt-get install npm` gives Node 20; pnpm 11 requires Node ≥22, so `pnpm@10` is pinned.
-- `@react-native/gradle-plugin` uses `jvmToolchain(17)` internally. The template fix is to sed-patch it to 21 — do NOT install JDK 17. The patch runs from repo root where the package is hoisted.
-- **`--config.node-linker=hoisted`** tells pnpm to create a flat `node_modules/` with real files (no symlinks, no `.pnpm/` virtual store). This is required so the F-Droid scanner sees packages at flat `node_modules/<pkg>/...` paths that match the template-style `scanignore` entries. Without it, pnpm uses its default isolated linker where packages are symlinks into `.pnpm/`, and the scanner resolves the real `.pnpm/...` paths — requiring long scanner-specific paths in scanignore.
-- `subdir: artifacts/drag-tree/android/app` — Gradle runs from the app module dir.
-- `init: cd ../../../..` — four levels up from `android/app` to repo root for pnpm install.
-- `prebuild: cd ../../../..` — to repo root for the jvmToolchain sed. Then `cd artifacts/drag-tree` for expo prebuild.
-- `--no-frozen-lockfile` required because catalog: aliases in pnpm-lock.yaml resolve differently in CI.
+- F-Droid sandbox is Debian trixie. `apt-get install npm` gives Node 20 (sufficient for Expo 54).
+- `@react-native/gradle-plugin` uses `jvmToolchain(17)` internally. Sed-patch it to 21 — do NOT install JDK 17. Patch runs from repo root where the package is flat in `node_modules/`.
+- `buildFromSource: [".*"]` is already in `package.json` — no sed needed.
+- `subdir: android/app` — Gradle runs from the app module dir. `cd ../..` from there reaches repo root.
 - `--ignore-scripts` required because postinstall scripts (esbuild) fail in the sandbox.
+- npm produces flat `node_modules/` by default — no `--config.node-linker=hoisted` needed.
 - **`scandelete: node_modules`** deletes binaries found in node_modules but does NOT remove the directory itself, so `settings.gradle`'s `require.resolve('@react-native/gradle-plugin/...')` still works at Gradle runtime.
-- `output:` path is relative to `subdir`. Full path from repo root: `artifacts/drag-tree/android/app/build/outputs/apk/release/app-release-unsigned.apk`.
+- `output:` path is relative to `subdir`. Full path from repo root: `android/app/build/outputs/apk/release/app-release-unsigned.apk`.
 
 ### Permissions note
 
