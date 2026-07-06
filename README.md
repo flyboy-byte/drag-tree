@@ -20,7 +20,7 @@ An Android app that simulates a real **NHRA Pro Tree** (all 3 ambers fire simult
 |---|---|
 | **Play Store** | [Open Testing](https://play.google.com/store/apps/details?id=com.flyboybyte.dragtree) — join open testing to install |
 | **F-Droid** | Submission pending review |
-| **Build it yourself** | No Android Studio needed — see [Build the Android APK with EAS](#2-build-the-android-apk-with-eas) |
+| **Build it yourself** | See [Build the Android APK with EAS](#2-build-the-android-apk-with-eas) |
 
 ---
 
@@ -44,7 +44,6 @@ No EAS account or Android device needed — runs in any desktop browser.
 | Tool | Min version | Install |
 |------|-------------|---------|
 | Node.js | 18 | https://nodejs.org |
-| pnpm | 9+ | `npm install -g pnpm` |
 
 ### Steps
 
@@ -52,15 +51,12 @@ No EAS account or Android device needed — runs in any desktop browser.
 # 1. Clone
 git clone https://github.com/flyboy-byte/drag-tree.git
 
-# 2. Install — run from the repo root (the drag-tree/ folder you just cloned)
+# 2. Install
 cd drag-tree
-pnpm install
+npm install
 
-# 3. Navigate into the app directory — one level deeper than the repo root
-cd artifacts/drag-tree
-
-# 4. Start the web version using the project's own Expo (not npx)
-pnpm web
+# 3. Start the web version using the project's own Expo (not npx)
+npm run web
 ```
 
 Expo opens the app in your default browser automatically. If it doesn't, look for a line like:
@@ -71,7 +67,7 @@ Web is waiting on http://localhost:8081
 
 and open that URL.
 
-> **Do not use `npx expo start --web`** — npx downloads whichever Expo version is current (may differ from the project's Expo 54) and will cause version mismatch errors. Always use `pnpm web` from inside `artifacts/drag-tree`.
+> **Do not use `npx expo start --web`** — npx downloads whichever Expo version is current (may differ from the project's Expo 54) and will cause version mismatch errors. Always use `npm run web` from the repo root.
 
 > **Accelerometer on web:** The browser does not expose the phone accelerometer API that Expo uses, so the sensor is disabled in browser mode. Use the **FLOOR IT** button on screen to simulate a launch — it animates the G-meter and fires the timer exactly as the real sensor would.
 
@@ -86,11 +82,8 @@ EAS builds the APK in the cloud — no Android SDK, no Java, nothing extra to in
 | Tool | Min version | Install command |
 |------|-------------|-----------------|
 | Node.js | 18 | https://nodejs.org |
-| pnpm | 9+ | `npm install -g pnpm` |
 | EAS CLI | 16+ | `npm install -g eas-cli` |
 | Expo account | — | https://expo.dev/signup (free) |
-
-> **Why pnpm?** This is a pnpm workspace (monorepo). Using `npm install` or `yarn` will break the build.
 
 ### Step 1 — Install EAS CLI
 
@@ -118,10 +111,8 @@ cd drag-tree
 ### Step 3 — Install dependencies
 
 ```bash
-pnpm install
+npm install
 ```
-
-Run this from the **repo root** (`drag-tree/`), not from inside `artifacts/drag-tree`. This installs all workspace packages together. Running it from the wrong directory is the most common build failure.
 
 ---
 
@@ -146,7 +137,6 @@ Create a free account at https://expo.dev/signup if you don't have one.
 ### Step 5 — Link the EAS project (first time only)
 
 ```bash
-cd artifacts/drag-tree
 eas init
 ```
 
@@ -247,17 +237,15 @@ git diff HEAD~1 HEAD
 
 ### Re-install dependencies (only if needed)
 
-If the pull changed `package.json`, `pnpm-workspace.yaml`, or `pnpm-lock.yaml` you need to re-install. Safe to always run — it's a no-op if nothing changed:
+If the pull changed `package.json` or `package-lock.json` you need to re-install. Safe to always run — it's a no-op if nothing changed:
 
 ```bash
-# From repo root
-pnpm install
+npm install
 ```
 
 ### Queue a new EAS build
 
 ```bash
-cd artifacts/drag-tree
 eas build --platform android --profile preview
 ```
 
@@ -282,7 +270,6 @@ git checkout abc1234
 git checkout v1.0.0
 
 # Then build from that state
-cd artifacts/drag-tree
 eas build --platform android --profile preview
 
 # Return to the tip of main when done
@@ -301,8 +288,7 @@ git log --oneline
 git reset --hard abc1234
 
 # Re-install and rebuild
-pnpm install
-cd artifacts/drag-tree
+npm install
 eas build --platform android --profile preview
 ```
 
@@ -360,16 +346,6 @@ This app runs React Native **New Architecture** (`newArchEnabled: true`). All de
 
 ## 5. Troubleshooting
 
-### `pnpm: command not found`
-
-```bash
-npm install -g pnpm
-```
-
-Then re-run `pnpm install` from the repo root.
-
----
-
 ### `eas: command not found`
 
 ```bash
@@ -389,7 +365,6 @@ eas login
 ### `Project not linked` / `EAS project ID not found`
 
 ```bash
-cd artifacts/drag-tree
 eas init
 ```
 
@@ -399,12 +374,10 @@ Select **Create new project** when prompted.
 
 ### `Unable to resolve module` during EAS build
 
-You ran `pnpm install` from `artifacts/drag-tree` instead of the repo root.
+Run `npm install` from the repo root first:
 
 ```bash
-cd drag-tree          # repo root
-pnpm install
-cd artifacts/drag-tree
+npm install
 eas build --platform android --profile preview
 ```
 
@@ -412,11 +385,7 @@ eas build --platform android --profile preview
 
 ### `Cannot find module 'expo'`
 
-Same root cause — wrong install directory. Also verify pnpm version:
-
-```bash
-pnpm --version        # must be 9.x or 10.x
-```
+Same root cause — dependencies not installed. Run `npm install` from the repo root.
 
 ---
 
@@ -432,12 +401,10 @@ Retry the build.
 
 ### Web app won't open in browser
 
-If `npx expo start --web` starts but the browser shows a blank page or connection error:
+If the browser shows a blank page or connection error:
 
 ```bash
-# Make sure you're in the right directory
-cd artifacts/drag-tree
-npx expo start --web
+npm run web
 ```
 
 Look for the local URL printed in the terminal (`http://localhost:8081`) and open it manually.
@@ -469,5 +436,5 @@ Every EAS build has a full log URL printed in the terminal. Open it. Scroll to t
 
 - Expo SDK 54 · React Native 0.81.5 · v1.7.1
 - expo-router · expo-sensors · expo-av · React Native Reanimated 4
-- New Architecture enabled · pnpm workspace monorepo
-- Distributed via Play Store and F-Droid · MIT license · fully offline
+- New Architecture enabled · npm · MIT license · fully offline
+- Distributed via Play Store and F-Droid (submission pending)
