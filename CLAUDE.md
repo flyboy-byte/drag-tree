@@ -224,6 +224,8 @@ prebuild:
   - sed -i -e '/signingConfig /d' android/app/build.gradle
 scanignore:
   - node_modules/react-native/sdks/hermesc/linux64-bin/hermesc
+  - node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
+  - node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle
   - node_modules/@react-native-async-storage/async-storage/android/build.gradle
   - node_modules/react-native-safe-area-context/android/build.gradle
   - node_modules/react-native-keyboard-controller/android/build.gradle
@@ -250,11 +252,12 @@ prebuild:
   - cd ../..
   - sed -i '/jvmToolchain\|JavaVersion/s/17/21/' node_modules/@react-native/gradle-plugin/*/build.gradle.kts
     node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/JdkConfiguratorUtils.kt
-  - cd android/app/../..
   - npx expo prebuild -p android --clean
   - sed -i -e '/signingConfig /d' android/app/build.gradle
 scanignore:
   - node_modules/react-native/sdks/hermesc/linux64-bin/hermesc
+  - node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
+  - node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle
   - node_modules/@react-native-async-storage/async-storage/android/build.gradle
   - node_modules/react-native-safe-area-context/android/build.gradle
   - node_modules/react-native-keyboard-controller/android/build.gradle
