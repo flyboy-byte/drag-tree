@@ -10,6 +10,7 @@ AutoName: DragTree
 
 RepoType: git
 Repo: https://github.com/flyboy-byte/drag-tree
+Binaries: https://github.com/flyboy-byte/drag-tree/releases/download/v%v/drag-tree-v%v.apk
 
 Builds:
   - versionName: 1.7.1
@@ -73,8 +74,6 @@ Builds:
   #     - node_modules
   #   ndk: 27.1.12297006
 
-# Binaries: https://github.com/flyboy-byte/drag-tree/releases/download/v%v/drag-tree-v%v.apk
-# ^ Uncomment once local Gradle build produces a byte-matching reference APK (Session C)
 AllowedAPKSigningKeys: ff739cf565d8fe3af4ff97e641f6336fa69ebcf3eec222a7a7c5ab9f8e3d837a
 
 AutoUpdateMode: Version

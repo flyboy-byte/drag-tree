@@ -263,9 +263,15 @@ scandelete:
 ndk: 27.1.12297006
 ```
 
-Top-level fields (outside Builds block, both options):
+Top-level fields — `Binaries:` goes **after `Repo:`, before `Builds:`** (fdroid rewritemeta enforces this order):
 ```yaml
+RepoType: git
+Repo: https://github.com/flyboy-byte/drag-tree
 Binaries: https://github.com/flyboy-byte/drag-tree/releases/download/v%v/drag-tree-v%v.apk
+
+Builds:
+  - ...
+
 AllowedAPKSigningKeys: ff739cf565d8fe3af4ff97e641f6336fa69ebcf3eec222a7a7c5ab9f8e3d837a
 ```
 
