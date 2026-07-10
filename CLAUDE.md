@@ -52,7 +52,7 @@ For `./gradlew assembleRelease` to work:
    RELEASE_KEY_PASSWORD=<pw>
    ```
 5. **Production keystore** — download from EAS via `eas credentials`, place at `android/app/release.keystore` (gitignored)
-6. **`android/app/build.gradle`** — `signingConfigs.release` block not yet added (next step)
+6. **`android/app/build.gradle`** — `signingConfigs.release` block already added; reads from `local.properties`
 
 ---
 
@@ -184,16 +184,28 @@ All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asse
 The app targets F-Droid distribution alongside Play Store. MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671 (pipeline passing, awaiting reviewer response on reproducible builds as of July 2026).
 
 - **No Firebase, no GMS** — F-Droid bans them. App is fully offline by design.
-- **`android/` is committed** to the repo root. The fdroiddata build re-runs `expo prebuild --clean` during the build (template requirement), overwriting it.
+- **`android/` is committed** to the repo root as the source of truth for the native project.
 - **Tag every release** — F-Droid AutoUpdateMode tracks `git tag` matching `versionName` (e.g. `v1.7.1`). Tags are for auto-update tracking; the fdroiddata `commit:` field should use the **full SHA**, not the tag name.
 - **Fastlane metadata** is in `fastlane/metadata/android/en-US/` — update `changelogs/<versionCode>.txt` and `title.txt` each release. Keep `short_description.txt` under 80 characters. `Description:` and `AutoName:` are NOT in the YAML — F-Droid pulls them from fastlane.
 - **`subdir`** for fdroiddata YAML: `android/app` (the app module dir — two levels from repo root, not four)
 - **GitHub Releases** — `v1.7.1` release exists with `drag-tree-v1.7.1.apk` (EAS-signed). For future releases attach APK as `drag-tree-v<versionName>.apk`. `AllowedAPKSigningKeys: ff739cf5...` is verified against this APK.
-- **Reproducible builds** — `Binaries:` field was attempted but byte-comparison fails with EAS builds. With local Gradle builds (Session B), build the reference APK locally using the fdroiddata YAML steps, sign it, upload that. Re-add `Binaries:` once the byte match is confirmed.
+- **Reproducible builds** — `Binaries:` field was attempted but byte-comparison fails with EAS builds. Goal for v1.7.2+: local Gradle build (same JDK 21 OpenJDK + NDK 27.1.12297006 as F-Droid sandbox) → sign → upload to GitHub releases → re-add `Binaries:`.
 
-### Updated fdroiddata build block (post-npm migration)
+### The expo prebuild decision
 
-The MR at https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671 needs updating to reflect the new repo structure (pnpm → npm, `artifacts/drag-tree/` → root). New YAML for next version:
+**Gap:** If the fdroiddata YAML runs `npx expo prebuild -p android --clean`, it overwrites our committed `android/` with a freshly generated one. Our local builds use the committed `android/`. These are different starting points — harder to byte-match.
+
+**Option A — no expo prebuild in YAML (recommended)**
+F-Droid uses our committed `android/` directly. Both local and F-Droid builds start from identical files — strongest setup for byte-matching. Need linsui's sign-off; argument: "`android/` is maintained directly as source of truth, no prebuild needed."
+
+**Option B — keep expo prebuild**
+F-Droid regenerates `android/` fresh. Custom signing config additions are wiped (fine, F-Droid uses unsigned builds anyway). Byte comparison harder because starting points differ.
+
+**Try Option A first.** Confirm with linsui before MR update.
+
+### fdroiddata build block — Option A (recommended, no expo prebuild)
+
+MR at https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671 needs updating. YAML for next version:
 
 ```yaml
 commit: <full SHA of release tag>
@@ -209,6 +221,36 @@ prebuild:
   - cd ../..
   - sed -i '/jvmToolchain\|JavaVersion/s/17/21/' node_modules/@react-native/gradle-plugin/*/build.gradle.kts
     node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/JdkConfiguratorUtils.kt
+  - sed -i -e '/signingConfig /d' android/app/build.gradle
+scanignore:
+  - node_modules/react-native/sdks/hermesc/linux64-bin/hermesc
+  - node_modules/@react-native-async-storage/async-storage/android/build.gradle
+  - node_modules/react-native-safe-area-context/android/build.gradle
+  - node_modules/react-native-keyboard-controller/android/build.gradle
+scandelete:
+  - node_modules
+ndk: 27.1.12297006
+```
+
+No `npx expo prebuild`. `cd ../..` from `android/app` reaches repo root (2 levels). `buildFromSource: [".*"]` already in `package.json` — no sed needed.
+
+### fdroiddata build block — Option B (fallback, with expo prebuild)
+
+```yaml
+commit: <full SHA of release tag>
+subdir: android/app
+sudo:
+  - apt-get update
+  - apt-get install npm
+init:
+  - cd ../.. && npm install --ignore-scripts
+gradle:
+  - yes
+prebuild:
+  - cd ../..
+  - sed -i '/jvmToolchain\|JavaVersion/s/17/21/' node_modules/@react-native/gradle-plugin/*/build.gradle.kts
+    node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/JdkConfiguratorUtils.kt
+  - cd android/app/../..
   - npx expo prebuild -p android --clean
   - sed -i -e '/signingConfig /d' android/app/build.gradle
 scanignore:
@@ -221,7 +263,7 @@ scandelete:
 ndk: 27.1.12297006
 ```
 
-Top-level fields (outside Builds block):
+Top-level fields (outside Builds block, both options):
 ```yaml
 Binaries: https://github.com/flyboy-byte/drag-tree/releases/download/v%v/drag-tree-v%v.apk
 AllowedAPKSigningKeys: ff739cf565d8fe3af4ff97e641f6336fa69ebcf3eec222a7a7c5ab9f8e3d837a
@@ -236,6 +278,10 @@ Key build environment notes:
 - npm produces flat `node_modules/` by default — no `--config.node-linker=hoisted` needed.
 - **`scandelete: node_modules`** deletes binaries found in node_modules but does NOT remove the directory itself, so `settings.gradle`'s `require.resolve('@react-native/gradle-plugin/...')` still works at Gradle runtime.
 - `output:` path is relative to `subdir`. Full path from repo root: `android/app/build/outputs/apk/release/app-release-unsigned.apk`.
+
+### If byte comparison still fails
+
+Options in order of effort: (1) Ship with `AllowedAPKSigningKeys` only — no `Binaries:`, key match is still proven. (2) `apktool d` both APKs, diff the trees, identify which files differ — narrow down whether it's `.dex` (JDK mismatch) or `.so` (NDK mismatch). (3) Build inside `debian:trixie` Docker container to exactly replicate the F-Droid sandbox.
 
 ### Permissions note
 

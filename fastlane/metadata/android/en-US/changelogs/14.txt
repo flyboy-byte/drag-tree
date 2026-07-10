@@ -1,0 +1,1 @@
+Migrated from EAS cloud builds to local Gradle builds for F-Droid reproducible build support.
