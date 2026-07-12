@@ -20,18 +20,19 @@ An Android app that simulates a real **NHRA Pro Tree** (all 3 ambers fire simult
 |---|---|
 | **Play Store** | [Open Testing](https://play.google.com/store/apps/details?id=com.flyboybyte.dragtree) — join open testing to install |
 | **F-Droid** | Submission pending review |
-| **Build it yourself** | See [Build the Android APK with EAS](#2-build-the-android-apk-with-eas) |
+| **Build it yourself** | See [Build the Android APK locally with Gradle](#2-build-the-android-apk-locally-with-gradle-recommended-for-v172) |
 
 ---
 
 ## Table of contents
 
 1. [Run in the browser (quickest start)](#1-run-in-the-browser-quickest-start)
-2. [Build the Android APK with EAS](#2-build-the-android-apk-with-eas)
-3. [Updating your local copy and rebuilding](#3-updating-your-local-copy-and-rebuilding)
-4. [Accelerometer — how it works & known issues](#4-accelerometer--how-it-works--known-issues)
-5. [Troubleshooting](#5-troubleshooting)
-6. [App features](#6-app-features)
+2. [Build the Android APK locally with Gradle (recommended for v1.7.2)](#2-build-the-android-apk-locally-with-gradle-recommended-for-v172)
+3. [Optional: Build the Android APK with EAS](#3-optional-build-the-android-apk-with-eas)
+4. [Updating your local copy and rebuilding](#4-updating-your-local-copy-and-rebuilding)
+5. [Accelerometer — how it works & known issues](#5-accelerometer--how-it-works--known-issues)
+6. [Troubleshooting](#6-troubleshooting)
+7. [App features](#7-app-features)
 
 ---
 
@@ -73,7 +74,51 @@ and open that URL.
 
 ---
 
-## 2. Build the Android APK with EAS (no Android Studio needed)
+## 2. Build the Android APK locally with Gradle (recommended for v1.7.2)
+
+For the current `v1.7.2` release engineering workflow, the canonical Android build path is a local/CI **Gradle** build, not EAS. This is the path used for the current F-Droid reproducible-build work because the reference APK needs to come from the same effective source patching and Gradle build flow as the F-Droid recipe.
+
+### Prerequisites
+
+| Tool | Version |
+|------|---------|
+| Node.js | 18+ |
+| JDK | 21 |
+| Android SDK | 36 |
+| Android build-tools | 36.0.0 |
+| Android NDK | 27.1.12297006 |
+
+### Steps
+
+```bash
+# 1. Clone
+git clone https://github.com/flyboy-byte/drag-tree.git
+cd drag-tree
+
+# 2. Install dependencies
+npm install
+
+# 3. Create android/local.properties from the example and fill in your SDK path
+#    plus release keystore values if you want a signed release build
+
+# 4. Build the release APK
+cd android
+./gradlew assembleRelease
+```
+
+Output APK:
+
+```text
+android/app/build/outputs/apk/release/app-release.apk
+```
+
+Notes:
+
+- `settings.gradle` uses Node `require.resolve()` during Gradle configuration, so Node must be on `PATH`.
+- `android/local.properties` is gitignored and required for a signed release build.
+- For the F-Droid reproducible-build workflow, the reference APK should be built from a fresh clone in a Debian/F-Droid-like container, with the same Expo prebuild and patch sequence as the fdroiddata recipe.
+
+## 3. Optional: Build the Android APK with EAS
 
 EAS builds the APK in the cloud — no Android SDK, no Java, nothing extra to install on your machine.
 
@@ -201,9 +246,9 @@ Build queued...
 
 ---
 
-## 3. Updating your local copy and rebuilding
+## 4. Updating your local copy and rebuilding
 
-When changes are pushed to the GitHub repo you need to pull them down, optionally re-install dependencies, and queue a new EAS build.
+When changes are pushed to the GitHub repo you need to pull them down, optionally re-install dependencies, and rebuild. For the current `v1.7.2` release-engineering workflow, prefer the local Gradle path. Use EAS only if you specifically want the optional cloud build flow.
 
 ### Pull the latest changes
 
@@ -243,7 +288,19 @@ If the pull changed `package.json` or `package-lock.json` you need to re-install
 npm install
 ```
 
-### Queue a new EAS build
+### Rebuild with local Gradle (recommended for v1.7.2)
+
+```bash
+npm install
+cd android
+./gradlew assembleRelease
+```
+
+If you need a signed release APK, make sure `android/local.properties` and your release keystore are set up first.
+
+---
+
+### Optional: queue a new EAS build
 
 ```bash
 eas build --platform android --profile preview
@@ -270,6 +327,9 @@ git checkout abc1234
 git checkout v1.0.0
 
 # Then build from that state
+cd android && ./gradlew assembleRelease
+
+# Or use the optional EAS path
 eas build --platform android --profile preview
 
 # Return to the tip of main when done
@@ -289,14 +349,14 @@ git reset --hard abc1234
 
 # Re-install and rebuild
 npm install
-eas build --platform android --profile preview
+cd android && ./gradlew assembleRelease
 ```
 
 > `git reset --hard` throws away any local uncommitted changes. Make sure you don't have anything important unsaved before running it.
 
 ---
 
-## 4. Accelerometer — how it works & known issues
+## 5. Accelerometer — how it works & known issues
 
 ### How the sensor detects launch
 
@@ -344,7 +404,7 @@ This app runs React Native **New Architecture** (`newArchEnabled: true`). All de
 
 ---
 
-## 5. Troubleshooting
+## 6. Troubleshooting
 
 ### `eas: command not found`
 
@@ -417,7 +477,7 @@ Every EAS build has a full log URL printed in the terminal. Open it. Scroll to t
 
 ---
 
-## 6. App features
+## 7. App features
 
 - **Pro Tree** — all 3 ambers fire simultaneously, green 0.400 s later
 - **Sportsman Tree** — ambers count down one at a time, green 0.500 s after the last amber; toggle in Settings
@@ -434,7 +494,7 @@ Every EAS build has a full log URL printed in the terminal. Open it. Scroll to t
 
 ## Tech stack
 
-- Expo SDK 54 · React Native 0.81.5 · v1.7.1
+- Expo SDK 54 · React Native 0.81.5 · v1.7.2
 - expo-router · expo-sensors · expo-av · React Native Reanimated 4
 - New Architecture enabled · npm · MIT license · fully offline
 - Distributed via Play Store and F-Droid (submission pending)

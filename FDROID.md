@@ -4,6 +4,14 @@ MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671
 fdroiddata fork: `flyboy-byte/fdroiddata`, branch `com.flyboybyte.dragtree`  
 Goal: get `Binaries:` byte comparison to pass so v1.7.2 is published.
 
+Use docs in this order:
+
+1. [FDROID.md](/home/logan/projects/drag-tree/FDROID.md) — current status
+2. [FDROID_REPRO_EXECUTION.md](/home/logan/projects/drag-tree/FDROID_REPRO_EXECUTION.md) — exact execution flow
+3. [PLAN.md](/home/logan/projects/drag-tree/PLAN.md) — strategy and experiment order
+4. [FDROID_MR_ACTIVITY.md](/home/logan/projects/drag-tree/FDROID_MR_ACTIVITY.md) — reviewer history and hard constraints
+5. [FDROID_REPRO_RESEARCH.md](/home/logan/projects/drag-tree/FDROID_REPRO_RESEARCH.md) — background notes
+
 ## The One Rule That Keeps Getting Broken
 
 **The F-Droid React Native template is a requirement.** `npx expo prebuild -p android --clean` stays in the YAML. Always. The reviewer (linsui) approved v1.7.1 with it. Do not remove it under any framing.
@@ -21,16 +29,27 @@ If not cloned: `git clone --depth 1 https://gitlab.com/fdroid/fdroidserver.git /
 
 **YAML** (`/home/logan/projects/fdroiddata/metadata/com.flyboybyte.dragtree.yml`) — passes rewritemeta lint. Includes expo prebuild, buildFromSource sed, jvmToolchain sed, PNG crunch fix, signingConfig removal, and 9 scanignore entries.
 
-**Reference APK on GitHub** — built WITHOUT expo prebuild. Needs to be replaced with a Docker-built one that uses expo prebuild.
+**Reference APK on GitHub** — if it was built outside the template-aligned Gradle path, treat it as invalid for `Binaries:`. The correct reference APK must come from a fresh-clone Docker build that mirrors the fdroiddata patch sequence.
 
 **Docker build** (`/home/logan/dragtree-fdroid-build/build.sh`) — OOM fix applied (Xmx3g, workers.max=1, parallel=false, NODE_OPTIONS=512MB, --no-daemon). Needs to be re-run.
 
+**Template base** — `/home/logan/Downloads/build-react-native.yml` is the official template the reviewer keeps referring to. The local recipe should only deviate where the app genuinely requires it, and those deviations should stay narrow and explicit.
+
 ## What to Do Next
 
-1. Run Docker build, wait for it to finish
-2. Upload APK to GitHub release (`gh release upload v1.7.2 ... --clobber`)
-3. Push empty commit to fdroiddata to trigger pipeline
-4. If byte comparison fails, use `apktool d` to diff the two APKs and identify which files differ
+1. Read [FDROID_REPRO_EXECUTION.md](/home/logan/projects/drag-tree/FDROID_REPRO_EXECUTION.md) before making workflow changes.
+2. Verify the Docker/reference build mirrors the YAML patch order exactly.
+3. Run the next controlled attempt from a fresh clone at `/home/vagrant/build/com.flyboybyte.dragtree`.
+4. Upload only that APK to GitHub release (`gh release upload v1.7.2 ... --clobber`).
+5. If comparison fails, classify the diff before changing anything else.
+
+## Current Decision Rules
+
+- Do not remove `expo prebuild -p android --clean`.
+- Do not use EAS APKs for `Binaries:`.
+- Do not build the reference APK from the host working tree.
+- Do not change multiple reproducibility knobs in one attempt.
+- Use [FDROID_REPRO_EXECUTION.md](/home/logan/projects/drag-tree/FDROID_REPRO_EXECUTION.md) for experiment order and artifact capture.
 
 ## Docker Build Command
 

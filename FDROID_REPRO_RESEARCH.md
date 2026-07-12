@@ -1,5 +1,13 @@
 # F-Droid Reproducible Builds — Research & Session Notes
 
+Role of this file:
+
+- background research
+- session notes
+- long-form findings
+
+Do not use this as the primary action doc. For actual execution flow, use [FDROID_REPRO_EXECUTION.md](/home/logan/projects/drag-tree/FDROID_REPRO_EXECUTION.md).
+
 ## F-Droid Official Docs (https://f-droid.org/docs/Reproducible_Builds/)
 
 ### Core Mission
@@ -188,3 +196,15 @@ CMake specifies object file order explicitly in its link command, so parallel co
 2. **After fixing PNG crunching and scanignore, do the .so files now match?** We haven't had a successful comparison run yet with all fixes applied.
 
 3. **baseline.prof** — likely non-deterministic, may need to be disabled.
+
+---
+
+## Next Research-Guided Fix Order
+
+Based on the F-Droid reproducible-build docs, the next likely fixes for this app should be attempted in this order:
+
+1. **Build-path equivalence first** — same commit, same patch sequence, same Debian/F-Droid-like path, same Gradle path.
+2. **baseline profile control** — if profile assets differ, disable `ArtProfile` tasks before chasing lower-signal causes.
+3. **Native library stability** — if `.so` files differ, check path embedding and stripping before linker-flag changes.
+4. **Linker/build-id control** — only after a measured `.so` diff still points there.
+5. **Resource or ZIP tooling cleanup** — use `diffoscope` or reproducible-apk-tools only after the direct source cause is unclear.

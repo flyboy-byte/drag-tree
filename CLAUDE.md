@@ -181,11 +181,23 @@ All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asse
 
 ## F-Droid
 
-See **`FDROID.md`** for full context, current state, and what to do next.
+For F-Droid or reproducible-build work, use docs in this order:
+
+1. **`FDROID.md`** — current status and entrypoint
+2. **`FDROID_REPRO_EXECUTION.md`** — operational execution guide
+3. **`PLAN.md`** — broader strategy and experiment sequencing
+4. **`FDROID_MR_ACTIVITY.md`** — reviewer constraints and why certain choices are mandatory
+5. **`FDROID_REPRO_RESEARCH.md`** — background research only
+
+Do not treat `FDROID_REPRO_RESEARCH.md` as the primary action doc.
 
 Quick facts:
 - No Firebase, no GMS — fully offline by design.
-- `android/` is committed as source of truth.
+- Official reviewer template path: `/home/logan/Downloads/build-react-native.yml`
+- `android/` is committed as the intended Gradle state, but Expo prebuild regenerates it during the F-Droid recipe.
+- The `v1.7.2` reproducible-build workflow is Gradle-first, not EAS-first.
+- The reference APK for `Binaries:` must come from the same effective patch sequence as the fdroiddata YAML.
+- Canonical reference-build shape: fresh clone in a Debian/F-Droid-like container, apply template-style patches, run `npx expo prebuild -p android --clean`, then build/sign with Gradle.
 - Tag every release — F-Droid AutoUpdateMode tracks tags matching versionName.
 - Fastlane metadata: `fastlane/metadata/android/en-US/` — update `changelogs/<versionCode>.txt` each release.
 - AndroidManifest.xml permissions from Expo/RN defaults are kept intentionally.
