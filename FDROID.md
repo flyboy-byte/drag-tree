@@ -1,75 +1,88 @@
-# F-Droid — What You Need to Know
+# F-Droid — Current State
 
 MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671  
-fdroiddata fork: `flyboy-byte/fdroiddata`, branch `com.flyboybyte.dragtree`  
-Goal: get `Binaries:` byte comparison to pass so v1.7.2 is published.
+fdroiddata fork: `flyboy-byte/fdroiddata`, branch `com.flyboybyte.dragtree`
 
-Use docs in this order:
+---
 
-1. [FDROID.md](/home/logan/projects/drag-tree/FDROID.md) — current status
-2. [FDROID_REPRO_EXECUTION.md](/home/logan/projects/drag-tree/FDROID_REPRO_EXECUTION.md) — exact execution flow
-3. [PLAN.md](/home/logan/projects/drag-tree/PLAN.md) — strategy and experiment order
-4. [FDROID_MR_ACTIVITY.md](/home/logan/projects/drag-tree/FDROID_MR_ACTIVITY.md) — reviewer history and hard constraints
-5. [FDROID_REPRO_RESEARCH.md](/home/logan/projects/drag-tree/FDROID_REPRO_RESEARCH.md) — background notes
+## Current Attempt
 
-## The One Rule That Keeps Getting Broken
+**Attempt:** 2 (2026-07-12)  
+**What changed:** Freed disk space (deleted WoT HEAT + takeout folder), relaunched Docker build that previously OOM'd on disk  
+**Status:** Docker build running — NDK/CMake toolchain downloading  
+**Last result:** Attempt 1 failed: "No space left on device" at `copyReleaseJniLibsProjectAndLocalJars` after 905 tasks (31 min)  
+**Log:** `/home/logan/dragtree-fdroid-build/builds/attempt-20260712-1930/build.log`
 
-**The F-Droid React Native template is a requirement.** `npx expo prebuild -p android --clean` stays in the YAML. Always. The reviewer (linsui) approved v1.7.1 with it. Do not remove it under any framing.
+---
 
-## YAML Formatting Rule
+## Next Action
 
-Always verify with git master fdroidserver before pushing:
+Wait for Docker build to complete, verify cert, upload APK to GitHub release, then rebase fdroiddata branch to single commit and trigger pipeline.
+
+---
+
+## Hard Rules
+
+1. **`npx expo prebuild -p android --clean` stays in the recipe.** Reviewer (linsui) required it. Do not remove it under any framing.
+2. **Do not use EAS APKs for `Binaries:`.** The reference APK must come from the same patch sequence as the fdroiddata recipe.
+3. **Do not build the reference APK from the host working tree.** DWARF paths in .so files will differ from F-Droid's `/home/vagrant/build/com.flyboybyte.dragtree`.
+4. **Run `rewritemeta` after every YAML change and confirm `git diff` is empty before pushing.**
+5. **One variable class per attempt.** Do not combine baseline.prof + .so + VCS fixes in one run.
+6. **Verify cert before uploading.** Must match `AllowedAPKSigningKeys`: `ff739cf565d8fe3af4ff97e641f6336fa69ebcf3eec222a7a7c5ab9f8e3d837a`
+
+---
+
+## Environment
+
+### rewritemeta (run after every YAML change)
+
 ```bash
 cd /home/logan/projects/fdroiddata
 PYTHONPATH=/tmp/fdroidserver-master python3 /tmp/fdroidserver-master/fdroid rewritemeta com.flyboybyte.dragtree
+git diff  # must be empty before pushing
 ```
+
 If not cloned: `git clone --depth 1 https://gitlab.com/fdroid/fdroidserver.git /tmp/fdroidserver-master`
 
-## Current State
-
-**YAML** (`/home/logan/projects/fdroiddata/metadata/com.flyboybyte.dragtree.yml`) — passes rewritemeta lint. Includes expo prebuild, buildFromSource sed, jvmToolchain sed, PNG crunch fix, signingConfig removal, and 9 scanignore entries.
-
-**Reference APK on GitHub** — if it was built outside the template-aligned Gradle path, treat it as invalid for `Binaries:`. The correct reference APK must come from a fresh-clone Docker build that mirrors the fdroiddata patch sequence.
-
-**Docker build** (`/home/logan/dragtree-fdroid-build/build.sh`) — OOM fix applied (Xmx3g, workers.max=1, parallel=false, NODE_OPTIONS=512MB, --no-daemon). Needs to be re-run.
-
-**Template base** — `/home/logan/Downloads/build-react-native.yml` is the official template the reviewer keeps referring to. The local recipe should only deviate where the app genuinely requires it, and those deviations should stay narrow and explicit.
-
-## What to Do Next
-
-1. Read [FDROID_REPRO_EXECUTION.md](/home/logan/projects/drag-tree/FDROID_REPRO_EXECUTION.md) before making workflow changes.
-2. Verify the Docker/reference build mirrors the YAML patch order exactly.
-3. Run the next controlled attempt from a fresh clone at `/home/vagrant/build/com.flyboybyte.dragtree`.
-4. Upload only that APK to GitHub release (`gh release upload v1.7.2 ... --clobber`).
-5. If comparison fails, classify the diff before changing anything else.
-
-## Current Decision Rules
-
-- Do not remove `expo prebuild -p android --clean`.
-- Do not use EAS APKs for `Binaries:`.
-- Do not build the reference APK from the host working tree.
-- Do not change multiple reproducibility knobs in one attempt.
-- Use [FDROID_REPRO_EXECUTION.md](/home/logan/projects/drag-tree/FDROID_REPRO_EXECUTION.md) for experiment order and artifact capture.
-
-## Docker Build Command
+### Docker build command
 
 ```bash
-mkdir -p /home/logan/dragtree-fdroid-build/output4
+OUTDIR="/home/logan/dragtree-fdroid-build/builds/attempt-$(date +%Y%m%d-%H%M)"
+mkdir -p "$OUTDIR"
 nohup podman run --rm --network host \
   -v /home/logan/dragtree-fdroid-build/build.sh:/build.sh:ro \
-  -v /home/logan/dragtree-fdroid-build/output4:/output \
+  -v "$OUTDIR":/output \
   -v /home/logan/@flyboybyte__drag-tree.jks:/keystore.jks:ro \
   registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie \
-  bash /build.sh > /home/logan/dragtree-fdroid-build/docker-build4.log 2>&1 &
+  bash /build.sh > "$OUTDIR/build.log" 2>&1 &
 ```
 
-`--network host` is required. Fresh clone only — never mount local repo. Working dir inside container must be `/home/vagrant/build/com.flyboybyte.dragtree`.
+`--network host` required. Fresh clone only — never mount local repo. Working dir inside container: `/home/vagrant/build/com.flyboybyte.dragtree`.
 
-## Keystore
+### Cert verify + upload
+
+```bash
+/home/logan/Android/Sdk/build-tools/36.0.0/apksigner verify --print-certs \
+  "$OUTDIR/drag-tree-v1.7.2.apk" | grep ff739cf5
+
+gh release upload v1.7.2 "$OUTDIR/drag-tree-v1.7.2.apk" \
+  --repo flyboy-byte/drag-tree --clobber
+```
+
+### Keystore
+
 - File: `/home/logan/@flyboybyte__drag-tree.jks`
 - Alias: `e2f4affc23a7141f202d26f6d9f2d4d0`
-- Expected cert: `ff739cf5...` (AllowedAPKSigningKeys in YAML)
+
+### fdroiddata paths
+
+- YAML: `/home/logan/projects/fdroiddata/metadata/com.flyboybyte.dragtree.yml`
+- build.sh: `/home/logan/dragtree-fdroid-build/build.sh`
+
+---
 
 ## Fallback
 
-If byte comparison fails after 2 more attempts: drop `Binaries:` from the YAML. `AllowedAPKSigningKeys` alone proves key ownership and F-Droid still publishes. Reproducibility can be revisited in v1.7.3.
+If byte comparison still fails after controlled Gradle-focused attempts with captured diff evidence: drop `Binaries:` from the YAML. `AllowedAPKSigningKeys` alone still gets the app published. Revisit reproducibility in v1.7.3.
+
+Do not invoke fallback without at least one clean attempt using Docker-built reference APK + captured diff output.

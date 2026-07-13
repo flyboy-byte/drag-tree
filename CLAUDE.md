@@ -181,23 +181,35 @@ All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asse
 
 ## F-Droid
 
-For F-Droid or reproducible-build work, use docs in this order:
+### NEVER (hard stops — no exceptions, no framing makes these OK)
 
-1. **`FDROID.md`** — current status and entrypoint
-2. **`FDROID_REPRO_EXECUTION.md`** — operational execution guide
-3. **`PLAN.md`** — broader strategy and experiment sequencing
-4. **`FDROID_MR_ACTIVITY.md`** — reviewer constraints and why certain choices are mandatory
-5. **`FDROID_REPRO_RESEARCH.md`** — background research only
+1. Remove `npx expo prebuild -p android --clean` from the recipe
+2. Use an EAS-built APK for `Binaries:`
+3. Build the reference APK from the host working tree (`/home/logan/projects/drag-tree`)
+4. Push to fdroiddata without running `rewritemeta` first **and** confirming `git diff` is empty
+5. Change more than one variable class per attempt (e.g. don't combine baseline.prof fix + .so fix)
+6. Upload a reference APK before verifying its cert fingerprint matches `AllowedAPKSigningKeys`: `ff739cf565d8fe3af4ff97e641f6336fa69ebcf3eec222a7a7c5ab9f8e3d837a`
 
-Do not treat `FDROID_REPRO_RESEARCH.md` as the primary action doc.
+### Before touching YAML, build.sh, or Gradle files — answer all three
 
-Quick facts:
+1. Do I have build artifacts from the last attempt (log + APK)?
+2. Do I know which file class differed (dex / .so / profile / resources / zip metadata)?
+3. Am I changing exactly one variable class?
+
+If any answer is NO → read `FDROID_REPRO_EXECUTION.md` and stop. Do not proceed.
+
+### Doc reading order
+
+1. **`FDROID.md`** — current attempt state + environment reference
+2. **`FDROID_REPRO_EXECUTION.md`** — operational playbook + experiment order
+3. **`FDROID_MR_ACTIVITY.md`** — reviewer history and constraints
+4. **`FDROID_REPRO_RESEARCH.md`** — background research only (not an action doc)
+
+### Quick facts
 - No Firebase, no GMS — fully offline by design.
-- Official reviewer template path: `/home/logan/Downloads/build-react-native.yml`
-- `android/` is committed as the intended Gradle state, but Expo prebuild regenerates it during the F-Droid recipe.
-- The `v1.7.2` reproducible-build workflow is Gradle-first, not EAS-first.
-- The reference APK for `Binaries:` must come from the same effective patch sequence as the fdroiddata YAML.
-- Canonical reference-build shape: fresh clone in a Debian/F-Droid-like container, apply template-style patches, run `npx expo prebuild -p android --clean`, then build/sign with Gradle.
+- Official reviewer template: `/home/logan/Downloads/build-react-native.yml`
+- `android/` is committed as the intended Gradle state, but Expo prebuild regenerates it during F-Droid recipe.
+- Reference APK must come from a fresh clone in a Debian/F-Droid-like container, same patch sequence as the YAML.
 - Tag every release — F-Droid AutoUpdateMode tracks tags matching versionName.
 - Fastlane metadata: `fastlane/metadata/android/en-US/` — update `changelogs/<versionCode>.txt` each release.
 - AndroidManifest.xml permissions from Expo/RN defaults are kept intentionally.

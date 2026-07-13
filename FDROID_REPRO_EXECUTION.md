@@ -1,15 +1,22 @@
 # F-Droid Repro Execution Guide
 
-Purpose: give an agent one compact, operational source of truth for the `v1.7.2` reproducible-build effort.
+Operational playbook for the v1.7.2 reproducible-build effort. Not a history log, not background research.
 
-This file is not the history log and not the broad research dump. It is the execution guide.
+---
 
-Use with:
+## Gate — Answer Before Every Change
 
-- [FDROID.md](/home/logan/projects/drag-tree/FDROID.md) for current status
-- [PLAN.md](/home/logan/projects/drag-tree/PLAN.md) for strategy and experiment order
-- [FDROID_MR_ACTIVITY.md](/home/logan/projects/drag-tree/FDROID_MR_ACTIVITY.md) for reviewer constraints
-- [FDROID_REPRO_RESEARCH.md](/home/logan/projects/drag-tree/FDROID_REPRO_RESEARCH.md) for background and long-form notes
+**Must answer YES to all three before touching YAML, build.sh, or Gradle files:**
+
+1. Do I have build artifacts from the last attempt (log + APK)?
+2. Do I know which file class differed (dex / .so / profile / resources / zip metadata)?
+3. Am I changing exactly one variable class?
+
+If any answer is NO: read this file for experiment order, then stop and report back. Do not proceed.
+
+**Also required before every fdroiddata push:**
+
+- Run `rewritemeta` and confirm `git diff` is empty.
 
 ---
 
@@ -416,3 +423,89 @@ Before changing any Gradle reproducibility knob, answer these three questions:
 3. Do I already have artifacts proving this is the next remaining diff class?
 
 If any answer is “no”, do not make the change yet.
+
+---
+
+## Upload, Rebase, and Trigger Flow
+
+### Verify and upload reference APK
+
+```bash
+# Cert must match AllowedAPKSigningKeys
+/home/logan/Android/Sdk/build-tools/36.0.0/apksigner verify --print-certs \
+  “$OUTDIR/drag-tree-v1.7.2.apk” | grep ff739cf5
+
+# Upload (replaces existing)
+gh release upload v1.7.2 “$OUTDIR/drag-tree-v1.7.2.apk” \
+  --repo flyboy-byte/drag-tree --clobber
+```
+
+Only upload after cert is confirmed. Do not upload until the Docker build completed successfully.
+
+### Rebase fdroiddata branch
+
+Squash accumulated fixup commits before triggering:
+
+```bash
+cd /home/logan/projects/fdroiddata
+git rebase -i upstream/master
+# Squash all into one: “Add com.flyboybyte.dragtree (DragTree v1.7.2)”
+PYTHONPATH=/tmp/fdroidserver-master python3 /tmp/fdroidserver-master/fdroid rewritemeta com.flyboybyte.dragtree
+git diff  # must be empty
+git push origin HEAD --force-with-lease
+```
+
+### Trigger pipeline and watch
+
+```bash
+cd /home/logan/projects/fdroiddata
+git commit --allow-empty -m “ci: trigger pipeline”
+git push origin HEAD
+
+# Watch status
+watch -n 30 ‘glab api “projects/fdroid%2Ffdroiddata/merge_requests/41671/pipelines” | \
+  python3 -c “import sys,json; p=json.load(sys.stdin); print(p[0][\”id\”], p[0][\”status\”])”’
+```
+
+---
+
+## Artifact Directory Layout
+
+```
+/home/logan/dragtree-fdroid-build/
+├── builds/
+│   └── attempt-YYYYMMDD-HHMM/
+│       ├── build.log              ← Docker build log
+│       ├── drag-tree-v1.7.2.apk  ← signed reference APK
+│       └── notes.md              ← what changed, what the result was
+├── pipeline/
+│   └── run-<pipeline-id>/
+│       ├── fdroid-unsigned.apk   ← download from pipeline artifacts
+│       ├── diff-raw.txt          ← entry-level diff
+│       ├── diffoscope.html       ← diffoscope output if available
+│       └── notes.md              ← what differed, what class, what to fix
+├── build.sh
+└── ANALYSIS.md                   ← running log across all attempts
+```
+
+### Download F-Droid’s unsigned APK from pipeline
+
+```bash
+PIPELINE_ID=<id>
+glab api “projects/fdroid%2Ffdroiddata/pipelines/$PIPELINE_ID/jobs” \
+  | python3 -c “import sys,json; [print(j[‘id’], j[‘name’], j[‘status’]) for j in json.load(sys.stdin)]”
+glab api “projects/fdroid%2Ffdroiddata/jobs/<job-id>/artifacts” > fdroid-unsigned.apk
+```
+
+### Diff the APKs
+
+```bash
+mkdir -p pipeline/run-$PIPELINE_ID
+apktool d drag-tree-v1.7.2.apk -o pipeline/run-$PIPELINE_ID/ref-tree -f
+apktool d fdroid-unsigned.apk   -o pipeline/run-$PIPELINE_ID/fdroid-tree -f
+diff -rq pipeline/run-$PIPELINE_ID/ref-tree pipeline/run-$PIPELINE_ID/fdroid-tree \
+  > pipeline/run-$PIPELINE_ID/diff-raw.txt
+cat pipeline/run-$PIPELINE_ID/diff-raw.txt
+```
+
+Write findings to `pipeline/run-$PIPELINE_ID/notes.md` and update `ANALYSIS.md`.
