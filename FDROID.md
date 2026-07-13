@@ -26,7 +26,7 @@ Wait for Docker build to complete, verify cert, upload APK to GitHub release, th
 1. **`npx expo prebuild -p android --clean` stays in the recipe.** Reviewer (linsui) required it. Do not remove it under any framing.
 2. **Do not use EAS APKs for `Binaries:`.** The reference APK must come from the same patch sequence as the fdroiddata recipe.
 3. **Do not build the reference APK from the host working tree.** DWARF paths in .so files will differ from F-Droid's `/home/vagrant/build/com.flyboybyte.dragtree`.
-4. **Run `rewritemeta` after every YAML change and confirm `git diff` is empty before pushing.**
+4. **Do not use local rewritemeta — it produces different output than the CI version and will break the lint check.** If YAML formatting needs fixing, push and copy the exact diff from the CI job log.
 5. **One variable class per attempt.** Do not combine baseline.prof + .so + VCS fixes in one run.
 6. **Verify cert before uploading.** Must match `AllowedAPKSigningKeys`: `ff739cf565d8fe3af4ff97e641f6336fa69ebcf3eec222a7a7c5ab9f8e3d837a`
 
@@ -34,15 +34,11 @@ Wait for Docker build to complete, verify cert, upload APK to GitHub release, th
 
 ## Environment
 
-### rewritemeta (run after every YAML change)
+### YAML formatting
 
-```bash
-cd /home/logan/projects/fdroiddata
-PYTHONPATH=/tmp/fdroidserver-master python3 /tmp/fdroidserver-master/fdroid rewritemeta com.flyboybyte.dragtree
-git diff  # must be empty before pushing
-```
+Do not use local rewritemeta — the local git master clone produces different output than the CI version and causes unnecessary lint failures.
 
-If not cloned: `git clone --depth 1 https://gitlab.com/fdroid/fdroidserver.git /tmp/fdroidserver-master`
+If the CI rewritemeta job fails, it will output a diff showing exactly what it wants. Copy those changes into the YAML, commit, push. One iteration only.
 
 ### Docker build command
 

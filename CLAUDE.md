@@ -186,7 +186,7 @@ All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asse
 1. Remove `npx expo prebuild -p android --clean` from the recipe
 2. Use an EAS-built APK for `Binaries:`
 3. Build the reference APK from the host working tree (`/home/logan/projects/drag-tree`)
-4. Push to fdroiddata without running `rewritemeta` first **and** confirming `git diff` is empty
+4. Push to fdroiddata without first checking that the YAML matches CI-canonical format (do NOT use local rewritemeta — it produces different output than CI; instead push and let CI tell you the diff)
 5. Change more than one variable class per attempt (e.g. don't combine baseline.prof fix + .so fix)
 6. Upload a reference APK before verifying its cert fingerprint matches `AllowedAPKSigningKeys`: `ff739cf565d8fe3af4ff97e641f6336fa69ebcf3eec222a7a7c5ab9f8e3d837a`
 
