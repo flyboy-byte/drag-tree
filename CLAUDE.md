@@ -189,6 +189,9 @@ All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asse
 4. Push to fdroiddata without first checking that the YAML matches CI-canonical format (do NOT use local rewritemeta — it produces different output than CI; instead push and let CI tell you the diff)
 5. Change more than one variable class per attempt (e.g. don't combine baseline.prof fix + .so fix)
 6. Upload a reference APK before verifying its cert fingerprint matches `AllowedAPKSigningKeys`: `ff739cf565d8fe3af4ff97e641f6336fa69ebcf3eec222a7a7c5ab9f8e3d837a`
+7. Push ABI split YAML before all 4 ABI reference APKs are uploaded to the GitHub release — the two-pipeline-run process is mandatory (run 1: get unsigned APKs; run 2: verify Binaries:)
+8. Use the universal `drag-tree-v%v.apk` as a reference for any ABI split build block — each ABI needs its own reference APK signed from that ABI's unsigned output
+9. Invert the VercodeOperation ABI ordering — it is fixed: armeabi-v7a=+1, arm64-v8a=+2, x86=+3, x86_64=+4
 
 ### Before touching YAML, build.sh, or Gradle files — answer all three
 

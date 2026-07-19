@@ -86,13 +86,81 @@ Confirmed in pipeline 2687784363 — all 9 jobs green.
 
 ## Next Action
 
-**Awaiting reviewer merge.** The MR branch (`flyboy-byte/fdroiddata`, `com.flyboybyte.dragtree`) is:
-- One commit ahead of `upstream/master`
-- Zero commits behind
-- Squashed to a single commit: `Add com.flyboybyte.dragtree (DragTree v1.7.2)`
-- CI pipeline fully green
+**ABI splits requested by reviewer (linsui).** Current state: CI passing on reviewer's two small fixes (commit `147ad07e`). ABI split work not started.
 
-The reviewer (linsui) was notified by comment on 2026-07-19. No action needed until merge or reviewer feedback.
+Rollback point: `147ad07e` on `flyboy-byte/fdroiddata` branch `com.flyboybyte.dragtree` — verified passing, `Binaries:` byte comparison confirmed. To revert: `git reset --hard 147ad07e && git push --force origin com.flyboybyte.dragtree`
+
+---
+
+## ABI Split Plan (in progress)
+
+Reviewer noted: arm64-v8a (24M), armeabi-v7a (23M), x86 (25M), x86_64 (24M), 93M total. Splits are "not a hard requirement" but "highly encouraged."
+
+### Why two pipeline runs are required
+
+`Binaries:` byte comparison requires signing F-Droid's unsigned APK output. We cannot produce reference APKs before F-Droid has built them. Therefore:
+
+- **Run 1** — Push YAML with 4 ABI split build blocks, no `Binaries:` entries. Pipeline builds all 4 unsigned APKs. Download them from CI artifacts.
+- **Sign + upload** — Sign each unsigned APK with `--alignment-preserved true --v1-signing-enabled false`. Upload to GitHub release v1.7.2 with ABI-specific filenames.
+- **Run 2** — Add per-build `Binaries:` to each block. Push. Pipeline verifies byte comparison for all 4.
+
+### YAML structure
+
+```yaml
+VercodeOperation:
+  - 10 * %c + 1   # armeabi-v7a → versionCode 141
+  - 10 * %c + 2   # arm64-v8a   → versionCode 142
+  - 10 * %c + 3   # x86         → versionCode 143
+  - 10 * %c + 4   # x86_64      → versionCode 144
+```
+
+Each build block is identical except for the `abiFilters` sed at the end of `prebuild`:
+
+```bash
+# armeabi-v7a block:
+sed -i '/defaultConfig {/a\        ndk { abiFilters "armeabi-v7a" }' android/app/build.gradle
+
+# arm64-v8a block:
+sed -i '/defaultConfig {/a\        ndk { abiFilters "arm64-v8a" }' android/app/build.gradle
+
+# x86 block:
+sed -i '/defaultConfig {/a\        ndk { abiFilters "x86" }' android/app/build.gradle
+
+# x86_64 block:
+sed -i '/defaultConfig {/a\        ndk { abiFilters "x86_64" }' android/app/build.gradle
+```
+
+### Reference APK naming convention
+
+```
+drag-tree-v1.7.2-armeabi-v7a.apk
+drag-tree-v1.7.2-arm64-v8a.apk
+drag-tree-v1.7.2-x86.apk
+drag-tree-v1.7.2-x86_64.apk
+```
+
+### Per-build Binaries: pattern (Run 2)
+
+```yaml
+Binaries: https://github.com/flyboy-byte/drag-tree/releases/download/v%v/drag-tree-v%v-armeabi-v7a.apk
+```
+
+Each block gets its own `Binaries:` with the matching ABI filename.
+
+### build.sh for ABI split reference APKs
+
+Same container command as before. Before running, add to the signing section:
+
+```bash
+# Run once per ABI — change ABI_NAME and abiFilters value each time
+ABI_NAME="arm64-v8a"
+# In prebuild section, add after the signingConfig sed:
+sed -i '/defaultConfig {/a\        ndk { abiFilters "'"$ABI_NAME"'" }' android/app/build.gradle
+# Output file:
+OUTPUT="/output/drag-tree-v1.7.2-${ABI_NAME}.apk"
+```
+
+Sign each from the corresponding F-Droid unsigned APK (downloaded from Run 1 pipeline artifacts), not from a local build output.
 
 ---
 
