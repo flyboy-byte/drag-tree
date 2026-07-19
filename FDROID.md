@@ -3,7 +3,7 @@
 MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671  
 fdroiddata fork: `flyboy-byte/fdroiddata`, branch `com.flyboybyte.dragtree`
 
-**Status: COMPLETE — pipeline passing, MR awaiting reviewer merge (2026-07-19)**
+**Status: ABI SPLIT RUN 1 IN PROGRESS — pushing updated YAML at commit `2998a0f` (2026-07-19)**
 
 ---
 
@@ -84,15 +84,39 @@ Confirmed in pipeline 2687784363 — all 9 jobs green.
 
 ---
 
-## Next Action
+## ABI Split Status
 
-**ABI splits requested by reviewer (linsui).** Current state: CI passing on reviewer's two small fixes (commit `147ad07e`). ABI split work not started.
+**Rollback point:** `147ad07e` (fdroiddata) — universal build, byte comparison confirmed. To revert: `git reset --hard 147ad07e && git push --force origin com.flyboybyte.dragtree`
 
-Rollback point: `147ad07e` on `flyboy-byte/fdroiddata` branch `com.flyboybyte.dragtree` — verified passing, `Binaries:` byte comparison confirmed. To revert: `git reset --hard 147ad07e && git push --force origin com.flyboybyte.dragtree`
+### Run 1 — what was fixed before this push
+
+| Problem | Fix | Status |
+|---|---|---|
+| versionCode mismatch (APK had `14`, expected `141`) | `sed -i 's/versionCode 14$/versionCode 14X/'` in each block after prebuild | Fixed |
+| D8 OOM with 2g JVM heap | `sed -i 's/org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4096m/'` | Fixed |
+| CI timeout (4 × ~25 min > 60 min) | Gradle build cache + dependency removal | In progress |
+
+### Dependency removal (for CI build time)
+
+Removed from `package.json` to reduce per-ABI Kotlin/Java compilation:
+- `react-native-reanimated` + `react-native-worklets` → replaced with RN `Animated` API
+- `react-native-gesture-handler` → removed (no gestures in use)
+- `expo-image` + `expo-image-picker` + `expo-blur` + `expo-linear-gradient` + `expo-glass-effect` + `react-native-svg` + `react-native-keyboard-controller` → removed (all unused/dead)
+- `@tanstack/react-query`, `zod`, and other pure-JS dead deps → removed (no native impact but reduces install time)
+- Glide was brought in transitively by `expo-image` — removing expo-image means Glide is gone. `scripts/glide-deterministic.init.gradle` is also deleted.
+
+Current drag-tree commit for this run: `2998a0f362fd308396643e255227d85e1eabc756`
+
+### After Run 1 passes
+
+1. Download 4 unsigned APKs from CI pipeline artifacts
+2. Sign each: `apksigner sign --v1-signing-enabled false --alignment-preserved true --out drag-tree-v1.7.2-<abi>.apk <unsigned>.apk`
+3. Upload all 4 to GitHub release v1.7.2 with ABI filenames
+4. Run 2: add `Binaries:` to each block, push, verify byte comparison
 
 ---
 
-## ABI Split Plan (in progress)
+## ABI Split YAML Reference
 
 Reviewer noted: arm64-v8a (24M), armeabi-v7a (23M), x86 (25M), x86_64 (24M), 93M total. Splits are "not a hard requirement" but "highly encouraged."
 
