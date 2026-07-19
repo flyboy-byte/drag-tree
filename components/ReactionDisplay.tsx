@@ -1,11 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-} from "react-native-reanimated";
+import { View, Text, StyleSheet, Animated } from "react-native";
 import { useColors } from "@/hooks/useColors";
 
 export type ReactionGrade =
@@ -42,23 +36,22 @@ function getGradeInfo(grade: ReactionGrade, rt: number | null) {
 
 export function ReactionDisplay({ reactionTime, grade }: ReactionDisplayProps) {
   const colors = useColors();
-  const scale = useSharedValue(0.7);
-  const opacity = useSharedValue(0);
+  const scale = React.useRef(new Animated.Value(0.7)).current;
+  const opacity = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     if (reactionTime !== null && grade) {
-      scale.value = withSpring(1, { damping: 10, stiffness: 200 });
-      opacity.value = withTiming(1, { duration: 180 });
+      Animated.parallel([
+        Animated.spring(scale, { toValue: 1, damping: 10, stiffness: 200, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+      ]).start();
     } else {
-      scale.value = 0.7;
-      opacity.value = 0;
+      scale.setValue(0.7);
+      opacity.setValue(0);
     }
   }, [reactionTime, grade]);
 
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
+  const animStyle = { transform: [{ scale }], opacity };
 
   const info = getGradeInfo(grade, reactionTime);
 

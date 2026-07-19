@@ -6,19 +6,13 @@ import {
   Pressable,
   Platform,
   ScrollView,
+  Animated,
+  Easing,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withRepeat,
-  withSequence,
-  Easing,
-} from "react-native-reanimated";
 import { ChristmasTree } from "@/components/ChristmasTree";
 import { ReactionDisplay } from "@/components/ReactionDisplay";
 import { HistoryList } from "@/components/HistoryList";
@@ -47,14 +41,24 @@ function getStatusLabel(phase: string): string {
 
 function GaugeMeter({ value, color }: { value: number; color: string }) {
   const pct = Math.min(value / 1.5, 1);
-  const width = useSharedValue(0);
+  const widthAnim = React.useRef(new Animated.Value(0)).current;
   React.useEffect(() => {
-    width.value = withTiming(pct, { duration: 80, easing: Easing.out(Easing.quad) });
+    Animated.timing(widthAnim, {
+      toValue: pct,
+      duration: 80,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    }).start();
   }, [pct]);
-  const barStyle = useAnimatedStyle(() => ({ width: `${width.value * 100}%` as unknown as number }));
   return (
     <View style={gStyles.track}>
-      <Animated.View style={[gStyles.bar, { backgroundColor: color }, barStyle]} />
+      <Animated.View
+        style={[
+          gStyles.bar,
+          { backgroundColor: color },
+          { width: widthAnim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }) },
+        ]}
+      />
     </View>
   );
 }
@@ -283,21 +287,19 @@ export default function HomeScreen() {
   };
 
   // Pulse animation when green is lit
-  const pulseOpacity = useSharedValue(1);
+  const pulseOpacity = React.useRef(new Animated.Value(1)).current;
   React.useEffect(() => {
     if (isArmed) {
-      pulseOpacity.value = withRepeat(
-        withSequence(
-          withTiming(0.25, { duration: 350, easing: Easing.out(Easing.ease) }),
-          withTiming(1,    { duration: 350, easing: Easing.in(Easing.ease) }),
-        ),
-        -1, false,
-      );
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseOpacity, { toValue: 0.25, duration: 350, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+          Animated.timing(pulseOpacity, { toValue: 1,    duration: 350, easing: Easing.in(Easing.ease),  useNativeDriver: true }),
+        ])
+      ).start();
     } else {
-      pulseOpacity.value = withTiming(1, { duration: 200 });
+      Animated.timing(pulseOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
     }
   }, [isArmed]);
-  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulseOpacity.value }));
 
   const isActive = phase === "staging" || phase === "countdown" || phase === "go";
   const isDone   = phase === "result" || phase === "redlight";
@@ -466,7 +468,7 @@ export default function HomeScreen() {
                 phase === "redlight" ? colors.redOn :
                 colors.mutedForeground,
             },
-            pulseStyle,
+            { opacity: pulseOpacity },
           ]}
         >
           {getStatusLabel(phase)}
