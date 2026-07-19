@@ -19,7 +19,7 @@ An Android app that simulates a real **NHRA Pro Tree** (all 3 ambers fire simult
 | | |
 |---|---|
 | **Play Store** | [Open Testing](https://play.google.com/store/apps/details?id=com.flyboybyte.dragtree) — join open testing to install |
-| **F-Droid** | Submission pending review |
+| **F-Droid** | MR #41671 — reproducible build passing, awaiting merge |
 | **Build it yourself** | See [Build the Android APK locally with Gradle](#2-build-the-android-apk-locally-with-gradle-recommended-for-v172) |
 
 ---
@@ -497,4 +497,4 @@ Every EAS build has a full log URL printed in the terminal. Open it. Scroll to t
 - Expo SDK 54 · React Native 0.81.5 · v1.7.2
 - expo-router · expo-sensors · expo-av · React Native Reanimated 4
 - New Architecture enabled · npm · MIT license · fully offline
-- Distributed via Play Store and F-Droid (submission pending)
+- Distributed via Play Store and F-Droid (MR #41671 passing, pending merge)

@@ -213,3 +213,5 @@ If any answer is NO → read `FDROID_REPRO_EXECUTION.md` and stop. Do not procee
 - Tag every release — F-Droid AutoUpdateMode tracks tags matching versionName.
 - Fastlane metadata: `fastlane/metadata/android/en-US/` — update `changelogs/<versionCode>.txt` each release.
 - AndroidManifest.xml permissions from Expo/RN defaults are kept intentionally.
+- `scripts/glide-deterministic.init.gradle` — Gradle init script that makes Glide's IndexerGenerator class name deterministic; must be installed to `~/.gradle/init.d/` in both build.sh and YAML prebuild.
+- Reference APK signing flags: `--alignment-preserved true --v1-signing-enabled false`, applied to F-Droid's unsigned APK (not a locally-built one) — prevents apksigner from converting null-byte ZIP padding to 0xD935 extra fields, which would break CHUNKED_SHA256 byte comparison.
