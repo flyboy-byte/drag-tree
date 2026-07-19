@@ -171,11 +171,22 @@ All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asse
 
 2. **`app.json` in the repo may lag behind the pushed version** (which has `projectId`/`owner` from EAS). Never overwrite the repo's `app.json` with a local copy that's missing those fields.
 
-3. **Reanimated 4 syntax** — use `useSharedValue`, `useAnimatedStyle`, `withTiming`, `withRepeat`, `withSequence`. Do not use v2/v3 `useAnimatedGestureHandler`.
+3. **Animations use RN `Animated` API**, not Reanimated. `react-native-reanimated` and `react-native-worklets` were removed to reduce native build time for F-Droid ABI splits. Use `Animated.Value`, `Animated.timing`, `Animated.spring`, `Animated.loop`, `useNativeDriver: true` for transform/opacity. Do not re-add Reanimated without updating the F-Droid YAML scanignore.
 
-4. **User tone: minimal, plain, no nagging.** Any user-visible text must be short and non-pushy.
+4. **`react-native-gesture-handler` is removed.** `GestureHandlerRootView` in `_layout.tsx` was replaced with a plain `<View style={{ flex: 1 }}>`. If you need gesture-based navigation (swipe-back, drag gestures), restore it:
+   ```bash
+   npm install react-native-gesture-handler@~2.28.0
+   ```
+   Then in `app/_layout.tsx`:
+   ```tsx
+   import { GestureHandlerRootView } from "react-native-gesture-handler";
+   // replace <View style={{ flex: 1 }}> with <GestureHandlerRootView style={{ flex: 1 }}>
+   ```
+   Also add `node_modules/react-native-gesture-handler/android/build.gradle` back to `scanignore` in the F-Droid YAML.
 
-5. **`persist()` is debounced 250 ms.** Rapid `settings.set()` calls coalesce into one write.
+5. **User tone: minimal, plain, no nagging.** Any user-visible text must be short and non-pushy.
+
+6. **`persist()` is debounced 250 ms.** Rapid `settings.set()` calls coalesce into one write.
 
 ---
 

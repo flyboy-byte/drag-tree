@@ -8,7 +8,7 @@ import {
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -43,9 +43,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
-        <GestureHandlerRootView>
+        <View style={{ flex: 1 }}>
           <RootLayoutNav />
-        </GestureHandlerRootView>
+        </View>
       </ErrorBoundary>
     </SafeAreaProvider>
   );
