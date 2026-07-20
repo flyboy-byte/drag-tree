@@ -258,6 +258,27 @@ Four root causes identified and fixed over 6 Docker build attempts (A1–A6) plu
 
 ---
 
+### 2026-07-19 to 2026-07-20, ABI split — COMPLETE
+
+Reviewer (linsui) on 2026-07-19 left two inline suggestions on the old universal YAML (both threads auto-resolved when ABI split YAML landed) and requested ABI splits:
+
+**Inline suggestions (old YAML, auto-resolved):**
+1. Split the Glide `&&` one-liner into two separate list items. Moot — expo-image was removed, Glide is no longer in the build, Glide init.d step absent from ABI split YAML.
+2. Remove `node_modules/react-native/ReactAndroid/publish.gradle` from scanignore. Already absent from ABI split YAML.
+
+**ABI split request:** linsui noted APK sizes (arm64-v8a 24M, armeabi-v7a 23M, x86 25M, x86_64 24M, 93M total) and asked for ABI splits. Implemented as 4 separate build blocks with VercodeOperation (`10 * %c + 1` through `+4`), versionCodes 141–144.
+
+**Two-run process:**
+- Run 1 (pipeline 2689060423): all 4 ABI blocks built, unsigned APKs downloaded and signed with `--alignment-preserved true --v1-signing-enabled false`, uploaded to GitHub release v1.7.2 as `drag-tree-v1.7.2-{abi}.apk`.
+- Run 2: `binary:` field added to each block (per-build, after `gradle:`, block scalar format with trailing space per rewritemeta). All 4 byte comparisons passed.
+
+**fdroiddata state after ABI split:**
+- Branch squashed to one commit: `29fc479fa Add com.flyboybyte.dragtree (DragTree v1.7.2)`
+- One ahead of upstream/master, zero behind
+- Final CI run triggered on squashed commit
+
+---
+
 ## What This Log Establishes
 
 - The reviewer required strict adherence to the React Native template, not partial similarity.

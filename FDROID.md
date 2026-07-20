@@ -3,7 +3,7 @@
 MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671  
 fdroiddata fork: `flyboy-byte/fdroiddata`, branch `com.flyboybyte.dragtree`
 
-**Status: ABI SPLIT RUN 1 IN PROGRESS — pushing updated YAML at commit `2998a0f` (2026-07-19)**
+**Status: ABI SPLIT COMPLETE — byte comparison passed all 4 ABIs (2026-07-20). Squashed, final CI run passed. Awaiting reviewer merge.**
 
 ---
 
