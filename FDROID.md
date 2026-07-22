@@ -84,49 +84,42 @@ Confirmed in pipeline 2687784363 — all 9 jobs green.
 
 ---
 
-## ABI Split Status
+## ABI Split — COMPLETE (2026-07-20)
 
-**Rollback point:** `147ad07e` (fdroiddata) — universal build, byte comparison confirmed. To revert: `git reset --hard 147ad07e && git push --force origin com.flyboybyte.dragtree`
+**fdroiddata commit:** `8ab1e75d4` — 1 ahead / 0 behind upstream/master. Awaiting reviewer merge.
 
-### Run 1 — what was fixed before this push
+Reviewer (linsui) requested ABI splits after the universal build passed byte comparison. APK sizes at that point: arm64-v8a 24M, armeabi-v7a 23M, x86 25M, x86_64 24M.
 
-| Problem | Fix | Status |
-|---|---|---|
-| versionCode mismatch (APK had `14`, expected `141`) | `sed -i 's/versionCode 14$/versionCode 14X/'` in each block after prebuild | Fixed |
-| D8 OOM with 2g JVM heap | `sed -i 's/org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4096m/'` | Fixed |
-| CI timeout (4 × ~25 min > 60 min) | Gradle build cache + dependency removal | In progress |
+### Why `ndk { abiFilters }` does NOT work (AGP 8.x + React Native)
+
+First attempt used `ndk { abiFilters }` injected into `defaultConfig`. Reviewer replied: "now there are 4 large universal apks." Root cause: in AGP 8.x, prebuilt `.so` files from RN npm packages (libhermes, libreactnative, etc.) are included via AAR extraction at APK assembly time — they bypass the regular JNI packaging pipeline that `abiFilters` and `packagingOptions.exclude` intercept. Both approaches fail silently and produce universal APKs.
+
+### Working solution: `android.splits.abi`
+
+`android.splits.abi` operates at Gradle's APK **variant assembly** level — it produces a separate variant per ABI and genuinely excludes non-matching native libs. With `universalApk false` and one ABI in `include`, exactly one APK is produced per block (named `app-{abi}-release.apk`), which fdroidserver discovers and uses.
+
+**Cannot combine with `abiFilters`** — `react-native-gradle-plugin` throws a conflict error if both are present. Remove any `abiFilters` sed before adding the splits sed.
+
+Splits sed (per block, replace `armeabi-v7a` with the target ABI):
+
+```bash
+sed -i 's/^android {$/android {\n    splits { abi { enable true; reset(); include "armeabi-v7a"; universalApk false } }/' android/app/build.gradle
+```
 
 ### Dependency removal (for CI build time)
 
-Removed from `package.json` to reduce per-ABI Kotlin/Java compilation:
+Removed from `package.json` before this work to reduce per-ABI build time:
 - `react-native-reanimated` + `react-native-worklets` → replaced with RN `Animated` API
 - `react-native-gesture-handler` → removed (no gestures in use)
 - `expo-image` + `expo-image-picker` + `expo-blur` + `expo-linear-gradient` + `expo-glass-effect` + `react-native-svg` + `react-native-keyboard-controller` → removed (all unused/dead)
-- `@tanstack/react-query`, `zod`, and other pure-JS dead deps → removed (no native impact but reduces install time)
-- Glide was brought in transitively by `expo-image` — removing expo-image means Glide is gone. `scripts/glide-deterministic.init.gradle` is also deleted.
+- `@tanstack/react-query`, `zod`, and other pure-JS dead deps → removed
+- Glide was brought in transitively by `expo-image` — removing expo-image removes Glide. `scripts/glide-deterministic.init.gradle` is also deleted.
 
-Current drag-tree commit for this run: `2998a0f362fd308396643e255227d85e1eabc756`
-
-### After Run 1 passes
-
-1. Download 4 unsigned APKs from CI pipeline artifacts
-2. Sign each: `apksigner sign --v1-signing-enabled false --alignment-preserved true --out drag-tree-v1.7.2-<abi>.apk <unsigned>.apk`
-3. Upload all 4 to GitHub release v1.7.2 with ABI filenames
-4. Run 2: add `Binaries:` to each block, push, verify byte comparison
+App source commit: `2998a0f362fd308396643e255227d85e1eabc756`
 
 ---
 
 ## ABI Split YAML Reference
-
-Reviewer noted: arm64-v8a (24M), armeabi-v7a (23M), x86 (25M), x86_64 (24M), 93M total. Splits are "not a hard requirement" but "highly encouraged."
-
-### Why two pipeline runs are required
-
-`Binaries:` byte comparison requires signing F-Droid's unsigned APK output. We cannot produce reference APKs before F-Droid has built them. Therefore:
-
-- **Run 1** — Push YAML with 4 ABI split build blocks, no `Binaries:` entries. Pipeline builds all 4 unsigned APKs. Download them from CI artifacts.
-- **Sign + upload** — Sign each unsigned APK with `--alignment-preserved true --v1-signing-enabled false`. Upload to GitHub release v1.7.2 with ABI-specific filenames.
-- **Run 2** — Add per-build `Binaries:` to each block. Push. Pipeline verifies byte comparison for all 4.
 
 ### YAML structure
 
@@ -138,53 +131,62 @@ VercodeOperation:
   - 10 * %c + 4   # x86_64      → versionCode 144
 ```
 
-Each build block is identical except for the `abiFilters` sed at the end of `prebuild`:
+Each build block is identical except for the versionCode sed and splits sed at the end of `prebuild`:
 
 ```bash
 # armeabi-v7a block:
-sed -i '/defaultConfig {/a\        ndk { abiFilters "armeabi-v7a" }' android/app/build.gradle
+sed -i 's/versionCode 14$/versionCode 141/' android/app/build.gradle
+sed -i 's/^android {$/android {\n    splits { abi { enable true; reset(); include "armeabi-v7a"; universalApk false } }/' android/app/build.gradle
 
 # arm64-v8a block:
-sed -i '/defaultConfig {/a\        ndk { abiFilters "arm64-v8a" }' android/app/build.gradle
+sed -i 's/versionCode 14$/versionCode 142/' android/app/build.gradle
+sed -i 's/^android {$/android {\n    splits { abi { enable true; reset(); include "arm64-v8a"; universalApk false } }/' android/app/build.gradle
 
 # x86 block:
-sed -i '/defaultConfig {/a\        ndk { abiFilters "x86" }' android/app/build.gradle
+sed -i 's/versionCode 14$/versionCode 143/' android/app/build.gradle
+sed -i 's/^android {$/android {\n    splits { abi { enable true; reset(); include "x86"; universalApk false } }/' android/app/build.gradle
 
 # x86_64 block:
-sed -i '/defaultConfig {/a\        ndk { abiFilters "x86_64" }' android/app/build.gradle
+sed -i 's/versionCode 14$/versionCode 144/' android/app/build.gradle
+sed -i 's/^android {$/android {\n    splits { abi { enable true; reset(); include "x86_64"; universalApk false } }/' android/app/build.gradle
 ```
+
+The YAML sed lines must have a trailing space after `sed -i` (on their own line) and after `{ false }/'` — required by CI rewritemeta canonical format.
+
+### Two-run process
+
+`Binaries:` byte comparison requires signing F-Droid's unsigned APK. We cannot produce reference APKs before F-Droid has built them.
+
+- **Run 1** — Push YAML with 4 ABI split build blocks, no `Binaries:` entries. Download unsigned APKs from pipeline artifacts. Verify each only contains its ABI's native libs (not 4x universal).
+- **Sign + upload** — Sign each unsigned APK with `--alignment-preserved true --v1-signing-enabled false`. Verify cert fingerprint. Upload all 4 to GitHub release v1.7.2 before pushing Run 2.
+- **Run 2** — Add `binary:` (block scalar, trailing space) to each block. Push. All 4 byte comparisons must pass.
 
 ### Reference APK naming convention
 
 ```
-drag-tree-v1.7.2-armeabi-v7a.apk
-drag-tree-v1.7.2-arm64-v8a.apk
-drag-tree-v1.7.2-x86.apk
-drag-tree-v1.7.2-x86_64.apk
+drag-tree-v1.7.2-armeabi-v7a.apk   (28M)
+drag-tree-v1.7.2-arm64-v8a.apk     (32M)
+drag-tree-v1.7.2-x86.apk           (33M)
+drag-tree-v1.7.2-x86_64.apk        (33M)
 ```
 
-### Per-build Binaries: pattern (Run 2)
+### Per-build binary: pattern (Run 2)
 
 ```yaml
-Binaries: https://github.com/flyboy-byte/drag-tree/releases/download/v%v/drag-tree-v%v-armeabi-v7a.apk
+    binary: 
+      https://github.com/flyboy-byte/drag-tree/releases/download/v%v/drag-tree-v%v-armeabi-v7a.apk
 ```
 
-Each block gets its own `Binaries:` with the matching ABI filename.
+`binary:` is a block scalar under the build block (after `gradle:`), with a trailing space. Each block gets its own `binary:` with the matching ABI filename.
 
-### build.sh for ABI split reference APKs
-
-Same container command as before. Before running, add to the signing section:
+### Verify ABI content after Run 1 (before signing)
 
 ```bash
-# Run once per ABI — change ABI_NAME and abiFilters value each time
-ABI_NAME="arm64-v8a"
-# In prebuild section, add after the signingConfig sed:
-sed -i '/defaultConfig {/a\        ndk { abiFilters "'"$ABI_NAME"'" }' android/app/build.gradle
-# Output file:
-OUTPUT="/output/drag-tree-v1.7.2-${ABI_NAME}.apk"
+unzip -l drag-tree-unsigned-armeabi-v7a.apk | grep '\.so'
+# must show ONLY lib/armeabi-v7a/ entries — no arm64, x86, x86_64
 ```
 
-Sign each from the corresponding F-Droid unsigned APK (downloaded from Run 1 pipeline artifacts), not from a local build output.
+If you see all 4 ABI directories: the splits sed did not apply (check for abiFilters conflict).
 
 ---
 

@@ -426,6 +426,31 @@ If any answer is “no”, do not make the change yet.
 
 ---
 
+## ABI Splits (Expo / React Native AGP 8.x)
+
+### `ndk { abiFilters }` does NOT work — produces universal APKs
+
+In AGP 8.x with React Native, prebuilt `.so` files (libhermes, libreactnative, etc.) are bundled from the npm package via AAR extraction at APK assembly time. They bypass both `ndk { abiFilters }` in `defaultConfig` and `packagingOptions.exclude`. Using either approach produces a universal APK with all ABIs — the pipeline passes but the reviewer will see "4 large universal apks."
+
+### `android.splits.abi` — the correct mechanism
+
+Inject a `splits { abi }` block at the top level of `android {}` via sed. This operates at Gradle's APK variant assembly level and genuinely separates native libs by ABI:
+
+```bash
+# Replace "armeabi-v7a" with the target ABI per block
+sed -i 's/^android {$/android {\n    splits { abi { enable true; reset(); include "armeabi-v7a"; universalApk false } }/' android/app/build.gradle
+```
+
+Output filename: `app-armeabi-v7a-release.apk` (fdroidserver discovers it automatically).
+
+**Cannot combine with `abiFilters`** — `react-native-gradle-plugin` throws a conflict. If any `abiFilters` sed is present, remove it before adding the splits sed.
+
+The YAML sed line must follow rewritemeta canonical format:
+- `sed -i ` (trailing space when alone on a line)
+- `{ false }/' ` (trailing space after closing quote)
+
+---
+
 ## Upload, Rebase, and Trigger Flow
 
 ### Verify and upload reference APK

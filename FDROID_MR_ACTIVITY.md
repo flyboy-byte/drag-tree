@@ -268,14 +268,26 @@ Reviewer (linsui) on 2026-07-19 left two inline suggestions on the old universal
 
 **ABI split request:** linsui noted APK sizes (arm64-v8a 24M, armeabi-v7a 23M, x86 25M, x86_64 24M, 93M total) and asked for ABI splits. Implemented as 4 separate build blocks with VercodeOperation (`10 * %c + 1` through `+4`), versionCodes 141–144.
 
+#### First attempt: `ndk { abiFilters }` — produced universal APKs
+
+First ABI split implementation used `sed -i '/defaultConfig {/a\ ndk { abiFilters "armeabi-v7a" }'` injected into each build block. Pipeline passed CI but reviewer replied: "now there are 4 large universal apks."
+
+Root cause: in AGP 8.x, prebuilt `.so` files from RN npm packages (libhermes, libreactnative, etc.) are included via AAR extraction at APK assembly time and bypass the packaging pipeline that `ndk { abiFilters }` and `packagingOptions.exclude` intercept. Both approaches produce silently-universal APKs.
+
+#### Second attempt: `android.splits.abi` — correct
+
+Switched to `android.splits.abi` block injected into the top-level `android {}` block via sed on `^android {$`. This operates at Gradle's APK variant assembly level and genuinely excludes non-matching native libs.
+
+Cannot combine with `abiFilters` — `react-native-gradle-plugin` throws a conflict error. Removed `abiFilters` from all blocks before adding splits.
+
 **Two-run process:**
-- Run 1 (pipeline 2689060423): all 4 ABI blocks built, unsigned APKs downloaded and signed with `--alignment-preserved true --v1-signing-enabled false`, uploaded to GitHub release v1.7.2 as `drag-tree-v1.7.2-{abi}.apk`.
-- Run 2: `binary:` field added to each block (per-build, after `gradle:`, block scalar format with trailing space per rewritemeta). All 4 byte comparisons passed.
+- **Run 1** (pipeline `2695454263`): all 4 ABI blocks built (no `binary:`). Downloaded unsigned APKs. Verified each only contains its ABI's native libs (28M/32M/33M/33M — not 4x universal). Signed with `--alignment-preserved true --v1-signing-enabled false`, verified cert `ff739cf5...`, uploaded to GitHub release v1.7.2 as `drag-tree-v1.7.2-{abi}.apk`.
+- **Run 2** (pipeline `2695522248`): `binary:` added to each block (block scalar, trailing space, after `gradle:`). All 9 jobs green, all 4 byte comparisons passed.
 
 **fdroiddata state after ABI split:**
-- Branch squashed to one commit: `29fc479fa Add com.flyboybyte.dragtree (DragTree v1.7.2)`
+- Branch squashed to one commit: `8ab1e75d4 Add com.flyboybyte.dragtree (DragTree v1.7.2)`
 - One ahead of upstream/master, zero behind
-- Final CI run triggered on squashed commit
+- Awaiting reviewer merge
 
 ---
 

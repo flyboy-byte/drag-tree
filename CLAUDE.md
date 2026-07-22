@@ -214,6 +214,7 @@ If any answer is NO → read `FDROID_REPRO_EXECUTION.md` and stop. Do not procee
 
 ### Doc reading order
 
+0. **`FDROID_AI_CONTEXT.md`** — start here if coming in cold; dense summary of all hard-won lessons
 1. **`FDROID.md`** — current attempt state + environment reference
 2. **`FDROID_REPRO_EXECUTION.md`** — operational playbook + experiment order
 3. **`FDROID_MR_ACTIVITY.md`** — reviewer history and constraints
