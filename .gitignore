@@ -38,6 +38,9 @@ yarn-error.*
 
 # Build output
 .vercel
+*.apk
+*.aab
+*.idsig
 
 # IDEs
 .idea/
