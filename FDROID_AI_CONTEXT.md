@@ -7,9 +7,11 @@ Read this before touching anything. It captures the non-obvious lessons from a c
 ## What this repo did
 
 Got an Expo SDK 54 / React Native 0.81.5 Android app accepted to F-Droid with:
-- Full reproducible build (`Binaries:` byte comparison passing)
+- Full reproducible build (`Binaries:` byte comparison passing all 4 ABIs)
 - ABI splits (4 separate APKs: armeabi-v7a, arm64-v8a, x86, x86_64)
-- Reviewer satisfied, MR awaiting merge
+- Reviewer (linsui) satisfied, `review-requested` label set, MR in test queue (MR #41671)
+
+**Current MR state (as of 2026-07-23):** Branch `c8eb58b3f`, 2 ahead of upstream. Waiting for F-Droid test queue to merge. No action needed from us.
 
 The submission process took ~2 weeks of iteration. This doc is what we wish we'd had on day one.
 
@@ -140,7 +142,13 @@ VercodeOperation:
 
 For base versionCode 14: versionCodes become 141, 142, 143, 144.
 
-The versionCode patch in `prebuild:` must match (`sed -i 's/versionCode 14$/versionCode 141/'`). The regex `14$` anchors to end-of-line to avoid matching `142`, `143`, etc.
+The versionCode patch in `prebuild:` uses `$VERCODE$` — an fdroidserver template variable substituted with each block's computed versionCode at build time:
+
+```bash
+sed -i 's/versionCode .*/versionCode $VERCODE$/' android/app/build.gradle
+```
+
+This is cleaner than hardcoding (`141`, `142`, etc.) and means the YAML never needs a versionCode sed update when the app version changes. Linsui suggested this pattern (applied to all 4 blocks in commit `c8eb58b3f`). Do not revert to hardcoded values.
 
 ---
 
@@ -149,6 +157,14 @@ The versionCode patch in `prebuild:` must match (`sed -i 's/versionCode 14$/vers
 Signing F-Droid's own unsigned APK and uploading it as the `Binaries:` reference is the documented F-Droid workflow. It is not cheating. Byte comparison passes because the recipe is deterministic — F-Droid's Run 1 and Run 2 produce identical unsigned APKs (same bytes), proving the build is reproducible. The reference APK just shows which key signed the result.
 
 If someone asks "are you sure this is reproducible?": yes. Run 2 is an independent rebuild from the same source commit that matches Run 1's bytes.
+
+---
+
+## Play signing alignment (done 2026-08-01 — F-Droid unaffected)
+
+Play app-signing key was changed from Google's generated key to the developer key (`ff739cf5...`) via PEPK export. All three stores (Play, F-Droid, GitHub) now share the same cert. **F-Droid pipeline required zero changes** — `AllowedAPKSigningKeys` was already `ff739cf5...`. Cross-store updates (user switching between F-Droid and Play) work without requiring an uninstall.
+
+For future Play AAB uploads: the version code scheme is `10 * versionCode + 0` for Play (e.g., 140 for v1.7.2), so F-Droid variants 141–144 always outrank Play for the same release.
 
 ---
 

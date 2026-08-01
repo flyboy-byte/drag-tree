@@ -291,6 +291,27 @@ Cannot combine with `abiFilters` — `react-native-gradle-plugin` throws a confl
 
 ---
 
+---
+
+### 2026-07-23 — linsui `$VERCODE$` suggestion, applied to all 4 blocks
+
+linsui left an inline suggestion on block 1's versionCode sed, changing:
+```bash
+sed -i 's/versionCode 14$/versionCode 141/' android/app/build.gradle
+```
+to:
+```bash
+sed -i 's/versionCode .*/versionCode $VERCODE$/' android/app/build.gradle
+```
+
+`$VERCODE$` is substituted by fdroidserver at build time with each block's computed versionCode (from `VercodeOperation`). This means the YAML never needs a versionCode-specific sed update when the app version changes.
+
+linsui only applied the suggestion to block 1. We applied the same change to blocks 2, 3, and 4 in a single follow-up commit (`c8eb58b3f`). MR label changed to `review-requested`. linsui did not object — MR is now in test queue.
+
+**fdroiddata state after this:** Branch `c8eb58b3f`, 2 ahead of upstream/master. No further action needed.
+
+---
+
 ## What This Log Establishes
 
 - The reviewer required strict adherence to the React Native template, not partial similarity.

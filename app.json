@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.flyboybyte.dragtree",
-      "versionCode": 14,
+      "versionCode": 15,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#0a0a0a"

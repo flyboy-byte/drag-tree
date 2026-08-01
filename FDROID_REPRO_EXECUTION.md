@@ -18,6 +18,8 @@ If any answer is NO: read this file for experiment order, then stop and report b
 
 - Run `rewritemeta` and confirm `git diff` is empty.
 
+> **Note:** This playbook was written during active reproducibility work for v1.7.2. Byte comparison is now passing. Use this as reference for future releases, not as a live operation guide.
+
 ---
 
 ## Goal

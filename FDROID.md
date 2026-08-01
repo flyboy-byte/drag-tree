@@ -3,7 +3,7 @@
 MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671  
 fdroiddata fork: `flyboy-byte/fdroiddata`, branch `com.flyboybyte.dragtree`
 
-**Status: ABI SPLIT COMPLETE — byte comparison passed all 4 ABIs (2026-07-20). Squashed, final CI run passed. Awaiting reviewer merge.**
+**Status: ABI SPLIT COMPLETE — byte comparison passed all 4 ABIs (2026-07-20). `$VERCODE$` sed applied to all 4 blocks (2026-07-23, linsui suggestion). Label: `review-requested`. Awaiting test queue and merge.**
 
 ---
 
@@ -86,7 +86,7 @@ Confirmed in pipeline 2687784363 — all 9 jobs green.
 
 ## ABI Split — COMPLETE (2026-07-20)
 
-**fdroiddata commit:** `8ab1e75d4` — 1 ahead / 0 behind upstream/master. Awaiting reviewer merge.
+**fdroiddata commit:** `c8eb58b3f` — 2 ahead / 0 behind upstream/master (base: `8ab1e75d4`). Awaiting test queue and merge.
 
 Reviewer (linsui) requested ABI splits after the universal build passed byte comparison. APK sizes at that point: arm64-v8a 24M, armeabi-v7a 23M, x86 25M, x86_64 24M.
 
@@ -134,22 +134,14 @@ VercodeOperation:
 Each build block is identical except for the versionCode sed and splits sed at the end of `prebuild`:
 
 ```bash
-# armeabi-v7a block:
-sed -i 's/versionCode 14$/versionCode 141/' android/app/build.gradle
+# All blocks — $VERCODE$ is substituted by fdroidserver with the block's versionCode (141/142/143/144)
+sed -i 's/versionCode .*/versionCode $VERCODE$/' android/app/build.gradle
+
+# ABI split sed — replace "armeabi-v7a" with the target ABI per block:
 sed -i 's/^android {$/android {\n    splits { abi { enable true; reset(); include "armeabi-v7a"; universalApk false } }/' android/app/build.gradle
-
-# arm64-v8a block:
-sed -i 's/versionCode 14$/versionCode 142/' android/app/build.gradle
-sed -i 's/^android {$/android {\n    splits { abi { enable true; reset(); include "arm64-v8a"; universalApk false } }/' android/app/build.gradle
-
-# x86 block:
-sed -i 's/versionCode 14$/versionCode 143/' android/app/build.gradle
-sed -i 's/^android {$/android {\n    splits { abi { enable true; reset(); include "x86"; universalApk false } }/' android/app/build.gradle
-
-# x86_64 block:
-sed -i 's/versionCode 14$/versionCode 144/' android/app/build.gradle
-sed -i 's/^android {$/android {\n    splits { abi { enable true; reset(); include "x86_64"; universalApk false } }/' android/app/build.gradle
 ```
+
+`$VERCODE$` is an fdroidserver template variable substituted at build time with each block's computed versionCode (from `VercodeOperation`). Using it instead of hardcoded values means YAML never needs editing when versionCode changes. Linsui applied this as an inline suggestion to block 1 (2026-07-23); applied to blocks 2–4 in the same commit.
 
 The YAML sed lines must have a trailing space after `sed -i` (on their own line) and after `{ false }/'` — required by CI rewritemeta canonical format.
 
@@ -256,6 +248,10 @@ gh release upload v1.7.2 "$OUTDIR/drag-tree-v1.7.2.apk" \
 
 - File: `/home/logan/@flyboybyte__drag-tree.jks`
 - Alias: `e2f4affc23a7141f202d26f6d9f2d4d0`
+
+### Signing alignment (done 2026-08-01)
+
+Play app-signing key was changed to the developer key (`ff739cf5...`) via Play Console → "Change app signing key" → "Export and upload a key from Java keystore" + PEPK. All three stores (Play, F-Droid, GitHub releases) now share the same cert. F-Droid pipeline: zero changes needed — `AllowedAPKSigningKeys` was already `ff739cf5...`.
 
 ### fdroiddata paths
 

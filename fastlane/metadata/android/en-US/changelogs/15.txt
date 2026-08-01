@@ -1,0 +1,1 @@
+Signing key update for cross-store compatibility. DragTree is now available on F-Droid.
