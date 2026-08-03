@@ -3,7 +3,7 @@
 MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671  
 fdroiddata fork: `flyboy-byte/fdroiddata`, branch `com.flyboybyte.dragtree`
 
-**Status: ABI SPLIT COMPLETE — byte comparison passed all 4 ABIs (2026-07-20). `$VERCODE$` sed applied to all 4 blocks (2026-07-23, linsui suggestion). Label: `review-requested`. Awaiting test queue and merge.**
+**Status: v1.7.3 COMPLETE — permission cleanup applied, Run 2 byte comparison passed all 4 ABIs (2026-08-03, pipeline `2728036212`). Branch rebased on upstream/master. Awaiting merge.**
 
 ---
 
@@ -86,7 +86,7 @@ Confirmed in pipeline 2687784363 — all 9 jobs green.
 
 ## ABI Split — COMPLETE (2026-07-20)
 
-**fdroiddata commit:** `c8eb58b3f` — 2 ahead / 0 behind upstream/master (base: `8ab1e75d4`). Awaiting test queue and merge.
+**fdroiddata commit:** `956b3fa456` — 6 ahead of upstream/master (rebased 2026-08-03). v1.7.3 / versionCode 161–164. Run 1: `2727847747`, Run 2: `2728036212`. Reference APKs on GitHub release v1.7.3.
 
 Reviewer (linsui) requested ABI splits after the universal build passed byte comparison. APK sizes at that point: arm64-v8a 24M, armeabi-v7a 23M, x86 25M, x86_64 24M.
 

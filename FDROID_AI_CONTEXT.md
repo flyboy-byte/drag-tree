@@ -11,7 +11,7 @@ Got an Expo SDK 54 / React Native 0.81.5 Android app accepted to F-Droid with:
 - ABI splits (4 separate APKs: armeabi-v7a, arm64-v8a, x86, x86_64)
 - Reviewer (linsui) satisfied, `review-requested` label set, MR in test queue (MR #41671)
 
-**Current MR state (as of 2026-07-23):** Branch `c8eb58b3f`, 2 ahead of upstream. Waiting for F-Droid test queue to merge. No action needed from us.
+**Current MR state (as of 2026-08-03):** v1.7.3 / versionCode 16 (base). Branch rebased on upstream/master, 6 ahead. Run 2 byte comparison passed all 4 ABIs (pipeline `2728036212`). Awaiting merger merge. No action needed from us.
 
 The submission process took ~2 weeks of iteration. This doc is what we wish we'd had on day one.
 
@@ -164,7 +164,7 @@ If someone asks "are you sure this is reproducible?": yes. Run 2 is an independe
 
 Play app-signing key was changed from Google's generated key to the developer key (`ff739cf5...`) via PEPK export. All three stores (Play, F-Droid, GitHub) now share the same cert. **F-Droid pipeline required zero changes** — `AllowedAPKSigningKeys` was already `ff739cf5...`. Cross-store updates (user switching between F-Droid and Play) work without requiring an uninstall.
 
-For future Play AAB uploads: the version code scheme is `10 * versionCode + 0` for Play (e.g., 140 for v1.7.2), so F-Droid variants 141–144 always outrank Play for the same release.
+For future Play AAB uploads: the version code scheme is `10 * versionCode + 0` for Play (e.g., 160 for v1.7.3), so F-Droid variants 161–164 always outrank Play for the same release.
 
 ---
 

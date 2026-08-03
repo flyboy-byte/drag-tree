@@ -312,6 +312,36 @@ linsui only applied the suggestion to block 1. We applied the same change to blo
 
 ---
 
+### 2026-08-02 — MiggiV2 test review, permission findings
+
+Community tester @MiggiV2 tested v1.7.2 (versionCode 142, arm64) on Redmi Note 8T / Android 13. Reproducible build CI verified, signer matched. App passed all functional, policy, language, and VirusTotal (0/75) checks.
+
+Three findings:
+
+1. `INTERNET` declared but never used — app opens no sockets; links open in system browser
+2. Excess permissions merged from Expo/RN: `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, `SYSTEM_ALERT_WINDOW`, `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `android.hardware.microphone` uses-feature
+3. Minor: FLOOR IT header wraps to 3 lines at 1080×2340, pushing STAGE button under gesture bar
+
+Author reply: will review permissions.
+
+---
+
+### 2026-08-03 — v1.7.3 permission cleanup, Run 2 passed
+
+Addressed MiggiV2 findings in v1.7.3 (versionCode 16 base, F-Droid codes 161–164):
+
+- Blocked `INTERNET`, `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE` via `blockedPermissions` in `app.json`
+- Kept `MODIFY_AUDIO_SETTINGS` — expo-av needs it for audio focus on older Android devices (drag racers skew toward older hardware)
+- `android.hardware.microphone` uses-feature: not addressable via `blockedPermissions` (uses-feature, not uses-permission); left as-is
+
+Two-run process repeated for new version:
+- **Run 1** (pipeline `2727847747`): 4 ABI unsigned APKs built, signed with `--alignment-preserved true`, cert verified `ff739cf5...`, uploaded to GitHub release v1.7.3
+- **Run 2** (pipeline `2728036212`): all 4 byte comparisons passed
+
+Branch rebased on upstream/master (6 commits ahead). MR updated. Awaiting merge.
+
+---
+
 ## What This Log Establishes
 
 - The reviewer required strict adherence to the React Native template, not partial similarity.
