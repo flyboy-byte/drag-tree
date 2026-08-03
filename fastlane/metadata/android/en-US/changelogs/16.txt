@@ -1,0 +1,1 @@
+Permission cleanup: removed unused INTERNET, RECORD_AUDIO, and storage permissions from manifest.
