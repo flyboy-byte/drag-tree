@@ -20,14 +20,14 @@ An Android app that simulates a real **NHRA Pro Tree** (all 3 ambers fire simult
 |---|---|
 | **Play Store** | [Open Testing](https://play.google.com/store/apps/details?id=com.flyboybyte.dragtree) — join open testing to install |
 | **F-Droid** | MR #41671 — reproducible build passing, awaiting merge |
-| **Build it yourself** | See [Build the Android APK locally with Gradle](#2-build-the-android-apk-locally-with-gradle-recommended-for-v172) |
+| **Build it yourself** | See [Build the Android APK locally with Gradle](#2-build-the-android-apk-locally-with-gradle-recommended-for-v173) |
 
 ---
 
 ## Table of contents
 
 1. [Run in the browser (quickest start)](#1-run-in-the-browser-quickest-start)
-2. [Build the Android APK locally with Gradle (recommended for v1.7.2)](#2-build-the-android-apk-locally-with-gradle-recommended-for-v172)
+2. [Build the Android APK locally with Gradle (recommended for v1.7.3)](#2-build-the-android-apk-locally-with-gradle-recommended-for-v173)
 3. [Optional: Build the Android APK with EAS](#3-optional-build-the-android-apk-with-eas)
 4. [Updating your local copy and rebuilding](#4-updating-your-local-copy-and-rebuilding)
 5. [Accelerometer — how it works & known issues](#5-accelerometer--how-it-works--known-issues)
@@ -74,9 +74,9 @@ and open that URL.
 
 ---
 
-## 2. Build the Android APK locally with Gradle (recommended for v1.7.2)
+## 2. Build the Android APK locally with Gradle (recommended for v1.7.3)
 
-For the current `v1.7.2` release engineering workflow, the canonical Android build path is a local/CI **Gradle** build, not EAS. This is the path used for the current F-Droid reproducible-build work because the reference APK needs to come from the same effective source patching and Gradle build flow as the F-Droid recipe.
+For the current `v1.7.3` release engineering workflow, the canonical Android build path is a local/CI **Gradle** build, not EAS. This is the path used for the current F-Droid reproducible-build work because the reference APK needs to come from the same effective source patching and Gradle build flow as the F-Droid recipe.
 
 ### Prerequisites
 
@@ -248,7 +248,7 @@ Build queued...
 
 ## 4. Updating your local copy and rebuilding
 
-When changes are pushed to the GitHub repo you need to pull them down, optionally re-install dependencies, and rebuild. For the current `v1.7.2` release-engineering workflow, prefer the local Gradle path. Use EAS only if you specifically want the optional cloud build flow.
+When changes are pushed to the GitHub repo you need to pull them down, optionally re-install dependencies, and rebuild. For the current `v1.7.3` release-engineering workflow, prefer the local Gradle path. Use EAS only if you specifically want the optional cloud build flow.
 
 ### Pull the latest changes
 
@@ -288,7 +288,7 @@ If the pull changed `package.json` or `package-lock.json` you need to re-install
 npm install
 ```
 
-### Rebuild with local Gradle (recommended for v1.7.2)
+### Rebuild with local Gradle (recommended for v1.7.3)
 
 ```bash
 npm install
@@ -494,7 +494,7 @@ Every EAS build has a full log URL printed in the terminal. Open it. Scroll to t
 
 ## Tech stack
 
-- Expo SDK 54 · React Native 0.81.5 · v1.7.2
+- Expo SDK 54 · React Native 0.81.5 · v1.7.3
 - expo-router · expo-sensors · expo-av · React Native Reanimated 4
 - New Architecture enabled · npm · MIT license · fully offline
 - Distributed via Play Store and F-Droid (MR #41671 passing, pending merge)

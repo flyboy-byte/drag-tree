@@ -104,7 +104,7 @@ interface UseAccelerometerOptions {
   // sample), so RT reflects the start of acceleration — not the moment we
   // crossed threshold or the moment we confirmed.
   onLaunch: (candidateTime: number) => void;
-  onRedLight: () => void;
+  onRedLight: (onsetTime: number) => void;
   watchForRedLight: boolean;
   // Optional: receives full telemetry for the most recent launch.
   onLaunchTelemetry?: (t: LaunchTelemetry) => void;
@@ -257,7 +257,7 @@ export function useAccelerometer({
             });
           }
           if (armed)                 { onLaunchRef.current(onsetT); }
-          else if (watchForRedLight) { onRedLightRef.current(); }
+          else if (watchForRedLight) { onRedLightRef.current(onsetT); }
         }
       } else {
         sustainedRef.current     = 0;
@@ -288,7 +288,7 @@ export function useAccelerometer({
 
   const simulateRedLight = useCallback(() => {
     firedRef.current = true;
-    onRedLightRef.current();
+    onRedLightRef.current(performance.now());
   }, []);
 
   return { currentG, isAvailable, simulateLaunch, simulateRedLight };

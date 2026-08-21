@@ -242,9 +242,9 @@ export default function HomeScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       triggerLaunch(candidateTime);
     },
-    onRedLight: () => {
+    onRedLight: (onsetTime: number) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      triggerRedLight();
+      triggerRedLight(onsetTime);
     },
     watchForRedLight: isWatchingRedLight && sensorEnabled,
     onLaunchTelemetry: (t) => {

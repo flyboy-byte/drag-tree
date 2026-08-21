@@ -30,7 +30,7 @@ export interface SeriesSummary {
 
 function computeSeriesSummary(runs: SeriesRun[], size: number): SeriesSummary {
   const cleanTimes = runs
-    .filter(r => r.grade !== "redlight" && r.grade !== "late" && r.reactionTime >= 0)
+    .filter(r => r.grade !== "redlight" && r.reactionTime >= 0)
     .map(r => r.reactionTime);
 
   const avgRT = cleanTimes.length > 0
@@ -109,7 +109,8 @@ export function useTreeSession() {
   const [records, setRecords] = useState<RunRecord[]>([]);
   const [bestTime, setBestTime] = useState<number | null>(null);
 
-  const greenAtRef = useRef<number | null>(null);
+  const greenAtRef        = useRef<number | null>(null);
+  const greenScheduledAtRef = useRef<number | null>(null);
   const timerIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const phaseRef = useRef<SessionPhase>("idle");
   const modeRef = useRef<TreeMode>("pro");
@@ -221,6 +222,7 @@ export function useTreeSession() {
     setReactionTime(null);
     setGrade(null);
     greenAtRef.current = null;
+    greenScheduledAtRef.current = null;
     // Clear series state when the series is done (user starting a new series)
     // or when series is not active. Mid-series: keep accumulated runs.
     if (seriesCompleteRef.current || !seriesEnabledRef.current) {
@@ -268,7 +270,9 @@ export function useTreeSession() {
     setReactionTime(null);
     setGrade(null);
     greenAtRef.current = null;
+    greenScheduledAtRef.current = null;
 
+    const seqStart = performance.now();
     const randomDelay = 1500 + Math.random() * 1500;
     const isPro = modeRef.current === "pro";
 
@@ -307,6 +311,7 @@ export function useTreeSession() {
 
     // Green fires greenDelay after the LAST amber
     const lastAmberAt = randomDelay + 600 + amberInterval * 2;
+    greenScheduledAtRef.current = seqStart + lastAmberAt + greenDelay;
     ids.push(setTimeout(() => {
       updatePhase("go");
       setTree(t => ({
@@ -363,7 +368,7 @@ export function useTreeSession() {
         green: false,
         red: true,
       }));
-      recordResult(-0.1, "redlight");
+      recordResult((candidateTime - greenAtRef.current) / 1000, "redlight");
       return;
     }
     clearTimers();
@@ -374,8 +379,11 @@ export function useTreeSession() {
     updatePhase("result");
   }, [recordResult]);
 
-  // Called by accelerometer when force detected too early
-  const triggerRedLight = useCallback(() => {
+  // Called by accelerometer when force detected too early.
+  // onsetTime is in performance.now() ms — used to compute how far before
+  // green the driver fired. greenScheduledAtRef is set when startSequence
+  // schedules the green; falls back to -0.1 on the rare path where it's null.
+  const triggerRedLight = useCallback((onsetTime: number) => {
     const current = phaseRef.current;
     if (current !== "staging" && current !== "countdown") return;
     clearTimers();
@@ -388,9 +396,9 @@ export function useTreeSession() {
       green: false,
       red: true,
     }));
-    // Route through recordResult so series accumulation always fires.
-    // Negative RT marks redlight runs unambiguously; matches gradeRT() rule.
-    recordResult(-0.1, "redlight");
+    const greenScheduled = greenScheduledAtRef.current;
+    const rt = greenScheduled !== null ? (onsetTime - greenScheduled) / 1000 : -0.1;
+    recordResult(rt, "redlight");
   }, [recordResult]);
 
   const switchMode = useCallback((m: TreeMode) => {
@@ -412,7 +420,7 @@ export function useTreeSession() {
 
   const seriesBestRT: number | null = seriesRunsRef.current.reduce<number | null>(
     (best, r) =>
-      r.grade !== "redlight" && r.grade !== "late" && r.reactionTime >= 0
+      r.grade !== "redlight" && r.reactionTime >= 0
         ? (best === null || r.reactionTime < best ? r.reactionTime : best)
         : best,
     null,
