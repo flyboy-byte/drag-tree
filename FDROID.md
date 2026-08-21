@@ -3,7 +3,7 @@
 MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671  
 fdroiddata fork: `flyboy-byte/fdroiddata`, branch `com.flyboybyte.dragtree`
 
-**Status: v1.7.3 COMPLETE — permission cleanup applied, Run 2 byte comparison passed all 4 ABIs (2026-08-03, pipeline `2728036212`). Branch rebased on upstream/master. Awaiting merge.**
+**Status: v1.7.3 COMPLETE — permission cleanup applied, Run 2 byte comparison passed all 4 ABIs (2026-08-03, pipeline `2728036212`). Branch rebased on upstream/master. Awaiting merge. Self-hosted F-Droid repo live (2026-08-20). feature branch has bug fixes + tests — do not merge to main until MR merges.**
 
 ---
 

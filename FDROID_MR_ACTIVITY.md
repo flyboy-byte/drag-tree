@@ -342,6 +342,25 @@ Branch rebased on upstream/master (6 commits ahead). MR updated. Awaiting merge.
 
 ---
 
+### 2026-08-20 — Repo cleanup, feature branch, self-hosted F-Droid repo
+
+**Repo cleanup (main):**
+- Deleted ~1.9 GB of untracked build artifacts (old APKs + Gradle build dir)
+- Removed stale tracked docs: `CODEX.md`, `PLAN.md`, `test-checklist.md`, `docs/com.flyboybyte.dragtree.yml`, `docs/fdroid-mr-v1.7.1-vs-v1.7.2.md`
+- Committed as `adac873`
+
+**Feature branch** (do not merge to main until MR is merged — main is pinned at `cc5bafd`):
+- `37c743b` — bug fixes from ChatGPT audit: series stats now include late runs (a .400 is real data); red-light RT is actual negative delta instead of hardcoded -0.100; `package.json`/README version synced to 1.7.3
+- `1348dde` — `lib/timing.ts` extracted (gradeRT + computeSeriesSummary); 25 Jest tests; `.github/workflows/test.yml` CI; `ReactionDisplay` shows actual negative time on red-lights; store description clarifies RT is launch-reaction estimate not time-slip prediction
+- Branch pushed to `origin/feature`
+
+**Self-hosted F-Droid repo** (`~/projects/fdroid-repo/`):
+- DragTree v1.7.3 added: all 4 ABI APKs placed as `com.flyboybyte.dragtree_16{1,2,3,4}.apk`
+- Metadata written: `~/projects/fdroid-repo/metadata/com.flyboybyte.dragtree.yml`
+- `fdroid update && fdroid deploy` completed clean; live on VPS
+
+---
+
 ## What This Log Establishes
 
 - The reviewer required strict adherence to the React Native template, not partial similarity.
