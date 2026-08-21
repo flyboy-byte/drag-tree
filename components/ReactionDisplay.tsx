@@ -59,10 +59,7 @@ export function ReactionDisplay({ reactionTime, grade }: ReactionDisplayProps) {
     return <View style={styles.placeholder} />;
   }
 
-  const rtDisplay =
-    grade === "redlight"
-      ? "RED LIGHT"
-      : `${reactionTime >= 0 ? "" : "-"}${Math.abs(reactionTime).toFixed(3)}s`;
+  const rtDisplay = `${reactionTime >= 0 ? "" : "-"}${Math.abs(reactionTime).toFixed(3)}s`;
 
   return (
     <Animated.View style={[styles.container, animStyle]}>

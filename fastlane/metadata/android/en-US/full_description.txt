@@ -1,6 +1,8 @@
-DragTree simulates a real NHRA Christmas Tree (drag strip starting lights) and uses your phone's accelerometer to measure reaction time to the millisecond — no tapping required.
+DragTree simulates a real NHRA Christmas Tree (drag strip starting lights) and uses your phone's accelerometer to measure your launch reaction time — no tapping required.
 
-Mount your phone on the dash, stage up, watch the tree, and floor it. The app detects launch G-force automatically and records your RT. Fully offline — no internet, no account, no ads.
+Mount your phone on the dash, stage up, watch the tree, and floor it. The app detects launch G-force and records how quickly you reacted to the green. Fully offline — no internet, no account, no ads.
+
+The displayed RT is your launch-reaction estimate — how fast you responded after the green. On-track time slips also include vehicle rollout and drivetrain response, so DragTree is most useful for training consistency and anticipation, not predicting your exact slip.
 
 TREE MODES
 • Pro Tree (.400s) — all three ambers fire simultaneously, green follows 0.400s later
