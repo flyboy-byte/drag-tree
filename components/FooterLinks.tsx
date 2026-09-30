@@ -2,11 +2,12 @@ import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as Haptics from "expo-haptics";
+import Constants from "expo-constants";
 import { useColors } from "@/hooks/useColors";
 
 const PRIVACY_URL = "https://flyboy-byte.github.io/drag-tree/privacy.html";
 const SOURCE_URL  = "https://github.com/flyboy-byte/drag-tree";
-const VERSION     = "v1.7.0";
+const VERSION     = `v${Constants.expoConfig?.version ?? "?"}`;
 
 export function FooterLinks() {
   const colors = useColors();

@@ -392,7 +392,7 @@ export default function HomeScreen() {
     >
       {/* Header row */}
       <View style={styles.header}>
-        <Text style={[styles.appTitle, { color: colors.foreground }]}>DRAGTREE</Text>
+        <Text style={[styles.appTitle, { color: colors.foreground }]} numberOfLines={1}>DRAGTREE</Text>
         <View style={styles.badges}>
           {bestTime !== null && (
             <View style={[styles.badge, { backgroundColor: "rgba(245,166,35,0.12)" }]}>
