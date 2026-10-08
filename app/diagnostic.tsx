@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { DeviceMotion } from "expo-sensors";
 import { useColors } from "@/hooks/useColors";
+import { LatencyCheck } from "@/components/LatencyCheck";
 import { SENSITIVITY_THRESHOLDS } from "@/hooks/useAccelerometer";
 import { launchTelemetry, type RealLaunchTelemetry } from "@/lib/launchTelemetry";
 import { settings, type SensitivityKey } from "@/lib/settings";
@@ -559,6 +560,8 @@ export default function DiagnosticScreen() {
             />
           </View>
         </View>
+
+        <LatencyCheck disabled={isSessionLocked || mode === "capturing"} />
 
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
           SENSOR DIAGNOSTICS

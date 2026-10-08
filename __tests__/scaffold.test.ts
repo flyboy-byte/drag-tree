@@ -1,7 +1,7 @@
 // Tests for the PLAN.md scaffold modules (pure logic only).
 
 import { computeConsistency } from "../lib/consistency";
-import { sampleRateStats, displayDelayMs, tapOffsetMs } from "../lib/latency";
+import { rateStats, pairTaps, tapOffsetMs } from "../lib/latency";
 import { averageOffset, applyOffset, isValidSlipRT } from "../lib/slipCalibration";
 import { holdDecision, canStartCountdown } from "../lib/holdRelease";
 import { decideWinner, addToTally } from "../lib/versus";
@@ -50,16 +50,17 @@ describe("computeConsistency", () => {
 });
 
 describe("latency", () => {
-  it("sample rate from steady 8 ms samples", () => {
-    const s = sampleRateStats([0, 8, 16, 24, 32])!;
+  it("rate from steady 8 ms samples", () => {
+    const s = rateStats([0, 8, 16, 24, 32])!;
     expect(s.hz).toBeCloseTo(125);
     expect(s.jitterMs).toBeCloseTo(0);
     expect(s.maxGapMs).toBe(8);
   });
-  it("needs a few samples", () => expect(sampleRateStats([0, 8])).toBeNull());
-  it("display delay never negative", () => {
-    expect(displayDelayMs(100, 116)).toBe(16);
-    expect(displayDelayMs(100, 90)).toBe(0);
+  it("needs a few samples", () => expect(rateStats([0, 8])).toBeNull());
+  it("pairs taps with the nearest flash after warmup", () => {
+    const flashes = [0, 600, 1200, 1800, 2400, 3000];
+    const taps = [20, 630, 1210, 1830, 2420, 2990, 5000];
+    expect(pairTaps(flashes, taps, 600, 4)).toEqual([[2400, 2420], [3000, 2990]]);
   });
   it("tap offset", () => {
     expect(tapOffsetMs([])).toBeNull();

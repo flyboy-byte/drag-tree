@@ -6,11 +6,18 @@ This is the roadmap for the `dev` branch. Releases happen when there's enough he
 
 ## Decided with the user (do not re-ask)
 
-- **Target audience is racers.** Bracket/street racers who'd actually use a practice tree come first — features and copy aim at them. Normal people (car enthusiasts, friends passing the phone around) are welcome too, and the sensor launch works on the street, so don't frame it as track/private-property only.
+- **Target audience is everyone with a car who likes this kind of thing — and anyone who just wants a reaction game.** Racers are a small group; using a phone to practice a drag launch is a narrow niche. The game angle (beat your time, beat your friend) is a real audience on its own. Design and copy for normal people first; racer-grade precision is a credibility bonus, not the pitch. The sensor launch works on the street too — never frame it as track-only. (Corrected by Logan 2026-10-08 after two wrong framings — do not re-ask.)
 - **No online anything.** No accounts, leaderboards, sync, analytics. Keeps the open-source / F-Droid vibe (also a workspace-wide scope fence).
 - **Android first.** iOS is not a goal. If an iOS or web build falls out cheaply, fine; never spend real effort on it.
 - **Play production access is parked** until Logan finds a better tester group. Not a dev-branch concern. AAB for 1.7.4 is at `~/dragtree-fdroid-build/play-v1.7.4/out/`.
 - **New modes are settings, off by default.** The default experience stays as it is.
+
+## Before merging dev → main (gates)
+
+1. **Reviewer findings reconciled.** #1, #2, #4 fixed in v1.7.4. #3 (title wrap) fixed on dev: badges incl. settings are icon-only; title fits with all four badges at 360 dp (web render 2026-10-08), truncates only below ~350 dp.
+2. **Works across Android phones, best practice:** small screens (360 dp), large font scale, 60/90/120 Hz displays, phones whose sensor can't do 125 Hz, phones without a motion sensor (tap-only must work end to end), Android versions down to minSdk. Every new mode must degrade cleanly when a capability is missing.
+3. **v1.7.4 confirmed live on f-droid.org via the checkupdates bot** — proves the auto-update path before shipping the next one.
+4. Logan's on-phone test pass (hold-to-launch, two-player multitouch).
 
 ## Already on dev
 
@@ -24,7 +31,7 @@ Each one stands alone; pick any order. Sizes are effort estimates, not rankings 
 
 ### 1. Consistency stats — small, do first
 
-Racers care about repeatability more than one best light.
+Repeatability is the hook for anyone chasing a better time, not just racers.
 
 - Std deviation of RT over the visible history / current series.
 - "% within ±0.020 s" (or a target window) and the current streak of good lights.
@@ -70,7 +77,7 @@ Closer to a real launch: hold, release on green (like a trans-brake button).
 
 - `npx expo export -p web` → static files → GitHub Pages (Actions workflow on tag, or manual).
 - FLOOR IT / tap mode works everywhere. Accelerometer in a mobile browser is `DeviceMotionEvent` — Android Chrome generally works; iOS Safari needs a permission prompt (INFERRED; check before promising it).
-- Low overhead, and the easiest way to reach racers: a link someone can open from a forum post or group chat with no install. Also the cheapest "iPhone" path.
+- Low overhead, and the easiest way to reach people: a link someone can open from a forum post or group chat with no install. Also the cheapest "iPhone" path.
 - Check: audio (WAV data URIs via expo-av) and `performance.now()` timing on web.
 
 **Scaffold:** `.github/workflows/pages.yml` — manual-run workflow; patches `baseUrl: /drag-tree` into app.json in CI only (committed config and F-Droid prebuild untouched). `npx expo export -p web` verified locally 2026-10-08 (1.6 MB bundle). **Next:** one-time Settings → Pages → Source: GitHub Actions, run the workflow, then test sensor/audio/timing in mobile Chrome.
