@@ -1,7 +1,7 @@
 // Programmatic audio cues for tree countdown and result tones.
 // Uses expo-av with synthesized WAV data URIs — no bundled asset files needed.
-// Sounds fire even when the device is on silent/vibrate (playsInSilentModeIOS,
-// shouldDuckAndroid: false) and mix alongside the user's background music.
+// Android plays them on the media stream (media volume); iOS plays through the
+// silent switch. Background music dips briefly rather than stopping.
 
 import { Audio } from "expo-av";
 import type { ReactionGrade } from "@/components/ReactionDisplay";
@@ -122,13 +122,20 @@ async function ensureReady(): Promise<void> {
       };
     }
 
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,   // fire through silent switch on iOS
-      staysActiveInBackground: false,
-      shouldDuckAndroid: false,     // don't duck background music
-      playThroughEarpieceAndroid: false,
-    });
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,   // fire through silent switch on iOS
+        staysActiveInBackground: false,
+        // Android: cues request transient may-duck focus (expo-av's default
+        // DuckOthers mode), so music dips for a beep instead of stopping.
+        // This flag only controls whether *our* cues get ducked by others.
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false,
+      });
+    } catch {
+      // Some devices reject an audio-mode field; play with the defaults.
+    }
 
     const keys = ["green", "good", "redlight"] as const;
     await Promise.all(
@@ -145,7 +152,10 @@ async function ensureReady(): Promise<void> {
         }
       }),
     );
-  })();
+  })().catch(() => {
+    // Let the next cue try again instead of staying broken for the session.
+    initPromise = null;
+  });
   return initPromise;
 }
 
@@ -160,6 +170,13 @@ async function playSlot(key: "green" | "good" | "redlight"): Promise<void> {
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
+
+// Build the sounds ahead of the first run so the first green beep isn't late
+// while the player loads (noticeable on slower phones).
+export function preloadAudio(): void {
+  if (!settings.get().soundEnabled) return;
+  void ensureReady();
+}
 
 export async function playGreenBeep(): Promise<void> {
   if (!settings.get().soundEnabled) return;

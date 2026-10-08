@@ -6,6 +6,7 @@ import { averageOffset, applyOffset, isValidSlipRT, parseSlipInput } from "../li
 import { holdDecision, canStartCountdown } from "../lib/holdRelease";
 import { decideWinner, addToTally, laneRT } from "../lib/versus";
 import { gradeRT } from "../lib/timing";
+import { sustainedPeak, suggestSensitivity } from "../lib/sensorNoise";
 import type { RunRecord } from "../hooks/useTreeSession";
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
@@ -135,5 +136,28 @@ describe("versus", () => {
   it("tally", () => {
     const t = addToTally({ top: 0, bottom: 0, ties: 0 }, decideWinner(0.1, 0.2));
     expect(t).toEqual({ top: 1, bottom: 0, ties: 0 });
+  });
+});
+
+describe("sensorNoise", () => {
+  const T = { gentle: 1.5, normal: 2.5, hard: 4.5 };
+
+  it("ignores a single spike shorter than the sustain window", () => {
+    expect(sustainedPeak([0.1, 0.1, 5, 0.1, 0.1, 0.1, 0.1])).toBeCloseTo(0.1);
+  });
+
+  it("finds the strongest sustained level", () => {
+    expect(sustainedPeak([0.2, 1.0, 1.2, 1.1, 1.3, 1.0, 0.2])).toBeCloseTo(1.0);
+  });
+
+  it("returns 0 when there are too few samples", () => {
+    expect(sustainedPeak([3, 3, 3])).toBe(0);
+  });
+
+  it("suggests the most sensitive preset with margin", () => {
+    expect(suggestSensitivity(0.3, T)).toBe("gentle");
+    expect(suggestSensitivity(1.3, T)).toBe("normal"); // 1.5 < 1.3 * 1.25
+    expect(suggestSensitivity(3.0, T)).toBe("hard");
+    expect(suggestSensitivity(4.0, T)).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 # PLAN.md — where DragTree goes next
 
-Status (2026-10-08): **stable v1.7.4** released on GitHub; F-Droid pipeline passed, waiting on the checkupdates bot (f-droid.org still shows 1.7.3 as of 2026-10-08 evening). **Beta v1.8.0-beta.1** published as a GitHub pre-release from `dev` @ 067c319 — waiting on Logan's phone test. Play AAB for 1.7.4 built, upload parked. Last updated 2026-10-08.
+Status (2026-10-08): **stable v1.7.4** released on GitHub; F-Droid pipeline passed, waiting on the checkupdates bot (f-droid.org still shows 1.7.3 as of 2026-10-08 evening). **Beta v1.8.0-beta.1** published as a GitHub pre-release from `dev` @ 067c319 — waiting on Logan's phone test. Play AAB for 1.7.4 built, upload parked. Round-1 phone feedback addressed on dev (see checklist). Last updated 2026-10-08.
 
 This is the roadmap for the `dev` branch. Releases happen when there's enough here worth shipping — no schedule.
 
@@ -31,7 +31,14 @@ This is the roadmap for the `dev` branch. Releases happen when there's enough he
 - [ ] Sensor launch still works as before (regression)
 - [ ] Anything confusing, ugly, or too wordy
 
-Feedback: _(none yet)_
+Feedback, round 1 (Pixel 9, 2026-10-08):
+- ~~Cold start draws the screen under the status bar ("slightly scrolled")~~ — FIXED on dev: `SafeAreaProvider initialMetrics={initialWindowMetrics}` so real insets exist on the first frame.
+- ~~2 PLAYER needs a scroll to reach~~ — FIXED: moved beside the PRO TREE pill at the top. Tree lights now scale with screen height (48 → min 30 dp) so header→button hint fits without scrolling on ~384×854 and taller. Still scrolls on very short screens (≤ ~360×740 with large insets).
+- ~~Settings: "ARM 5s CAPTURE" means nothing to a normal user~~ — FIXED: now an **ACCELEROMETER TEST** card ("START TEST · 5 s capture") placed right under Sensor Sensitivity, with plain-language purpose, a background-noise reading (strongest sustained level, `lib/sensorNoise.ts`) and a suggested sensitivity with a one-tap USE button.
+- ~~Settings ordering~~ — now LAUNCH (sensor, sensitivity, FLOOR IT, hold) → ACCELEROMETER TEST → TREE & DISPLAY (sportsman, sound, series, trend) → Time slip → Phone latency → SENSOR DETAILS (last launch, raw capture stats).
+- Sound on all Androids: sounds now preload when the home screen opens (first green beep no longer waits on the player), audio init failures retry instead of staying dead, Settings text corrected (Android plays at media volume; it was claiming silent-mode behaviour that's iOS-only).
+- Also fixed while there: history tiles said "GOO"/"GRE" (3-letter cut) → full grade word; tree center stripe sat off-center on Android.
+- **Observed, not yet acted on:** Pixel 9 "Last real launch" shows 61 Hz sensor rate (16.4 ms) against an 8 ms / 125 Hz target, on the JS path. Worth checking whether expo-sensors' DeviceMotion is frame-limited on Android before 1.8.0 — it directly limits timing precision.
 
 ## Before merging dev → main (gates)
 

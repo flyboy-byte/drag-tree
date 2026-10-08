@@ -20,6 +20,7 @@ import { SENSITIVITY_THRESHOLDS } from "@/hooks/useAccelerometer";
 import { launchTelemetry, type RealLaunchTelemetry } from "@/lib/launchTelemetry";
 import { settings, type SensitivityKey } from "@/lib/settings";
 import { sessionLock } from "@/lib/sessionLock";
+import { sustainedPeak, suggestSensitivity, NOISE_MARGIN } from "@/lib/sensorNoise";
 
 const SENS_OPTIONS: { key: SensitivityKey; label: string; sub: string }[] = [
   { key: "gentle", label: "GENTLE", sub: "0.15g" },
@@ -61,6 +62,7 @@ interface CaptureResult {
   achievedHz: number;
   peakG: number;
   peakMag: number;
+  noiseMag: number;  // strongest sustained level (m/s²) — what a launch gate would see
   spark: number[];   // downsampled magnitudes (0..1) for sparkline
   perSensitivity: { gentle: PerSensitivityResult; normal: PerSensitivityResult; hard: PerSensitivityResult };
 }
@@ -132,7 +134,7 @@ function analyzeCapture(samples: Sample[]): CaptureResult {
   if (samples.length === 0) {
     return {
       totalSamples: 0, durationMs: 0, meanIntervalMs: 0, jitterMs: 0, achievedHz: 0,
-      peakG: 0, peakMag: 0, spark: new Array(SPARK_BARS).fill(0),
+      peakG: 0, peakMag: 0, noiseMag: 0, spark: new Array(SPARK_BARS).fill(0),
       perSensitivity: {
         gentle: analyzeFor([], SENSITIVITY_THRESHOLDS.gentle, 0),
         normal: analyzeFor([], SENSITIVITY_THRESHOLDS.normal, 0),
@@ -159,6 +161,7 @@ function analyzeCapture(samples: Sample[]): CaptureResult {
     achievedHz: meanInterval > 0 ? 1000 / meanInterval : 0,
     peakG: peakMag / 9.81,
     peakMag,
+    noiseMag: sustainedPeak(samples.map(s => s.mag), SUSTAINED),
     spark: downsample(samples, SPARK_BARS),
     perSensitivity: {
       gentle: analyzeFor(samples, SENSITIVITY_THRESHOLDS.gentle, t0),
@@ -295,33 +298,15 @@ export default function DiagnosticScreen() {
           <View style={{ width: 60 }} />
         </View>
 
-        {/* ── PREFERENCES ───────────────────────────────────────────── */}
+        {isSessionLocked && (
+          <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+            Finish or reset the current run to change settings.
+          </Text>
+        )}
+
+        {/* ── LAUNCH: how a run is triggered ───────────────────────── */}
         <View style={[styles.card, { borderColor: colors.border }]}>
-          <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>PREFERENCES</Text>
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={[styles.rowVal, { color: colors.foreground }]}>FLOOR IT Button</Text>
-              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
-                Show an on-screen button to trigger your launch and red-light.
-                Useful for home practice or testing timing without a car.
-              </Text>
-            </View>
-            <Switch
-              value={appSettings.showFloorIt}
-              onValueChange={(v) => {
-                Haptics.selectionAsync();
-                settings.set({ showFloorIt: v });
-              }}
-              disabled={isSessionLocked}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={appSettings.showFloorIt ? colors.primaryForeground : colors.mutedForeground}
-              accessibilityLabel="FLOOR IT button toggle"
-              accessibilityHint="Shows an on-screen launch button on the home screen"
-            />
-          </View>
-
-          <View style={[styles.divider, { borderColor: colors.border }]} />
-
+          <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>LAUNCH</Text>
           <View style={styles.toggleRow}>
             <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={[styles.rowVal, { color: colors.foreground }]}>Motion Sensor</Text>
@@ -344,35 +329,6 @@ export default function DiagnosticScreen() {
             />
           </View>
 
-          {isSessionLocked && (
-            <Text style={[styles.rowSub, { color: colors.mutedForeground, marginTop: 6 }]}>
-              Finish or reset the current run to change this.
-            </Text>
-          )}
-
-          <View style={[styles.divider, { borderColor: colors.border }]} />
-
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={[styles.rowVal, { color: colors.foreground }]}>Hold to Launch</Text>
-              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
-                Hold the button through the tree and let go on green, like a trans-brake
-                button. Letting go early is a red light.
-              </Text>
-            </View>
-            <Switch
-              value={appSettings.holdToLaunch}
-              onValueChange={(v) => {
-                Haptics.selectionAsync();
-                settings.set({ holdToLaunch: v });
-              }}
-              disabled={isSessionLocked}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={appSettings.holdToLaunch ? colors.primaryForeground : colors.mutedForeground}
-              accessibilityLabel="Hold to launch toggle"
-              accessibilityHint="Hold the button during the tree and release on green"
-            />
-          </View>
           <View style={[styles.divider, { borderColor: colors.border }]} />
 
           {/* ── Sensor Sensitivity ── */}
@@ -380,9 +336,9 @@ export default function DiagnosticScreen() {
             <View>
               <Text style={[styles.rowVal, { color: colors.foreground }]}>Sensor Sensitivity</Text>
               <Text style={[styles.rowSub, { color: colors.mutedForeground, marginTop: 3 }]}>
-                Controls how much force triggers a launch. Lower = easier to trigger.
-                Adjust if the sensor fires too early or misses your launch. Use CUSTOM
-                to dial in the exact threshold for your car.
+                How hard a launch has to be to count. Lower = easier to trigger.
+                If it fires on its own or misses your launch, change this — the
+                accelerometer test below can suggest one. CUSTOM sets an exact value.
               </Text>
             </View>
             <View style={styles.sensChipRow}>
@@ -461,6 +417,168 @@ export default function DiagnosticScreen() {
 
           <View style={styles.toggleRow}>
             <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={[styles.rowVal, { color: colors.foreground }]}>FLOOR IT Button</Text>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+                Show an on-screen button to trigger your launch and red-light.
+                Useful for home practice or testing timing without a car.
+              </Text>
+            </View>
+            <Switch
+              value={appSettings.showFloorIt}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                settings.set({ showFloorIt: v });
+              }}
+              disabled={isSessionLocked}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={appSettings.showFloorIt ? colors.primaryForeground : colors.mutedForeground}
+              accessibilityLabel="FLOOR IT button toggle"
+              accessibilityHint="Shows an on-screen launch button on the home screen"
+            />
+          </View>
+
+          <View style={[styles.divider, { borderColor: colors.border }]} />
+
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={[styles.rowVal, { color: colors.foreground }]}>Hold to Launch</Text>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+                Hold the button through the tree and let go on green, like a trans-brake
+                button. Letting go early is a red light.
+              </Text>
+            </View>
+            <Switch
+              value={appSettings.holdToLaunch}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                settings.set({ holdToLaunch: v });
+              }}
+              disabled={isSessionLocked}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={appSettings.holdToLaunch ? colors.primaryForeground : colors.mutedForeground}
+              accessibilityLabel="Hold to launch toggle"
+              accessibilityHint="Hold the button during the tree and release on green"
+            />
+          </View>
+        </View>
+
+        {/* ── ACCELEROMETER TEST: noise check next to the sensitivity it informs ── */}
+        <View style={[styles.card, { borderColor: colors.border }]}>
+          <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>ACCELEROMETER TEST</Text>
+          {!available ? (
+            <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+              No motion sensor here. Run the app on an Android phone to use it.
+            </Text>
+          ) : (
+            <>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+                Records 5 seconds of what the motion sensor picks up. Put the phone where
+                you'll use it — mounted in the car with the engine running is best — and
+                leave it still. The result is the background vibration, and the most
+                sensitive setting it won't set off. Or just watch the numbers for fun.
+              </Text>
+              <View style={styles.bigRow}>
+                <View>
+                  <Text style={[styles.bigVal, { color: colors.foreground }]}>{liveG.toFixed(2)}</Text>
+                  <Text style={[styles.bigSub, { color: colors.mutedForeground }]}>g now</Text>
+                </View>
+                <View>
+                  <Text style={[styles.bigVal, { color: colors.primary }]}>{livePeak.toFixed(2)}</Text>
+                  <Text style={[styles.bigSub, { color: colors.mutedForeground }]}>peak g</Text>
+                </View>
+                <View>
+                  <Text style={[styles.bigVal, { color: colors.foreground }]}>{liveCount}</Text>
+                  <Text style={[styles.bigSub, { color: colors.mutedForeground }]}>samples</Text>
+                </View>
+              </View>
+              {/* Acceleration curve sparkline */}
+              <View style={styles.sparkRow}>
+                {sparkData.map((v, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.sparkBar,
+                      {
+                        height: Math.max(1, v * 56),
+                        backgroundColor:
+                          v > 0.7 ? colors.primary :
+                          v > 0.3 ? colors.foreground :
+                          colors.border,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+              {mode === "capturing" && (
+                <Text style={[styles.countdown, { color: colors.greenOn }]}>
+                  CAPTURING — {countdown}s
+                </Text>
+              )}
+
+              <Pressable
+                onPress={mode === "result" ? reset : startCapture}
+                disabled={mode === "capturing" || isSessionLocked}
+                accessibilityRole="button"
+                accessibilityLabel={mode === "result" ? "Run the accelerometer test again" : "Start the 5 second accelerometer test"}
+                style={({ pressed }) => [
+                  styles.btn,
+                  {
+                    backgroundColor:
+                      mode === "capturing" ? colors.card :
+                      mode === "result"    ? colors.secondary :
+                      colors.primary,
+                    opacity: pressed ? 0.85 : mode === "capturing" || isSessionLocked ? 0.6 : 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.btnText, {
+                  color: mode === "result" ? colors.foreground : colors.primaryForeground,
+                }]}>
+                  {mode === "capturing" ? "RECORDING…" : mode === "result" ? "TEST AGAIN" : "START TEST"}
+                </Text>
+                {mode === "idle" && (
+                  <Text style={[styles.btnSub, { color: colors.primaryForeground }]}>5 s capture</Text>
+                )}
+              </Pressable>
+
+              {result && (() => {
+                const suggestion = suggestSensitivity(result.noiseMag, SENSITIVITY_THRESHOLDS);
+                return (
+                  <View style={styles.noiseBox}>
+                    <Row label="Background noise" value={`${(result.noiseMag / 9.81).toFixed(2)} g`}
+                         sub="strongest steady level, ignoring single bumps" />
+                    <Row label="Suggested sensitivity"
+                         value={suggestion ? suggestion.toUpperCase() : "CUSTOM"}
+                         sub={suggestion
+                           ? `${(SENSITIVITY_THRESHOLDS[suggestion] / 9.81).toFixed(2)} g`
+                           : `above ${(result.noiseMag * NOISE_MARGIN / 9.81).toFixed(2)} g — or the test caught a launch`} />
+                    {suggestion && appSettings.sensitivity !== suggestion && (
+                      <Pressable
+                        onPress={() => { Haptics.selectionAsync(); settings.set({ sensitivity: suggestion }); }}
+                        disabled={isSessionLocked}
+                        style={({ pressed }) => [styles.useBtn, { borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Use ${suggestion} sensitivity`}
+                      >
+                        <Text style={[styles.useBtnText, { color: colors.foreground }]}>USE {suggestion.toUpperCase()}</Text>
+                      </Pressable>
+                    )}
+                    <Text style={[styles.cardFoot, { color: colors.mutedForeground }]}>
+                      Only a guide — if the phone moved or you launched during the test, the
+                      number shows that instead of background noise.
+                    </Text>
+                  </View>
+                );
+              })()}
+            </>
+          )}
+        </View>
+
+        {/* ── TREE & DISPLAY ─────────────────────────────────────────── */}
+        <View style={[styles.card, { borderColor: colors.border }]}>
+          <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>TREE & DISPLAY</Text>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={[styles.rowVal, { color: colors.foreground }]}>Sportsman Tree</Text>
               <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
                 Switch from Pro Tree (.400s, all ambers together) to Sportsman Tree (.500s, ambers count down one at a time).
@@ -486,8 +604,7 @@ export default function DiagnosticScreen() {
             <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={[styles.rowVal, { color: colors.foreground }]}>Sound</Text>
               <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
-                Play audio cues during the tree countdown and at result. Fires even on silent/vibrate.
-                No sound plays during the sensor-armed window.
+                A beep on green and a tone with your result. Plays at media volume.
               </Text>
             </View>
             <Switch
@@ -589,19 +706,12 @@ export default function DiagnosticScreen() {
 
         <LatencyCheck disabled={isSessionLocked || mode === "capturing"} />
 
-        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-          SENSOR DIAGNOSTICS
-        </Text>
-
-        {!available && (
-          <View style={[styles.card, { borderColor: colors.border }]}>
-            <Text style={[styles.warn, { color: colors.mutedForeground }]}>
-              Motion sensor not available on this platform. Run on a real Android device.
-            </Text>
-          </View>
+        {(realLaunch || result) && (
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+            SENSOR DETAILS
+          </Text>
         )}
 
-        {/* ── REAL LAUNCH BREAKDOWN (from most recent green-light run) ── */}
         {realLaunch && (
           <View style={[styles.card, { borderColor: colors.greenOn, borderWidth: 1 }]}>
             <Text style={[styles.cardLabel, { color: colors.greenOn }]}>LAST REAL LAUNCH</Text>
@@ -628,105 +738,31 @@ export default function DiagnosticScreen() {
           </View>
         )}
 
-        {available && (
+        {result && (
           <>
             <View style={[styles.card, { borderColor: colors.border }]}>
-              <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>LIVE</Text>
-              <View style={styles.bigRow}>
-                <View>
-                  <Text style={[styles.bigVal, { color: colors.foreground }]}>{liveG.toFixed(2)}</Text>
-                  <Text style={[styles.bigSub, { color: colors.mutedForeground }]}>g now</Text>
-                </View>
-                <View>
-                  <Text style={[styles.bigVal, { color: colors.primary }]}>{livePeak.toFixed(2)}</Text>
-                  <Text style={[styles.bigSub, { color: colors.mutedForeground }]}>peak g</Text>
-                </View>
-                <View>
-                  <Text style={[styles.bigVal, { color: colors.foreground }]}>{liveCount}</Text>
-                  <Text style={[styles.bigSub, { color: colors.mutedForeground }]}>samples</Text>
-                </View>
-              </View>
-              {/* Acceleration curve sparkline */}
-              <View style={styles.sparkRow}>
-                {sparkData.map((v, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.sparkBar,
-                      {
-                        height: Math.max(1, v * 56),
-                        backgroundColor:
-                          v > 0.7 ? colors.primary :
-                          v > 0.3 ? colors.foreground :
-                          colors.border,
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-              {mode === "capturing" && (
-                <Text style={[styles.countdown, { color: colors.greenOn }]}>
-                  CAPTURING — {countdown}s
-                </Text>
-              )}
+              <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>SAMPLE STATS</Text>
+              <Row label="Total samples"  value={`${result.totalSamples}`} />
+              <Row label="Duration"       value={`${result.durationMs.toFixed(0)} ms`} />
+              <Row label="Mean interval"  value={`${result.meanIntervalMs.toFixed(2)} ms`}
+                   sub={`target ${SAMPLE_INTERVAL_MS} ms · ${result.achievedHz.toFixed(0)} Hz achieved`} />
+              <Row label="Jitter (σ)"     value={`${result.jitterMs.toFixed(2)} ms`} />
+              <Row label="Peak G"         value={`${result.peakG.toFixed(3)} g`}
+                   sub={`${result.peakMag.toFixed(2)} m/s²`} />
             </View>
 
-            <Pressable
-              onPress={mode === "result" ? reset : startCapture}
-              disabled={mode === "capturing"}
-              style={({ pressed }) => [
-                styles.btn,
-                {
-                  backgroundColor:
-                    mode === "capturing" ? colors.card :
-                    mode === "result"    ? colors.secondary :
-                    colors.primary,
-                  opacity: pressed ? 0.85 : mode === "capturing" ? 0.6 : 1,
-                },
-              ]}
-            >
-              <Text style={[styles.btnText, {
-                color: mode === "result" ? colors.foreground : colors.primaryForeground,
-              }]}>
-                {mode === "capturing" ? "RECORDING…" : mode === "result" ? "AGAIN" : "ARM 5s CAPTURE"}
+            <View style={[styles.card, { borderColor: colors.border }]}>
+              <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>
+                PER-SENSITIVITY DETECTION
               </Text>
-            </Pressable>
-
-            {mode === "idle" && !realLaunch && (
-              <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-                Press ARM and perform a real launch (or whip the phone forward) within 5 seconds.
-                The capture renders the acceleration curve and reports onset, threshold-crossing,
-                confirmation delay, and timing precision for each sensitivity preset.
+              <SensitivityBlock label="GENTLE  (1.5 m/s²)" r={result.perSensitivity.gentle} colors={colors} />
+              <SensitivityBlock label="NORMAL  (2.5 m/s²)" r={result.perSensitivity.normal} colors={colors} />
+              <SensitivityBlock label="HARD    (4.5 m/s²)" r={result.perSensitivity.hard}   colors={colors} />
+              <Text style={[styles.cardFoot, { color: colors.mutedForeground }]}>
+                onset = jerk-rewound start of acceleration · threshold = first sample over preset force ·
+                confirm = sustained-samples gate. Rewind = ms shaved off RT vs naive threshold-crossing.
               </Text>
-            )}
-
-            {result && (
-              <>
-                <View style={[styles.card, { borderColor: colors.border }]}>
-                  <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>SAMPLE STATS</Text>
-                  <Row label="Total samples"  value={`${result.totalSamples}`} />
-                  <Row label="Duration"       value={`${result.durationMs.toFixed(0)} ms`} />
-                  <Row label="Mean interval"  value={`${result.meanIntervalMs.toFixed(2)} ms`}
-                       sub={`target ${SAMPLE_INTERVAL_MS} ms · ${result.achievedHz.toFixed(0)} Hz achieved`} />
-                  <Row label="Jitter (σ)"     value={`${result.jitterMs.toFixed(2)} ms`} />
-                  <Row label="Peak G"         value={`${result.peakG.toFixed(3)} g`}
-                       sub={`${result.peakMag.toFixed(2)} m/s²`} />
-                </View>
-
-                <View style={[styles.card, { borderColor: colors.border }]}>
-                  <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>
-                    PER-SENSITIVITY DETECTION
-                  </Text>
-                  <SensitivityBlock label="GENTLE  (1.5 m/s²)" r={result.perSensitivity.gentle} colors={colors} />
-                  <SensitivityBlock label="NORMAL  (2.5 m/s²)" r={result.perSensitivity.normal} colors={colors} />
-                  <SensitivityBlock label="HARD    (4.5 m/s²)" r={result.perSensitivity.hard}   colors={colors} />
-                  <Text style={[styles.cardFoot, { color: colors.mutedForeground }]}>
-                    onset = jerk-rewound start of acceleration · threshold = first sample over preset force ·
-                    confirm = sustained-samples gate. Rewind = ms shaved off RT vs naive threshold-crossing.
-                  </Text>
-                </View>
-              </>
-            )}
+            </View>
           </>
         )}
       </ScrollView>
@@ -809,6 +845,10 @@ const styles = StyleSheet.create({
   countdown: { fontSize: 12, fontFamily: "Inter_700Bold", letterSpacing: 2, textAlign: "center", marginTop: 4 },
   btn: { paddingVertical: 14, borderRadius: 12, alignItems: "center" },
   btnText: { fontSize: 13, fontFamily: "Inter_700Bold", letterSpacing: 3 },
+  btnSub: { fontSize: 10, fontFamily: "Inter_500Medium", letterSpacing: 1, marginTop: 2, opacity: 0.75 },
+  noiseBox: { gap: 4 },
+  useBtn: { alignSelf: "flex-end", borderWidth: 1, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
+  useBtnText: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 1.5 },
   hint: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16, textAlign: "center", paddingHorizontal: 10 },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 4, gap: 12 },
   rowLabel: { fontSize: 11, fontFamily: "Inter_400Regular", flexShrink: 1 },

@@ -74,8 +74,12 @@ export function HistoryList({ records, onClear, onSelect, selectedId, slipIds }:
             }
             accessibilityHint={selectable ? "Add the reaction time from your time slip" : undefined}
           >
-            <Text style={[styles.recordGrade, { color: gradeColor(item.grade) }]}>
-              {item.grade === "redlight" ? "RL" : (item.grade ?? "—").toUpperCase().slice(0, 3)}
+            <Text
+              style={[styles.recordGrade, { color: gradeColor(item.grade) }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {item.grade === "redlight" ? "RL" : (item.grade ?? "—").toUpperCase()}
             </Text>
             <Text style={[styles.recordTime, { color: colors.foreground }]}>
               {item.grade === "redlight"

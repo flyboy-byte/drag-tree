@@ -15,6 +15,9 @@ export interface TreeState {
 
 interface ChristmasTreeProps {
   state: TreeState;
+  /** Diameter of the countdown lights. Defaults to 48; the home screen
+   *  shrinks it on short screens so the whole idle layout fits. */
+  lightSize?: number;
 }
 
 function LightRow({
@@ -113,9 +116,8 @@ const stagingStyles = StyleSheet.create({
   },
 });
 
-export function ChristmasTree({ state }: ChristmasTreeProps) {
-  const colors = useColors();
-  const LARGE = 48;
+export function ChristmasTree({ state, lightSize = 48 }: ChristmasTreeProps) {
+  const LARGE = lightSize;
 
   return (
     <View style={[styles.housing, { backgroundColor: "#0d0d0d", borderColor: "#2a2a2a" }]}>
@@ -127,8 +129,11 @@ export function ChristmasTree({ state }: ChristmasTreeProps) {
 
       {/* Countdown ambers + green + red */}
       <View style={styles.lightsSection}>
-        {/* Center divider stripe */}
-        <View style={[styles.centerStripe, { backgroundColor: "#1a3a5c" }]} />
+        {/* Center divider stripe — centered by a full-size wrapper; a
+            percentage left offset lands off-center on Android. */}
+        <View style={styles.stripeWrap} pointerEvents="none">
+          <View style={[styles.centerStripe, { backgroundColor: "#1a3a5c" }]} />
+        </View>
 
         <View style={styles.lightRows}>
           <LightRow color="amber" lit={state.amber1} size={LARGE} />
@@ -166,13 +171,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
+  stripeWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+  },
   centerStripe: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
+    flex: 1,
     width: 10,
-    left: "50%",
-    marginLeft: -5,
   },
   lightRows: {
     alignItems: "center",

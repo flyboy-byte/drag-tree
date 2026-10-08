@@ -9,7 +9,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { View } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -41,8 +41,11 @@ export default function RootLayout() {
 
   if (!fontsLoaded && !fontError) return null;
 
+  // initialMetrics gives the real status-bar/gesture-bar insets on the first
+  // frame. Without it insets start at 0 on a cold start and the screen draws
+  // under the status bar until they arrive.
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <ErrorBoundary>
         <View style={{ flex: 1 }}>
           <RootLayoutNav />

@@ -8,6 +8,7 @@ import {
   ScrollView,
   Animated,
   Easing,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -26,11 +27,24 @@ import { launchTelemetry } from "@/lib/launchTelemetry";
 import { settings } from "@/lib/settings";
 import { sessionLock } from "@/lib/sessionLock";
 import { coachingHint } from "@/lib/coaching";
-import { playGreenBeep, playResultTone } from "@/lib/audio";
+import { playGreenBeep, playResultTone, preloadAudio } from "@/lib/audio";
 import { slipCalibration, averageOffset } from "@/lib/slipCalibration";
 import { holdDecision } from "@/lib/holdRelease";
 
 const HOLD_RETENTION = { top: 400, bottom: 400, left: 400, right: 400 };
+
+// Everything on the idle screen from the header down to the hint under the
+// main button, except the tree's light rows (dp; measured on web). Used to
+// size the lights so that block fits on one screen without scrolling.
+const IDLE_CHROME = 456;
+const SERIES_BAR = 46;
+const LIGHT_ROWS = 5;
+const LIGHT_GLOW = 28; // TreeLight draws a glow ring 28 dp wider than the light
+
+function treeLightSize(windowHeight: number, topPad: number, bottomPad: number, series: boolean): number {
+  const room = windowHeight - topPad - bottomPad - IDLE_CHROME - (series ? SERIES_BAR : 0);
+  return Math.max(30, Math.min(48, Math.floor(room / LIGHT_ROWS) - LIGHT_GLOW));
+}
 
 function getStatusLabel(phase: string): string {
   switch (phase) {
@@ -187,6 +201,7 @@ const summaryStyles = StyleSheet.create({
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const appSettings = useSyncExternalStore(settings.subscribe, settings.get, settings.get);
   const showFloorIt      = appSettings.showFloorIt;
   const sensorEnabled    = appSettings.sensorEnabled;
@@ -372,6 +387,10 @@ export default function HomeScreen() {
   // every render). soundEnabled is read live inside the async functions so
   // these effects don't need it as a dependency.
 
+  React.useEffect(() => {
+    if (soundEnabled) preloadAudio();
+  }, [soundEnabled]);
+
   // Green beep: fires when phase becomes "go".
   const prevIsArmedRef = React.useRef(false);
   React.useEffect(() => {
@@ -397,6 +416,7 @@ export default function HomeScreen() {
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const lightSize = treeLightSize(windowHeight, topPad, bottomPad, seriesEnabled);
 
   // Button appearance
   const btnBg =
@@ -499,16 +519,39 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Tree mode banner */}
-      <View style={[styles.proLabel, { borderColor: colors.border }]}>
-        <Text style={[styles.proText, { color: colors.mutedForeground }]}>
-          {treeMode === "pro" ? "PRO TREE  •  0.400s" : "SPORTSMAN  •  0.500s"}
-        </Text>
+      {/* Tree mode banner + 2 PLAYER — top of the screen so 2 PLAYER is
+          reachable without scrolling on any phone */}
+      <View style={styles.modeRow}>
+        <View style={[styles.proLabel, { borderColor: colors.border }]}>
+          <Text style={[styles.proText, { color: colors.mutedForeground }]} numberOfLines={1}>
+            {treeMode === "pro" ? "PRO TREE  •  0.400s" : "SPORTSMAN  •  0.500s"}
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => {
+            if (isActive) return;
+            Haptics.selectionAsync();
+            // typed-routes manifest regenerates at expo start; cast until then
+            router.push("/versus" as never);
+          }}
+          disabled={isActive}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.versusBtn,
+            { borderColor: colors.border, opacity: pressed ? 0.6 : isActive ? 0.4 : 1 },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Two player head-to-head"
+          accessibilityHint="Race a friend on this phone"
+        >
+          <Ionicons name="people-outline" size={13} color={colors.mutedForeground} />
+          <Text style={[styles.versusText, { color: colors.mutedForeground }]} numberOfLines={1}>2 PLAYER</Text>
+        </Pressable>
       </View>
 
       {/* The tree */}
       <View style={styles.treeWrap}>
-        <ChristmasTree state={tree} />
+        <ChristmasTree state={tree} lightSize={lightSize} />
       </View>
 
       {/* Reaction display — replaced by series summary card on final run */}
@@ -614,23 +657,6 @@ export default function HomeScreen() {
             : "Enable the sensor or FLOOR IT button in Settings"}
         </Text>
       )}
-      {phase === "idle" && (
-        <Pressable
-          onPress={() => {
-            Haptics.selectionAsync();
-            // typed-routes manifest regenerates at expo start; cast until then
-            router.push("/versus" as never);
-          }}
-          hitSlop={8}
-          style={({ pressed }) => [styles.versusBtn, { borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
-          accessibilityRole="button"
-          accessibilityLabel="Two player head-to-head"
-          accessibilityHint="Race a friend on this phone"
-        >
-          <Ionicons name="people-outline" size={13} color={colors.mutedForeground} />
-          <Text style={[styles.versusText, { color: colors.mutedForeground }]}>2 PLAYER</Text>
-        </Pressable>
-      )}
       {showFloorIt && !holdToLaunch && phase === "countdown" && (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
           Tap RED LIGHT to simulate an early launch
@@ -712,17 +738,25 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     letterSpacing: 0.5,
   },
+  modeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 14,
+  },
   proLabel: {
     borderWidth: 1,
     borderRadius: 20,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 4,
-    marginBottom: 14,
+    flexShrink: 1,
   },
   proText: {
     fontSize: 11,
     fontWeight: "600" as const,
-    letterSpacing: 2,
+    letterSpacing: 1.5,
     fontFamily: "Inter_600SemiBold",
   },
   treeWrap: {
@@ -811,15 +845,14 @@ const styles = StyleSheet.create({
     gap: 6,
     borderWidth: 1,
     borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
   versusText: {
     fontSize: 11,
     fontWeight: "700" as const,
     fontFamily: "Inter_700Bold",
-    letterSpacing: 2,
+    letterSpacing: 1.5,
   },
   slipEst: {
     fontSize: 11,
