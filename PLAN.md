@@ -1,6 +1,6 @@
 # PLAN.md — where DragTree goes next
 
-Status: v1.7.4 released (GitHub + F-Droid pipeline passed, waiting on checkupdates bot); Play AAB built, upload parked. Last updated 2026-10-08.
+Status: v1.7.4 released (GitHub + F-Droid pipeline passed, waiting on checkupdates bot); Play AAB built, upload parked. **dev: ideas 1, 2, 3, 4a, 6 built and browser-tested (2026-10-08); 5 ready to deploy at merge; 4b deferred to its own release.** Last updated 2026-10-08.
 
 This is the roadmap for the `dev` branch. Releases happen when there's enough here worth shipping — no schedule.
 
@@ -21,11 +21,18 @@ This is the roadmap for the `dev` branch. Releases happen when there's enough he
 
 ## Already on dev
 
-- 98b2733 — icon-only ACCEL / FLOOR IT badges so the title fits on narrow screens (reviewer finding #3). **Not visually verified at 393 dp yet.**
+- ~~98b2733 — icon-only ACCEL / FLOOR IT badges~~ — DONE, plus icon-only settings badge (3525baf); verified in web render at 393 and 360 dp.
+- No native code or dependency changes anywhere on dev — the F-Droid recipe is unaffected.
+
+## How this was tested (2026-10-08) and what still needs a phone
+
+Typecheck + 52 Jest tests (`__tests__/`). UI flows driven in a web export with headless Chromium (Playwright, 393 and 360 dp): consistency strip, latency check + tap test, slip entry/offset/Settings card, hold-to-launch (launch with finger drift, early release, reset, held-through timeout), two-player (two pointer-downs 30 ms apart both counted, red-light race). **Web is not Android** — still needs Logan's phone for: real multitouch (two thumbs at once), haptics, hold-to-launch feel, sensor rate in the latency check, numeric keyboard for slip entry.
+
+Gotcha found: on react-native-web a `Pressable` with only `onPressIn` never fires — always pair it with `onPress` (even a no-op).
 
 ## Ideas, scoped
 
-All six are scaffolded on `dev` (2026-10-08): pure logic in `lib/` with tests in `__tests__/scaffold.test.ts`, nothing wired into the existing UI yet, no native or dependency changes — so none of it affects the F-Droid build until a feature is wired in.
+All built except 4b. Pure logic lives in `lib/` with tests in `__tests__/scaffold.test.ts`.
 
 Each one stands alone; pick any order. Sizes are effort estimates, not rankings — the user rated all of these as good ideas worth building (2026-10-08). The bigger ones (web build, two-player, volume-key launch) are the ones most likely to grow the audience.
 
@@ -38,7 +45,7 @@ Repeatability is the hook for anyone chasing a better time, not just racers.
 - Lives in the existing history/series stats area; no new screens.
 - Pure JS on top of `RunRecord` history. No native changes → no F-Droid risk.
 
-**Scaffold:** `lib/consistency.ts` (`computeConsistency` — mean, std dev, % within ±20 ms, streak; tested). **Next:** render it in the history/series stats area on the home screen.
+~~**Next:** render it on the home screen.~~ — DONE (3525baf): AVG / SPREAD / % within ±.020 / STREAK strip above History once there are 3 clean runs; red lights and 2.0 s timeouts excluded.
 
 ### 2. Latency check — small/medium
 
@@ -49,7 +56,7 @@ Makes the numbers credible: shows how much of the RT is the phone, not the drive
 - Touch: optional tap test (tap in time with a steady flash, report mean offset) — this measures touch latency + human, so label it as an estimate.
 - Shown in Settings/diagnostics, not on the home screen. No native changes.
 
-**Scaffold:** `lib/latency.ts` (`sampleRateStats`, `displayDelayMs`, `tapOffsetMs`; tested). **Next:** have `useAccelerometer` keep the last ~250 sample timestamps for diagnostics; show a "Phone latency" section in `diagnostic.tsx`; tap test screen.
+~~**Next:** Phone latency section + tap test.~~ — DONE (c19154a): `components/LatencyCheck.tsx` in Settings. 2 s timing check (screen Hz via rAF, sensor Hz + jitter); tap test (12 beats at 600 ms, first 4 warm-up, mean offset as an estimate). Dropped the "green scheduled → painted" number: RT already times from the painted frame, so it would have been misleading.
 
 ### 3. Calibrate against a time slip — medium
 
@@ -59,7 +66,7 @@ Makes the numbers credible: shows how much of the RT is the phone, not the drive
 - Pairs live in their own store (`dragtree.slipCal.v1`), so run history doesn't change format.
 - Caveat to state in the UI: track RT is measured at the stage beam (rollout), the app measures acceleration onset, so the offset depends on the car and staging depth. That's the point of calibrating, but don't promise a match.
 
-**Scaffold:** `lib/slipCalibration.ts` (pub/sub store under its own key `dragtree.slipCal.v1`, so history needs **no** v2 migration; `averageOffset`, `applyOffset`, `isValidSlipRT`; tested). **Next:** "Add slip RT" entry on a run in history; offset summary + clear in Settings; optional apply-offset setting.
+~~**Next:** slip entry, Settings summary.~~ — DONE (5e29d73): tap a run in History → inline entry (`components/SlipEntry.tsx`); tiles show "· SLIP"; Settings `TimeSlipCard` shows average difference + clear. With 2+ slips each result shows "≈ X on your slip" — chosen instead of an apply-offset toggle (one less setting, raw RT stays primary).
 
 ### 4. Hold-and-release launch mode — medium (setting)
 
@@ -71,7 +78,7 @@ Closer to a real launch: hold, release on green (like a trans-brake button).
   - Volume keys also change volume unless the event is consumed — must test.
 - The physical button is the real prize — it's what makes this feel like a trans-brake. The on-screen version can ship first as a stepping stone, since it's pure JS and proves the mode before the native work.
 
-**Scaffold:** `lib/holdRelease.ts` (pure press/release → armed / red light / launch decisions; tested) and `lib/hardwareKeys.ts` (interface for the volume key; returns `null` until the native module exists). **Next:** `launchStyle` setting (`auto` | `hold`), wire the on-screen button's `onPressIn`/`onPressOut` through `holdDecision` in the session; then the native key module as its own release.
+~~**Next:** on-screen hold mode.~~ — DONE (c421ff5): `holdToLaunch` setting, off by default. All handling on press-in/out; scroll locked and press-retention enlarged while holding. **4b (volume key) still open** — `lib/hardwareKeys.ts` returns `null`; build it as its own release after this one ships.
 
 ### 5. Web build on GitHub Pages — small
 
@@ -80,7 +87,7 @@ Closer to a real launch: hold, release on green (like a trans-brake button).
 - Low overhead, and the easiest way to reach people: a link someone can open from a forum post or group chat with no install. Also the cheapest "iPhone" path.
 - Check: audio (WAV data URIs via expo-av) and `performance.now()` timing on web.
 
-**Scaffold:** `.github/workflows/pages.yml` — manual-run workflow; patches `baseUrl: /drag-tree` into app.json in CI only (committed config and F-Droid prebuild untouched). `npx expo export -p web` verified locally 2026-10-08 (1.6 MB bundle). **Next:** one-time Settings → Pages → Source: GitHub Actions, run the workflow, then test sensor/audio/timing in mobile Chrome.
+**Ready, not deployed:** `.github/workflows/pages.yml` (manual run; patches `baseUrl: /drag-tree` into app.json in CI only). Web export verified locally. GitHub only lets you run a manual workflow once it's on the default branch, so deploy **at merge**: Settings → Pages → Source: GitHub Actions, then run "Web (Pages)". On web the motion sensor shows as unavailable, so it's tap/hold/2-player only — fine for a try-before-install link.
 
 ### 6. Two-player split screen — large
 
@@ -92,7 +99,7 @@ Big addition, and a strong one: offline head-to-head turns the app from solo pra
 - Results don't go into the personal history/best (or go into a separate head-to-head tally).
 - Open question: one shared tree in the middle vs one per half.
 
-**Scaffold:** `lib/versus.ts` (`decideWinner` — red light loses, earlier of two reds loses, no-show loses, same-to-the-ms tie; `VersusTally`; tested) and `app/versus.tsx` (two-lane layout, top lane rotated; route registered, not linked from the app). **Next:** two-lane session state sharing one tree, per-lane tap capture, result + tally display, entry point from home.
+~~**Next:** build it out.~~ — DONE (c245335): `hooks/useVersusSession.ts` + `app/versus.tsx`. Shared tree timing; one light row per lane (answers the open question); lanes use raw `onTouchStart` (pointer events on web) because RN's responder tracks one touch at a time; score in the middle (long-press resets); "2 PLAYER" button under the main button when idle. Never writes solo history/best. Light size scales with screen width.
 
 ## Out of scope
 
