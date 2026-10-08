@@ -6,7 +6,7 @@ This is the roadmap for the `dev` branch. Releases happen when there's enough he
 
 ## Decided with the user (do not re-ask)
 
-- **Audience is normal people, street included.** Don't frame the sensor launch as track/private-property only. Write copy and features for someone practicing in their own car wherever they drive.
+- **Target audience is racers.** Bracket/street racers who'd actually use a practice tree come first — features and copy aim at them. Normal people (car enthusiasts, friends passing the phone around) are welcome too, and the sensor launch works on the street, so don't frame it as track/private-property only.
 - **No online anything.** No accounts, leaderboards, sync, analytics. Keeps the open-source / F-Droid vibe (also a workspace-wide scope fence).
 - **Android first.** iOS is not a goal. If an iOS or web build falls out cheaply, fine; never spend real effort on it.
 - **Play production access is parked** until Logan finds a better tester group. Not a dev-branch concern. AAB for 1.7.4 is at `~/dragtree-fdroid-build/play-v1.7.4/out/`.
@@ -18,7 +18,7 @@ This is the roadmap for the `dev` branch. Releases happen when there's enough he
 
 ## Ideas, scoped
 
-Each one stands alone; pick any order.
+Each one stands alone; pick any order. Sizes are effort estimates, not rankings — the user rated all of these as good ideas worth building (2026-10-08). The bigger ones (web build, two-player, volume-key launch) are the ones most likely to grow the audience.
 
 ### 1. Consistency stats — small, do first
 
@@ -54,18 +54,18 @@ Closer to a real launch: hold, release on green (like a trans-brake button).
 - **Physical button version (harder):** volume key as the hold button. Expo has no volume-key listener, so this needs a native module (e.g. a small Expo module or `react-native-keyevent`). Consequences:
   - New native code → touches the F-Droid recipe (scanignore, repro). Treat as its own release with a full two-run check; don't combine with other native changes.
   - Volume keys also change volume unless the event is consumed — must test.
-- Ship the on-screen version first; physical button as a follow-up if it's still wanted.
+- The physical button is the real prize — it's what makes this feel like a trans-brake. The on-screen version can ship first as a stepping stone, since it's pure JS and proves the mode before the native work.
 
 ### 5. Web build on GitHub Pages — small
 
 - `npx expo export -p web` → static files → GitHub Pages (Actions workflow on tag, or manual).
 - FLOOR IT / tap mode works everywhere. Accelerometer in a mobile browser is `DeviceMotionEvent` — Android Chrome generally works; iOS Safari needs a permission prompt (INFERRED; check before promising it).
-- Low overhead and a good way for people to try it before installing. Also the cheapest "iPhone" path.
+- Low overhead, and the easiest way to reach racers: a link someone can open from a forum post or group chat with no install. Also the cheapest "iPhone" path.
 - Check: audio (WAV data URIs via expo-av) and `performance.now()` timing on web.
 
 ### 6. Two-player split screen — large
 
-Big addition; scoped here, not planned for the next release.
+Big addition, and a strong one: offline head-to-head turns the app from solo practice into something people pass around at the track or in the garage. No network needed — two people, one phone.
 
 - Phone flat between two people, screen split, each half mirrored with its own tree and button. Same tree start for both; each player's RT graded separately; winner = better light (red light loses).
 - Tap-only — the accelerometer can't tell two players apart, so sensor launch is disabled in this mode.
