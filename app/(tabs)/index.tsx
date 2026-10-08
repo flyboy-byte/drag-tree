@@ -28,6 +28,9 @@ import { sessionLock } from "@/lib/sessionLock";
 import { coachingHint } from "@/lib/coaching";
 import { playGreenBeep, playResultTone } from "@/lib/audio";
 import { slipCalibration, averageOffset } from "@/lib/slipCalibration";
+import { holdDecision } from "@/lib/holdRelease";
+
+const HOLD_RETENTION = { top: 400, bottom: 400, left: 400, right: 400 };
 
 function getStatusLabel(phase: string): string {
   switch (phase) {
@@ -194,6 +197,7 @@ export default function HomeScreen() {
   const seriesEnabled    = appSettings.seriesEnabled;
   const seriesSize       = appSettings.seriesSize;
   const showTrend        = appSettings.showTrend;
+  const holdToLaunch     = appSettings.holdToLaunch;
   const slipPairs = useSyncExternalStore(slipCalibration.subscribe, slipCalibration.get, slipCalibration.get);
   const slipOffset = slipPairs.length >= 2 ? averageOffset(slipPairs) : null;
   const slipIds = React.useMemo(
@@ -295,6 +299,41 @@ export default function HomeScreen() {
     }
   };
 
+  // Hold-to-launch: the whole run is one press. Press-in stages, release
+  // launches (or red-lights if early). Everything happens on press-in/out so
+  // the trailing onPress of the same press can't reset the result.
+  const holdingRef = React.useRef(false);
+  const [holding, setHolding] = React.useState(false);
+  const setHold = (v: boolean) => { holdingRef.current = v; setHolding(v); };
+
+  const onHoldIn = () => {
+    if (phase === "idle") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setHold(true);
+      startSequence();
+    } else if (phase === "result" || phase === "redlight") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      reset();
+    }
+  };
+
+  const onHoldOut = () => {
+    if (!holdingRef.current) return;
+    setHold(false);
+    if (phase !== "staging" && phase !== "countdown" && phase !== "go") return;
+    const out = holdDecision(phase, true, { kind: "release", at: performance.now() });
+    if (out.kind === "launch") simulateLaunch();
+    else if (out.kind === "redlight") simulateRedLight();
+  };
+
+  // A run that ends without a release (auto-late timeout, sensor launch)
+  // leaves the finger down; the eventual release must not count.
+  React.useEffect(() => {
+    if (phase === "idle" || phase === "result" || phase === "redlight") {
+      if (holdingRef.current && phase !== "idle") setHold(false);
+    }
+  }, [phase]);
+
   // Pulse animation when green is lit
   const pulseOpacity = React.useRef(new Animated.Value(1)).current;
   React.useEffect(() => {
@@ -326,7 +365,7 @@ export default function HomeScreen() {
   // useSimulation: tap input is active — either FLOOR IT button is on,
   // or the sensor isn't active (not available or disabled).
   const sensorActive  = isAvailable && sensorEnabled;
-  const useSimulation = !sensorActive || showFloorIt;
+  const useSimulation = !sensorActive || showFloorIt || holdToLaunch;
 
   // ── Audio cues ────────────────────────────────────────────────────────
   // Refs track previous values so effects only fire on transitions (not on
@@ -362,6 +401,7 @@ export default function HomeScreen() {
   // Button appearance
   const btnBg =
     isDone                               ? colors.secondary :
+    holdToLaunch && isActive             ? colors.card      :
     phase === "go"   && useSimulation    ? colors.greenOn :
     phase === "go"   && !useSimulation   ? "transparent" :
     isActive         && !useSimulation   ? "transparent" :
@@ -373,6 +413,8 @@ export default function HomeScreen() {
 
   const btnLabel =
     isDone                            ? "RESET"      :
+    holdToLaunch && isActive          ? "HOLDING"    :
+    holdToLaunch                      ? "HOLD"       :
     phase === "go" && useSimulation   ? "FLOOR IT"   :
     phase === "go" && !useSimulation  ? "ARMED"      :
     isActive       && useSimulation   ? "RED LIGHT"  :
@@ -381,6 +423,7 @@ export default function HomeScreen() {
 
   const btnTextColor =
     isDone                            ? colors.foreground         :
+    holdToLaunch && isActive          ? colors.foreground         :
     phase === "go" && useSimulation   ? colors.primaryForeground  :
     phase === "go" && !useSimulation  ? colors.mutedForeground    :
     isActive       && useSimulation   ? colors.redOn              :
@@ -398,6 +441,8 @@ export default function HomeScreen() {
       ]}
       showsVerticalScrollIndicator={false}
       bounces={false}
+      // A scroll gesture would cancel the held press and fire a red light.
+      scrollEnabled={!holding}
     >
       {/* Header row */}
       <View style={styles.header}>
@@ -540,7 +585,11 @@ export default function HomeScreen() {
             elevation: phase === "idle" || (phase === "go" && useSimulation) ? 10 : 0,
           },
         ]}
-        onPress={onMainPress}
+        onPress={holdToLaunch ? () => {} : onMainPress}
+        onPressIn={holdToLaunch ? onHoldIn : undefined}
+        onPressOut={holdToLaunch ? onHoldOut : undefined}
+        // Finger drift during a long hold must not count as letting go.
+        pressRetentionOffset={holdToLaunch ? HOLD_RETENTION : undefined}
         disabled={btnDisabled}
         accessibilityRole="button"
         accessibilityLabel={btnLabel}
@@ -554,7 +603,9 @@ export default function HomeScreen() {
       {/* Contextual hint */}
       {phase === "idle" && (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          {sensorActive && showFloorIt
+          {holdToLaunch
+            ? "Hold the button, let go when the green lights"
+            : sensorActive && showFloorIt
             ? "Sensor armed — tap FLOOR IT or launch to detect"
             : sensorActive
             ? "Floor it when green — sensor detects your launch"
@@ -563,7 +614,7 @@ export default function HomeScreen() {
             : "Enable the sensor or FLOOR IT button in Settings"}
         </Text>
       )}
-      {showFloorIt && phase === "countdown" && (
+      {showFloorIt && !holdToLaunch && phase === "countdown" && (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
           Tap RED LIGHT to simulate an early launch
         </Text>

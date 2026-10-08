@@ -352,6 +352,29 @@ export default function DiagnosticScreen() {
 
           <View style={[styles.divider, { borderColor: colors.border }]} />
 
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={[styles.rowVal, { color: colors.foreground }]}>Hold to Launch</Text>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+                Hold the button through the tree and let go on green, like a trans-brake
+                button. Letting go early is a red light.
+              </Text>
+            </View>
+            <Switch
+              value={appSettings.holdToLaunch}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                settings.set({ holdToLaunch: v });
+              }}
+              disabled={isSessionLocked}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={appSettings.holdToLaunch ? colors.primaryForeground : colors.mutedForeground}
+              accessibilityLabel="Hold to launch toggle"
+              accessibilityHint="Hold the button during the tree and release on green"
+            />
+          </View>
+          <View style={[styles.divider, { borderColor: colors.border }]} />
+
           {/* ── Sensor Sensitivity ── */}
           <View style={{ gap: 10 }}>
             <View>

@@ -28,6 +28,9 @@ export interface AppSettings {
   seriesSize: 3 | 5 | 10;
   // Show the run-history trend chart on the home screen.
   showTrend: boolean;
+  // Hold the main button through the tree and let go on green (trans-brake
+  // style). Letting go early is a red light. Implies tap input.
+  holdToLaunch: boolean;
 }
 
 // Fields written to AsyncStorage on every change.
@@ -44,6 +47,7 @@ let current: AppSettings = {
   seriesEnabled: false,
   seriesSize: 5,
   showTrend: true,
+  holdToLaunch: false,
 };
 
 const listeners = new Set<() => void>();
@@ -85,6 +89,9 @@ const listeners = new Set<() => void>();
     if (typeof saved.showTrend === "boolean")
       patch.showTrend = saved.showTrend;
 
+    if (typeof saved.holdToLaunch === "boolean")
+      patch.holdToLaunch = saved.holdToLaunch;
+
     if (Object.keys(patch).length > 0) {
       current = { ...current, ...patch };
       listeners.forEach(fn => fn());
@@ -100,10 +107,10 @@ function persist(): void {
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
     persistTimer = null;
-    const { showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize, showTrend } = current;
+    const { showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize, showTrend, holdToLaunch } = current;
     AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize, showTrend }),
+      JSON.stringify({ showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize, showTrend, holdToLaunch }),
     ).catch(() => {});
   }, 250);
 }
