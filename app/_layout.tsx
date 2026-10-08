@@ -20,6 +20,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="diagnostic" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="versus" options={{ headerShown: false }} />
     </Stack>
   );
 }

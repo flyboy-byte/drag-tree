@@ -1,0 +1,53 @@
+# Web build → GitHub Pages (PLAN.md idea 5).
+# Manual only for now: Actions → "Web (Pages)" → Run workflow.
+# One-time repo setup: Settings → Pages → Source: GitHub Actions.
+name: Web (Pages)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts --legacy-peer-deps
+      # Served from https://flyboy-byte.github.io/drag-tree/. The base URL is
+      # patched into app.json here in CI only, so the committed config (and
+      # the F-Droid prebuild) never changes.
+      - run: |
+          node -e '
+            const fs = require("fs");
+            const c = JSON.parse(fs.readFileSync("app.json", "utf8"));
+            c.expo.experiments = { ...c.expo.experiments, baseUrl: "/drag-tree" };
+            fs.writeFileSync("app.json", JSON.stringify(c, null, 2));
+          '
+      - run: npx expo export -p web
+      # SPA fallback so deep links don't 404.
+      - run: cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
