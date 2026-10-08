@@ -21,6 +21,24 @@ export interface VersusResult {
 // Matches the solo auto-late cutoff.
 export const VERSUS_TIMEOUT = 2.0;
 
+export type VersusPhase = "idle" | "staging" | "countdown" | "go" | "done";
+
+// RT in seconds for a lane tap at `now` (performance.now() ms), or null if
+// the tap doesn't count (not racing). Before green it's negative — how early,
+// measured against the scheduled green, same as a solo red light.
+export function laneRT(
+  phase: VersusPhase,
+  now: number,
+  greenAt: number | null,
+  greenScheduledAt: number | null,
+): number | null {
+  if (phase === "go" && greenAt !== null) return Math.max(0, (now - greenAt) / 1000);
+  if ((phase === "staging" || phase === "countdown") && greenScheduledAt !== null) {
+    return Math.min(-0.001, (now - greenScheduledAt) / 1000);
+  }
+  return null;
+}
+
 export function laneResult(rt: number | null): LaneResult {
   if (rt === null) return { rt: null, grade: "late" };
   return { rt, grade: gradeRT(rt) };

@@ -4,7 +4,7 @@ import { computeConsistency } from "../lib/consistency";
 import { rateStats, pairTaps, tapOffsetMs } from "../lib/latency";
 import { averageOffset, applyOffset, isValidSlipRT, parseSlipInput } from "../lib/slipCalibration";
 import { holdDecision, canStartCountdown } from "../lib/holdRelease";
-import { decideWinner, addToTally } from "../lib/versus";
+import { decideWinner, addToTally, laneRT } from "../lib/versus";
 import { gradeRT } from "../lib/timing";
 import type { RunRecord } from "../hooks/useTreeSession";
 
@@ -123,6 +123,15 @@ describe("versus", () => {
   it("both red: earlier red loses", () => expect(decideWinner(-0.10, -0.01).winner).toBe("bottom"));
   it("no-show loses", () => expect(decideWinner(0.4, null).winner).toBe("top"));
   it("nobody went", () => expect(decideWinner(null, null).winner).toBe("none"));
+  it("lane RT: on green is positive", () => expect(laneRT("go", 1120, 1000, 1000)).toBeCloseTo(0.12));
+  it("lane RT: before green is a negative red light", () => {
+    expect(laneRT("countdown", 950, null, 1000)).toBeCloseTo(-0.05);
+    expect(laneRT("staging", 1000, null, 1000)).toBe(-0.001);
+  });
+  it("lane RT: idle/done taps don't count", () => {
+    expect(laneRT("idle", 5, null, null)).toBeNull();
+    expect(laneRT("done", 5, 1, 1)).toBeNull();
+  });
   it("tally", () => {
     const t = addToTally({ top: 0, bottom: 0, ties: 0 }, decideWinner(0.1, 0.2));
     expect(t).toEqual({ top: 1, bottom: 0, ties: 0 });

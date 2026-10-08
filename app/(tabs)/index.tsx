@@ -614,6 +614,23 @@ export default function HomeScreen() {
             : "Enable the sensor or FLOOR IT button in Settings"}
         </Text>
       )}
+      {phase === "idle" && (
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            // typed-routes manifest regenerates at expo start; cast until then
+            router.push("/versus" as never);
+          }}
+          hitSlop={8}
+          style={({ pressed }) => [styles.versusBtn, { borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Two player head-to-head"
+          accessibilityHint="Race a friend on this phone"
+        >
+          <Ionicons name="people-outline" size={13} color={colors.mutedForeground} />
+          <Text style={[styles.versusText, { color: colors.mutedForeground }]}>2 PLAYER</Text>
+        </Pressable>
+      )}
       {showFloorIt && !holdToLaunch && phase === "countdown" && (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
           Tap RED LIGHT to simulate an early launch
@@ -787,6 +804,22 @@ const styles = StyleSheet.create({
     fontWeight: "700" as const,
     letterSpacing: 4,
     fontFamily: "Inter_700Bold",
+  },
+  versusBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginBottom: 8,
+  },
+  versusText: {
+    fontSize: 11,
+    fontWeight: "700" as const,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 2,
   },
   slipEst: {
     fontSize: 11,
