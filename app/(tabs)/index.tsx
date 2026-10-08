@@ -401,15 +401,21 @@ export default function HomeScreen() {
             </View>
           )}
           {sensorActive && (
-            <View style={[styles.badge, { borderColor: colors.greenOn, borderWidth: 1 }]}>
-              <MaterialCommunityIcons name="car-speed-limiter" size={10} color={colors.greenOn} />
-              <Text style={[styles.badgeText, { color: colors.greenOn }]}>ACCEL</Text>
+            <View
+              style={[styles.badge, styles.iconBadge, { borderColor: colors.greenOn, borderWidth: 1 }]}
+              accessible
+              accessibilityLabel="Accelerometer armed"
+            >
+              <MaterialCommunityIcons name="car-speed-limiter" size={12} color={colors.greenOn} />
             </View>
           )}
           {showFloorIt && (
-            <View style={[styles.badge, { borderColor: colors.primary, borderWidth: 1 }]}>
-              <MaterialCommunityIcons name="gesture-tap" size={10} color={colors.primary} />
-              <Text style={[styles.badgeText, { color: colors.primary }]}>FLOOR IT</Text>
+            <View
+              style={[styles.badge, styles.iconBadge, { borderColor: colors.primary, borderWidth: 1 }]}
+              accessible
+              accessibilityLabel="FLOOR IT button enabled"
+            >
+              <MaterialCommunityIcons name="gesture-tap" size={12} color={colors.primary} />
             </View>
           )}
           <Pressable
@@ -597,6 +603,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 20,
   },
+  iconBadge: { paddingHorizontal: 6 },
   badgeText: {
     fontSize: 11,
     fontWeight: "700" as const,
