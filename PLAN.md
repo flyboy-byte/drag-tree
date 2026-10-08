@@ -1,6 +1,6 @@
 # PLAN.md — where DragTree goes next
 
-Status: v1.7.4 released (GitHub + F-Droid pipeline passed, waiting on checkupdates bot); Play AAB built, upload parked. **dev: ideas 1, 2, 3, 4a, 6 built and browser-tested (2026-10-08); 5 ready to deploy at merge; 4b deferred to its own release.** Last updated 2026-10-08.
+Status (2026-10-08): **stable v1.7.4** released on GitHub; F-Droid pipeline passed, waiting on the checkupdates bot (f-droid.org still shows 1.7.3 as of 2026-10-08 evening). **Beta v1.8.0-beta.1** published as a GitHub pre-release from `dev` @ 067c319 — waiting on Logan's phone test. Play AAB for 1.7.4 built, upload parked. Last updated 2026-10-08.
 
 This is the roadmap for the `dev` branch. Releases happen when there's enough here worth shipping — no schedule.
 
@@ -11,6 +11,27 @@ This is the roadmap for the `dev` branch. Releases happen when there's enough he
 - **Android first.** iOS is not a goal. If an iOS or web build falls out cheaply, fine; never spend real effort on it.
 - **Play production access is parked** until Logan finds a better tester group. Not a dev-branch concern. AAB for 1.7.4 is at `~/dragtree-fdroid-build/play-v1.7.4/out/`.
 - **New modes are settings, off by default.** The default experience stays as it is.
+
+## Beta v1.8.0-beta.1 (GitHub pre-release, 2026-10-08)
+
+- https://github.com/flyboy-byte/drag-tree/releases/tag/v1.8.0-beta.1 — universal APK, signed ff739cf5…, **versionCode 175**, versionName 1.8.0-beta.1. Permissions same as 1.7.4 (no INTERNET).
+- Version set **only in the build clone** (`~/dragtree-fdroid-build/beta-1.8.0-beta.1/src`), never committed: committed `android/app/build.gradle` stays 17/1.7.4, so F-Droid checkupdates (UpdateCheckMode: Tags) sees nothing new at the beta tag. **Keep it that way for every beta.**
+- Why 175: above everything shipped (F-Droid 171–174, Play 170) and below the next stable (Play 180, F-Droid 181–184), so beta users upgrade to stable normally. Next beta → 176, etc. (max 179).
+- Build recipe: fresh clone of dev → edit app.json version/versionCode → `npm ci --ignore-scripts --legacy-peer-deps` → `npx expo prebuild -p android --clean --no-install` → `sdk.dir` in android/local.properties → `./gradlew assembleRelease --max-workers=2 -Dorg.gradle.parallel=false` → strip META-INF sigs → zipalign -p 4 → apksigner with release key → verify cert. **Android SDK was deleted 2026-10-08 to free disk — reinstall first.**
+
+### Logan's test checklist (feedback goes here)
+
+- [ ] Installs over the current app, history and best time intact
+- [ ] Header: title not cut off with sensor + FLOOR IT both on
+- [ ] Consistency strip shows after 3 clean runs; numbers look sane
+- [ ] Settings → Phone latency: timing check (screen Hz, sensor Hz) and tap test
+- [ ] Time slip: tap a run in History, number keyboard, save, "· SLIP" tag, Settings average, "≈ X on your slip" after 2
+- [ ] Hold to Launch: hold through tree, release on green; early release = red light; thumb drift doesn't count; hold through timeout = late
+- [ ] 2 Player: two thumbs at the same time both count; far side reads upright; red light loses; score; back button
+- [ ] Sensor launch still works as before (regression)
+- [ ] Anything confusing, ugly, or too wordy
+
+Feedback: _(none yet)_
 
 ## Before merging dev → main (gates)
 
@@ -100,6 +121,26 @@ Big addition, and a strong one: offline head-to-head turns the app from solo pra
 - Open question: one shared tree in the middle vs one per half.
 
 ~~**Next:** build it out.~~ — DONE (c245335): `hooks/useVersusSession.ts` + `app/versus.tsx`. Shared tree timing; one light row per lane (answers the open question); lanes use raw `onTouchStart` (pointer events on web) because RN's responder tracks one touch at a time; score in the middle (long-press resets); "2 PLAYER" button under the main button when idle. Never writes solo history/best. Light size scales with screen width.
+
+## Assessment (2026-10-08)
+
+**Where it stands.** The app is technically solid and well past the hard part: a reproducible F-Droid build (the thing that took attempts A1–A6), one signing key across all three stores, a documented release runbook, CI on every push, and now a real feature set on dev. What it doesn't have is users — no measurement (by design, no analytics) and no distribution push. The roadmap so far has been building things; the next phase is getting them in front of people.
+
+**Strengths.** Offline/no-account/no-tracking is genuinely rare and is the F-Droid audience's whole value system. Sensor launch detection with onset rewind is real engineering, not a toy. 2 Player turns it from a niche practice tool into something people hand to a friend — that's the widest audience the app has.
+
+**Risks / weak spots.**
+- *Untested on real hardware.* Everything new was verified in a web render, not on Android. Multitouch, haptics and hold-feel are exactly what browsers fake badly. The phone test is the real gate.
+- *Release machinery is fragile and local.* F-Droid repro depends on a precise recipe; Play/beta builds depend on a local SDK (now deleted) and a stale committed `android/`. One wrong step and a release breaks. The runbook mitigates this — follow it literally.
+- *The committed `android/` is stale* (manifest still lists blocked perms). Harmless for F-Droid (prebuild regenerates) but a trap for anyone building locally. Consider regenerating and committing it in its own commit, or documenting "never build from committed android/".
+- *Disk is tight* (338 GB, was at 0). Builds fail mid-way with corrupted Gradle state when it fills.
+- *Play Store is stuck* on the testers requirement — out of our hands until Logan finds testers.
+- *Web (Pages) has no sensor.* Fine as a try-it link; don't oversell it.
+
+**Recommended order from here.**
+1. Logan tests the beta → fix feedback on dev → beta.2 if needed.
+2. Confirm v1.7.4 lands on f-droid.org (bot). If nothing by ~2026-10-15, open an MR from fork branch `dragtree-v1.7.4`.
+3. Merge dev → main as **1.8.0** (versionCode 18 → F-Droid 181–184, Play 180), full F-Droid two-run release per `fdroid/README.md`, deploy Pages, upload Play AAB when testers exist.
+4. Then distribution: the web link + 2 Player are the shareable hooks (car forums/groups, r/fdroid, a short screen recording). Volume-key launch (4b) as its own later release.
 
 ## Out of scope
 
