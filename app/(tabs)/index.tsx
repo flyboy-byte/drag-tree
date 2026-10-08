@@ -432,6 +432,7 @@ export default function HomeScreen() {
             accessibilityHint="Open the settings and sensor diagnostics screen"
             style={({ pressed }) => [
               styles.badge,
+              styles.iconBadge,
               {
                 borderColor: colors.border,
                 borderWidth: 1,
@@ -439,8 +440,7 @@ export default function HomeScreen() {
               },
             ]}
           >
-            <Ionicons name="settings-outline" size={10} color={colors.mutedForeground} />
-            <Text style={[styles.badgeText, { color: colors.mutedForeground }]}>SET</Text>
+            <Ionicons name="settings-outline" size={12} color={colors.mutedForeground} />
           </Pressable>
         </View>
       </View>

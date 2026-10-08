@@ -40,6 +40,13 @@ describe("computeConsistency", () => {
     expect(tight.withinPct).toBe(100);
     expect(tight.streak).toBe(3); // red light breaks it
   });
+
+  it("ignores 2.0 s timeouts", () => {
+    const s = computeConsistency([run(0.1), run(2.0), run(0.1)]);
+    expect(s.cleanCount).toBe(2);
+    expect(s.meanRT).toBeCloseTo(0.1);
+    expect(s.streak).toBe(1);
+  });
 });
 
 describe("latency", () => {

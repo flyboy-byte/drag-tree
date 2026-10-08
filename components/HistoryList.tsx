@@ -3,6 +3,7 @@ import { View, Text, FlatList, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import type { RunRecord } from "@/hooks/useTreeSession";
+import { computeConsistency, DEFAULT_WINDOW } from "@/lib/consistency";
 
 interface HistoryListProps {
   records: RunRecord[];
@@ -42,6 +43,7 @@ export function HistoryList({ records, onClear }: HistoryListProps) {
           <Ionicons name="trash-outline" size={16} color={colors.mutedForeground} />
         </Pressable>
       </View>
+      <ConsistencyStrip records={records} />
       <FlatList
         data={records}
         keyExtractor={(item) => item.id}
@@ -69,7 +71,60 @@ export function HistoryList({ records, onClear }: HistoryListProps) {
   );
 }
 
+// One line of consistency stats over the visible history. Hidden until there
+// are 3 clean runs — fewer than that and the numbers don't mean much.
+function ConsistencyStrip({ records }: { records: RunRecord[] }) {
+  const colors = useColors();
+  const s = computeConsistency(records);
+  if (s.cleanCount < 3 || s.meanRT === null || s.stdDev === null || s.withinPct === null) return null;
+
+  const items: [string, string][] = [
+    ["AVG", s.meanRT.toFixed(3)],
+    ["SPREAD", `±${s.stdDev.toFixed(3)}`],
+    [`±${DEFAULT_WINDOW.toFixed(3).slice(1)}`, `${Math.round(s.withinPct)}%`],
+    ["STREAK", String(s.streak)],
+  ];
+
+  return (
+    <View
+      style={styles.stats}
+      accessible
+      accessibilityLabel={
+        `Average ${s.meanRT.toFixed(3)} seconds, spread plus or minus ${s.stdDev.toFixed(3)}, ` +
+        `${Math.round(s.withinPct)} percent within ${DEFAULT_WINDOW.toFixed(3)}, streak ${s.streak}`
+      }
+    >
+      {items.map(([label, value]) => (
+        <View key={label} style={styles.stat}>
+          <Text style={[styles.statVal, { color: colors.foreground }]}>{value}</Text>
+          <Text style={[styles.statLab, { color: colors.mutedForeground }]}>{label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  stats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  stat: { alignItems: "center" },
+  statVal: {
+    fontSize: 14,
+    fontWeight: "700" as const,
+    fontFamily: "Inter_700Bold",
+    fontVariant: ["tabular-nums"],
+  },
+  statLab: {
+    fontSize: 9,
+    fontWeight: "700" as const,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1.2,
+    marginTop: 1,
+  },
   container: {
     width: "100%",
   },

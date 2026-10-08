@@ -15,11 +15,17 @@ export interface ConsistencyStats {
 // ±20 ms is the "tight" band most bracket racers talk about.
 export const DEFAULT_WINDOW = 0.020;
 
+// Auto-late timeouts are recorded as 2.0 s — a missed launch, not a reaction.
+const TIMEOUT_RT = 2.0;
+
+const isClean = (r: RunRecord) =>
+  r.grade !== "redlight" && r.reactionTime >= 0 && r.reactionTime < TIMEOUT_RT;
+
 export function computeConsistency(
   records: RunRecord[],
   window = DEFAULT_WINDOW,
 ): ConsistencyStats {
-  const clean = records.filter(r => r.grade !== "redlight" && r.reactionTime >= 0);
+  const clean = records.filter(isClean);
   const times = clean.map(r => r.reactionTime);
   const n = times.length;
 
@@ -33,10 +39,10 @@ export function computeConsistency(
     : null;
   const within = times.filter(t => Math.abs(t - mean) <= window).length;
 
-  // Streak walks the full history (red lights break it).
+  // Streak walks the full history (red lights and timeouts break it).
   let streak = 0;
   for (const r of records) {
-    if (r.grade === "redlight" || Math.abs(r.reactionTime - mean) > window) break;
+    if (!isClean(r) || Math.abs(r.reactionTime - mean) > window) break;
     streak++;
   }
 
