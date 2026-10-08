@@ -142,7 +142,7 @@ export function useTreeSession() {
     timerIdsRef.current = [];
   };
 
-  const recordResult = useCallback((rt: number, g: ReactionGrade) => {
+  const recordResult = useCallback((rt: number, g: ReactionGrade, countsForBest = true) => {
     setReactionTime(rt);
     setGrade(g);
     const record: RunRecord = {
@@ -152,7 +152,7 @@ export function useTreeSession() {
       mode: modeRef.current,
     };
     setRecords(prev => [record, ...prev].slice(0, 30));
-    if (g !== "redlight") {
+    if (countsForBest && g !== "redlight") {
       setBestTime(prev => (prev === null || rt < prev ? rt : prev));
     }
     // ── Series accumulation ──────────────────────────────────────────────
@@ -292,7 +292,8 @@ export function useTreeSession() {
         const rt = 2.0;
         const g = gradeRT(rt);
         setTree(t => ({ ...t, green: false }));
-        recordResult(rt, g);
+        // A timeout is a missed launch, not a measured reaction.
+        recordResult(rt, g, false);
         updatePhase("result");
       }
     }, lastAmberAt + greenDelay + 2000));

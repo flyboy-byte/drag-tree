@@ -32,11 +32,11 @@ eas build --profile preview --platform android
 
 **Local Gradle builds** require `npm install` at repo root first. The `settings.gradle` uses Node `require.resolve()` calls at Gradle configuration time — Node must be on PATH when running `./gradlew`.
 
-**Signing** — release builds need `android/local.properties` (gitignored) with keystore credentials. See Session B of the EAS→local build migration plan.
+**Signing** — release builds need `android/local.properties` (gitignored) with keystore credentials.
 
 ---
 
-## Local Build Environment (Session B — in progress)
+## Local Build Environment
 
 For `./gradlew assembleRelease` to work:
 
@@ -210,15 +210,17 @@ All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asse
 2. Do I know which file class differed (dex / .so / profile / resources / zip metadata)?
 3. Am I changing exactly one variable class?
 
-If any answer is NO → read `FDROID_REPRO_EXECUTION.md` and stop. Do not proceed.
+If any answer is NO → read `fdroid/REPRO_EXECUTION.md` and stop. Do not proceed.
 
 ### Doc reading order
 
-0. **`FDROID_AI_CONTEXT.md`** — start here if coming in cold; dense summary of all hard-won lessons
-1. **`FDROID.md`** — current attempt state + environment reference
-2. **`FDROID_REPRO_EXECUTION.md`** — operational playbook + experiment order
-3. **`FDROID_MR_ACTIVITY.md`** — reviewer history and constraints
-4. **`FDROID_REPRO_RESEARCH.md`** — background research only (not an action doc)
+All F-Droid docs live in `fdroid/`.
+
+0. **`fdroid/AI_CONTEXT.md`** — start here if coming in cold; dense summary of all hard-won lessons
+1. **`fdroid/README.md`** — current state, **release runbook for updates**, environment reference
+2. **`fdroid/REPRO_EXECUTION.md`** — operational playbook + experiment order
+3. **`fdroid/MR_ACTIVITY.md`** — reviewer history and constraints
+4. **`fdroid/REPRO_RESEARCH.md`** — background research only (not an action doc)
 
 ### Quick facts
 - No Firebase, no GMS — fully offline by design.
@@ -226,6 +228,6 @@ If any answer is NO → read `FDROID_REPRO_EXECUTION.md` and stop. Do not procee
 - `android/` is committed as the intended Gradle state, but Expo prebuild regenerates it during F-Droid recipe.
 - Reference APK must come from a fresh clone in a Debian/F-Droid-like container, same patch sequence as the YAML.
 - Tag every release — F-Droid AutoUpdateMode tracks tags matching versionName.
-- Fastlane metadata: `fastlane/metadata/android/en-US/` — update `changelogs/<versionCode>.txt` each release.
+- Fastlane metadata: `fastlane/metadata/android/en-US/` — each release add `changelogs/<code>.txt` for the **final F-Droid codes** (`10 * versionCode + 1..4`, e.g. `171.txt`–`174.txt`); F-Droid never reads the base-code file.
 - AndroidManifest.xml permissions from Expo/RN defaults are kept intentionally.
 - Reference APK signing flags: `--alignment-preserved true --v1-signing-enabled false`, applied to F-Droid's unsigned APK (not a locally-built one) — prevents apksigner from converting null-byte ZIP padding to 0xD935 extra fields, which would break CHUNKED_SHA256 byte comparison.

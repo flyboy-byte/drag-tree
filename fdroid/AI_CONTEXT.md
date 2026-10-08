@@ -9,9 +9,9 @@ Read this before touching anything. It captures the non-obvious lessons from a c
 Got an Expo SDK 54 / React Native 0.81.5 Android app accepted to F-Droid with:
 - Full reproducible build (`Binaries:` byte comparison passing all 4 ABIs)
 - ABI splits (4 separate APKs: armeabi-v7a, arm64-v8a, x86, x86_64)
-- Reviewer (linsui) satisfied, `review-requested` label set, MR in test queue (MR #41671)
+- Reviewer (linsui) satisfied; MR #41671 merged 2026-09-28
 
-**Current MR state (as of 2026-08-03):** v1.7.3 / versionCode 16 (base). Branch rebased on upstream/master, 6 ahead. Run 2 byte comparison passed all 4 ABIs (pipeline `2728036212`). Awaiting merger merge. No action needed from us.
+**Status (2026-10-08):** v1.7.3 (161–164) live on f-droid.org. Updates now go through `AutoUpdateMode` — see the release runbook in `fdroid/README.md`.
 
 The submission process took ~2 weeks of iteration. This doc is what we wish we'd had on day one.
 
@@ -184,13 +184,13 @@ For future Play AAB uploads: the version code scheme is `10 * versionCode + 0` f
 
 ## Key files in this repo
 
-- `FDROID.md` — current state, environment reference, signing commands
-- `FDROID_REPRO_EXECUTION.md` — operational playbook (gate questions, experiment order, commands)
-- `FDROID_MR_ACTIVITY.md` — full reviewer interaction history and constraints
-- `FDROID_REPRO_RESEARCH.md` — background research (not action items)
+- `README.md` — current state, release runbook, environment reference, signing commands
+- `REPRO_EXECUTION.md` — operational playbook (gate questions, experiment order, commands)
+- `MR_ACTIVITY.md` — full reviewer interaction history and constraints
+- `REPRO_RESEARCH.md` — background research (not action items)
 - `metadata/com.flyboybyte.dragtree.yml` in `fdroiddata` fork — the actual YAML
 
-Read order: FDROID.md → FDROID_REPRO_EXECUTION.md → FDROID_MR_ACTIVITY.md.
+Read order: README.md → REPRO_EXECUTION.md → MR_ACTIVITY.md. All live in `fdroid/`.
 
 ---
 

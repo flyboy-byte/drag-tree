@@ -1,10 +1,8 @@
 # DragTree — NHRA Pro Tree Reaction Timer
 
-An Android app that simulates a real **NHRA Pro Tree** (all 3 ambers fire simultaneously, green 0.400 s later) and measures your reaction time using the phone's accelerometer. Mount your phone on the dash, stage up, watch the tree, and floor it — the app detects launch G-force and records your RT automatically.
+An Android app that simulates an NHRA Christmas Tree and measures your launch reaction time with the phone's accelerometer. Mount the phone on the dash, stage, watch the tree, and launch. The app detects the launch and records how quickly you reacted to the green. You don't need to tap anything.
 
-**No internet required.** Runs fully offline after installation.
-
-**Also works in a browser** with a simulated FLOOR IT button for desktop practice.
+Fully offline. No account, no ads, no network permission.
 
 <p align="center">
   <img src="docs/screenshot-tree.png" alt="DragTree Pro Tree idle screen" width="300" />
@@ -12,489 +10,78 @@ An Android app that simulates a real **NHRA Pro Tree** (all 3 ambers fire simult
   <img src="docs/settings_menu.jpg" alt="DragTree settings screen" width="300" />
 </p>
 
----
-
 ## Get the app
 
 | | |
 |---|---|
-| **Play Store** | [Open Testing](https://play.google.com/store/apps/details?id=com.flyboybyte.dragtree) — join open testing to install |
-| **F-Droid** | MR #41671 — reproducible build passing, awaiting merge |
-| **Build it yourself** | See [Build the Android APK locally with Gradle](#2-build-the-android-apk-locally-with-gradle-recommended-for-v173) |
+| **F-Droid** | [f-droid.org/packages/com.flyboybyte.dragtree](https://f-droid.org/packages/com.flyboybyte.dragtree/) (reproducible build) |
+| **Google Play** | [play.google.com/store/apps/details?id=com.flyboybyte.dragtree](https://play.google.com/store/apps/details?id=com.flyboybyte.dragtree) |
+| **GitHub** | [Releases](https://github.com/flyboy-byte/drag-tree/releases) — per-ABI APKs (most phones: `arm64-v8a`) |
 
----
+All three are signed with the same key, so you can switch between them without uninstalling.
 
-## Table of contents
+## Features
 
-1. [Run in the browser (quickest start)](#1-run-in-the-browser-quickest-start)
-2. [Build the Android APK locally with Gradle (recommended for v1.7.3)](#2-build-the-android-apk-locally-with-gradle-recommended-for-v173)
-3. [Optional: Build the Android APK with EAS](#3-optional-build-the-android-apk-with-eas)
-4. [Updating your local copy and rebuilding](#4-updating-your-local-copy-and-rebuilding)
-5. [Accelerometer — how it works & known issues](#5-accelerometer--how-it-works--known-issues)
-6. [Troubleshooting](#6-troubleshooting)
-7. [App features](#7-app-features)
+- **Pro Tree** (.400) — all three ambers at once, green 0.400 s later
+- **Sportsman Tree** (.500) — ambers count down one at a time, green 0.500 s after the last
+- **Accelerometer launch detection** — no calibration; reaction time is measured from the start of acceleration, not from when the threshold was crossed
+- **Sensitivity** — Gentle / Normal / Hard presets plus a custom threshold
+- **Grading** — Perfect (≤ .049) · Pro (≤ .099) · Great (≤ .199) · Good (≤ .349) · Late · Red Light (with the actual time early)
+- **Series mode** — 3, 5, or 10 runs with average, best, worst, red-light count, and a consistency read
+- **History and trend chart** — last 30 runs, personal best highlighted
+- **Audio cues** (optional) — amber click, green chirp, result ping, red-light buzz
+- **Diagnostics** — live G-force, sample rate, and a breakdown of the last launch
+- **FLOOR IT button** — simulated launch for practice without a car, or in a browser
 
----
+The displayed RT is a launch-reaction estimate. Track time slips also include rollout and drivetrain response, so the app is best for training consistency rather than predicting a slip.
 
-## 1. Run in the browser (quickest start)
+## How detection works
 
-No EAS account or Android device needed — runs in any desktop browser.
+The app reads `DeviceMotion.acceleration`, which is linear acceleration with gravity already removed by Android's sensor fusion. That makes phone orientation irrelevant. A launch fires when the magnitude stays above the threshold for 5 consecutive samples (~40 ms at 125 Hz), which rejects bumps and taps. The app then walks back through a short sample buffer to find where the acceleration ramp began, and reports RT from that point.
 
-### Prerequisites
+| Preset | Threshold | Typical use |
+|---|---|---|
+| Gentle | 1.5 m/s² (~0.15 g) | FWD street car, light throttle |
+| Normal | 2.5 m/s² (~0.25 g) | RWD / sport car (default) |
+| Hard | 4.5 m/s² (~0.46 g) | Drag-prepped car, hard launch |
 
-| Tool | Min version | Install |
-|------|-------------|---------|
-| Node.js | 18 | https://nodejs.org |
+**Mounting:** use a rigid mount. A loose phone bounces on its own and gives bad readings. Hold still for about a second before tapping STAGE.
 
-### Steps
+| Symptom | Fix |
+|---|---|
+| Fires on a bump before launch | Raise sensitivity (Normal / Hard) |
+| Fires right after STAGE | Phone was moving when staged; hold still first |
+| Never fires | Try Gentle; check the sample rate on the Diagnostics screen |
 
-```bash
-# 1. Clone
-git clone https://github.com/flyboy-byte/drag-tree.git
+**Permissions:** only `HIGH_SAMPLING_RATE_SENSORS` (auto-granted, needed for >200 Hz sensor rates on Android 12+). Internet, microphone, and storage permissions are explicitly blocked.
 
-# 2. Install
-cd drag-tree
-npm install
+## Build from source
 
-# 3. Start the web version using the project's own Expo (not npx)
-npm run web
-```
-
-Expo opens the app in your default browser automatically. If it doesn't, look for a line like:
-
-```
-Web is waiting on http://localhost:8081
-```
-
-and open that URL.
-
-> **Do not use `npx expo start --web`** — npx downloads whichever Expo version is current (may differ from the project's Expo 54) and will cause version mismatch errors. Always use `npm run web` from the repo root.
-
-> **Accelerometer on web:** The browser does not expose the phone accelerometer API that Expo uses, so the sensor is disabled in browser mode. Use the **FLOOR IT** button on screen to simulate a launch — it animates the G-meter and fires the timer exactly as the real sensor would.
-
----
-
-## 2. Build the Android APK locally with Gradle (recommended for v1.7.3)
-
-For the current `v1.7.3` release engineering workflow, the canonical Android build path is a local/CI **Gradle** build, not EAS. This is the path used for the current F-Droid reproducible-build work because the reference APK needs to come from the same effective source patching and Gradle build flow as the F-Droid recipe.
-
-### Prerequisites
-
-| Tool | Version |
-|------|---------|
-| Node.js | 18+ |
-| JDK | 21 |
-| Android SDK | 36 |
-| Android build-tools | 36.0.0 |
-| Android NDK | 27.1.12297006 |
-
-### Steps
-
-```bash
-# 1. Clone
-git clone https://github.com/flyboy-byte/drag-tree.git
-cd drag-tree
-
-# 2. Install dependencies
-npm install
-
-# 3. Create android/local.properties from the example and fill in your SDK path
-#    plus release keystore values if you want a signed release build
-
-# 4. Build the release APK
-cd android
-./gradlew assembleRelease
-```
-
-Output APK:
-
-```text
-android/app/build/outputs/apk/release/app-release.apk
-```
-
-Notes:
-
-- `settings.gradle` uses Node `require.resolve()` during Gradle configuration, so Node must be on `PATH`.
-- `android/local.properties` is gitignored and required for a signed release build.
-- For the F-Droid reproducible-build workflow, the reference APK should be built from a fresh clone in a Debian/F-Droid-like container, with the same Expo prebuild and patch sequence as the fdroiddata recipe.
-
-## 3. Optional: Build the Android APK with EAS
-
-EAS builds the APK in the cloud — no Android SDK, no Java, nothing extra to install on your machine.
-
-### Prerequisites
-
-| Tool | Min version | Install command |
-|------|-------------|-----------------|
-| Node.js | 18 | https://nodejs.org |
-| EAS CLI | 16+ | `npm install -g eas-cli` |
-| Expo account | — | https://expo.dev/signup (free) |
-
-### Step 1 — Install EAS CLI
-
-```bash
-npm install -g eas-cli
-```
-
-This installs the EAS command-line tool globally. You only need to do this once per machine. Verify it installed:
-
-```bash
-eas --version
-```
-
----
-
-### Step 2 — Clone
+Requires Node.js 18+.
 
 ```bash
 git clone https://github.com/flyboy-byte/drag-tree.git
 cd drag-tree
-```
-
----
-
-### Step 3 — Install dependencies
-
-```bash
 npm install
+
+npm run web        # browser version (FLOOR IT button, no sensor)
+npm test           # unit tests
+npm run typecheck
 ```
 
----
+Use `npm run web`, not `npx expo start`. npx may pull a different Expo version than the project's SDK 54.
 
-### Step 4 — Log in to Expo
+**Android APK** — needs JDK 21, Android SDK 36 (build-tools 36.0.0), NDK 27.1.12297006, and Node on `PATH`:
 
 ```bash
-eas login
-```
-
-You will be prompted:
-```
-Log in to EAS with email or username
-Email or username … your@email.com
-Password … ************
-Logged in
-```
-
-Create a free account at https://expo.dev/signup if you don't have one.
-
----
-
-### Step 5 — Link the EAS project (first time only)
-
-```bash
-eas init
-```
-
-You will be prompted:
-```
-Would you like to create a project for @yourusername/drag-tree? … yes
-```
-
-Press **Enter** to accept. EAS creates the project on expo.dev, gets a project ID, and writes it into `app.json` automatically. You will see:
-
-```
-Project successfully linked (ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) (modified app.json)
-```
-
-You only do this once. The project ID stays in `app.json` from now on.
-
----
-
-### Step 6 — Build the APK
-
-```bash
-eas build --platform android --profile preview
-```
-
-> **Common typo:** `android` not `adroid` — EAS will tell you if you mistype the platform name.
-
-During the build you will see several prompts and messages — here is what to expect and what to do:
-
-**"No environment variables with visibility 'Plain text' found"**
-→ Safe to ignore. This app uses no server-side env vars.
-
-**"Using remote Android credentials (Expo server)"**
-**"Generate a new Android Keystore?"** → type **yes** and press Enter
-→ EAS generates and stores the signing keystore in the cloud. You do not need to manage it yourself.
-
-After that, EAS uploads your project and queues the build:
-
-```
-Compressing project files and uploading to EAS Build...
-Uploaded to EAS
-Computed project fingerprint
-See logs: https://expo.dev/accounts/yourname/projects/drag-tree/builds/...
-Waiting for build to complete. You can press Ctrl+C to exit.
-Build queued...
-```
-
-**You can safely press Ctrl+C** — the build continues running in the cloud. Come back to https://expo.dev/accounts/yourname/projects/drag-tree/builds to check progress or download the APK when done.
-
-- Builds in the cloud — takes **10–20 minutes**
-- Free tier: **30 builds/month**
-- When done, the build page shows a **Download** button for the `.apk` file
-
----
-
-### Step 7 — Install on your Android phone
-
-1. On the phone: **Settings → Apps → Special app access → Install unknown apps**
-   Enable it for your browser or Files app.
-2. Open the EAS build page on your phone's browser and tap **Download**.
-3. Tap the downloaded `.apk` file and follow the install prompts.
-4. Open **DragTree** — no internet required.
-
----
-
-## 4. Updating your local copy and rebuilding
-
-When changes are pushed to the GitHub repo you need to pull them down, optionally re-install dependencies, and rebuild. For the current `v1.7.3` release-engineering workflow, prefer the local Gradle path. Use EAS only if you specifically want the optional cloud build flow.
-
-### Pull the latest changes
-
-```bash
-# From the repo root (drag-tree/)
-git pull origin main
-```
-
-You will see a summary of what changed, e.g.:
-
-```
-Updating 1a0a795..245de81
-Fast-forward
- artifacts/drag-tree/hooks/useTreeSession.ts | 14 ++++--
- README.md                                   | 42 +++++++++++++------
- 2 files changed, 40 insertions(+), 16 deletions(-)
-```
-
-### Check what actually changed
-
-```bash
-# One-line log of recent commits
-git log --oneline -10
-
-# See exactly which files changed in the last commit
-git show --stat HEAD
-
-# See the full diff of what changed
-git diff HEAD~1 HEAD
-```
-
-### Re-install dependencies (only if needed)
-
-If the pull changed `package.json` or `package-lock.json` you need to re-install. Safe to always run — it's a no-op if nothing changed:
-
-```bash
-npm install
-```
-
-### Rebuild with local Gradle (recommended for v1.7.3)
-
-```bash
-npm install
-cd android
-./gradlew assembleRelease
-```
-
-If you need a signed release APK, make sure `android/local.properties` and your release keystore are set up first.
-
----
-
-### Optional: queue a new EAS build
-
-```bash
-eas build --platform android --profile preview
-```
-
-The keystore prompt will not appear again — EAS already has it stored from your first build. You go straight to upload and queue.
-
-Each build produces a new versioned APK. Install it over the top of the old one; Android will preserve your session history.
-
----
-
-### Build a specific git commit or tag
-
-If you want to build from a specific point in history rather than the latest:
-
-```bash
-# See available commits
-git log --oneline
-
-# Check out a specific commit (detached HEAD — read-only)
-git checkout abc1234
-
-# Or check out a tag if you have any
-git checkout v1.0.0
-
-# Then build from that state
 cd android && ./gradlew assembleRelease
-
-# Or use the optional EAS path
-eas build --platform android --profile preview
-
-# Return to the tip of main when done
-git checkout main
+# → android/app/build/outputs/apk/release/app-release.apk
 ```
 
----
+A signed build needs `android/local.properties` with keystore values (see `android/local.properties.example`).
 
-### Roll back if a new build has a problem
+F-Droid builds this app from source with a reproducible recipe. The release process and the lessons from getting there are in [`fdroid/`](fdroid/).
 
-```bash
-# Find the last known-good commit hash
-git log --oneline
+## Tech
 
-# Reset your local copy to that commit (keeps files, undoes commits)
-git reset --hard abc1234
-
-# Re-install and rebuild
-npm install
-cd android && ./gradlew assembleRelease
-```
-
-> `git reset --hard` throws away any local uncommitted changes. Make sure you don't have anything important unsaved before running it.
-
----
-
-## 5. Accelerometer — how it works & known issues
-
-### How the sensor detects launch
-
-The app uses `DeviceMotion.acceleration` — linear acceleration with gravity already removed by Android's sensor fusion. The baseline at rest is ~0 m/s². When the car launches, forward G-force rises above zero and the app fires when it stays above the sensitivity threshold for 5 consecutive readings (~40 ms).
-
-This means:
-- **Orientation doesn't matter** — you can mount the phone portrait, landscape, tilted — the math still works.
-- **No calibration step required** — gravity is removed by the OS. The sensor reads near-zero at rest regardless of how the phone is angled.
-
-### Sensitivity presets
-
-| Preset | Threshold | Required duration | Typical use |
-|--------|-----------|-------------------|-------------|
-| Gentle | ~0.15g (1.5 m/s²) | 5 consecutive readings (~40 ms) | FWD street car, light throttle |
-| Normal | ~0.25g (2.5 m/s²) | 5 consecutive readings (~40 ms) | RWD or sport car, moderate launch |
-| Hard   | ~0.46g (4.5 m/s²) | 5 consecutive readings (~40 ms) | Drag-prepped car, slicks, hard launch |
-
-The sensor requires the G-force to stay above the threshold for **5 readings in a row (~40 ms)** before firing. A real launch is sustained for 300–500 ms. Road bumps, taps, and vibration spikes are over in under 30 ms and will not trigger it. If G drops below threshold even once, the counter resets — the full window must start over.
-
-**Start with Gentle** for any street car. Move to Normal or Hard only if you get false triggers.
-
-### Phone mounting — important
-
-- Mount the phone **rigidly** to the dash or cage. A loosely placed phone bounces independently of the car and will produce incorrect readings.
-- Any solid phone mount works: RAM mount, vent clip with lock, windshield suction with arm.
-- Keep the screen visible from the driver's seat — you need to see the tree.
-
-### Known Android limitations
-
-| Issue | Cause | Workaround |
-|-------|-------|------------|
-| Sensor fires on a bump before launch | Road bump exceeds threshold for ~40 ms | Use Normal or Hard sensitivity |
-| Sensor fires the instant you tap STAGE | Phone was moving when staged | Hold the phone still for ~1 second before tapping STAGE |
-| Sensor doesn't fire at all | Device accelerometer rate capped below 60 Hz | Try Gentle sensitivity; report your device model |
-| App shows "Sensor not available" | Very rare — some Android emulators lack virtual sensors | Use a real device |
-| Slight G reading even at rest | Normal — vibration, idle RPM, A/C compressor cycling | Use Normal or Hard sensitivity to raise the bar above idle noise |
-
-### Permissions
-
-The app declares `HIGH_SAMPLING_RATE_SENSORS` in its manifest, which is required on Android 12+ to request accelerometer data above 200 Hz. Android grants this automatically — no user prompt. The app does not use location, camera, microphone, or any network permissions at runtime.
-
-### New Architecture (React Native)
-
-This app runs React Native **New Architecture** (`newArchEnabled: true`). All dependencies — `expo-sensors 15.x`, `react-native-reanimated 4.x`, `react-native-worklets` — fully support New Architecture as of their current versions. If you hit a crash on launch that mentions "TurboModule" or "Fabric", report the full stack trace.
-
----
-
-## 6. Troubleshooting
-
-### `eas: command not found`
-
-```bash
-npm install -g eas-cli
-```
-
----
-
-### `Not logged in` / `Authentication required`
-
-```bash
-eas login
-```
-
----
-
-### `Project not linked` / `EAS project ID not found`
-
-```bash
-eas init
-```
-
-Select **Create new project** when prompted.
-
----
-
-### `Unable to resolve module` during EAS build
-
-Run `npm install` from the repo root first:
-
-```bash
-npm install
-eas build --platform android --profile preview
-```
-
----
-
-### `Cannot find module 'expo'`
-
-Same root cause — dependencies not installed. Run `npm install` from the repo root.
-
----
-
-### `error: EMFILE: too many open files` (macOS only)
-
-```bash
-ulimit -n 65536
-```
-
-Retry the build.
-
----
-
-### Web app won't open in browser
-
-If the browser shows a blank page or connection error:
-
-```bash
-npm run web
-```
-
-Look for the local URL printed in the terminal (`http://localhost:8081`) and open it manually.
-
----
-
-### EAS build failed — what to do
-
-Every EAS build has a full log URL printed in the terminal. Open it. Scroll to the bottom — the last 20–30 lines contain the actual error. Copy the error block and report it for help.
-
----
-
-## 7. App features
-
-- **Pro Tree** — all 3 ambers fire simultaneously, green 0.400 s later
-- **Sportsman Tree** — ambers count down one at a time, green 0.500 s after the last amber; toggle in Settings
-- **Accelerometer launch detection** — rolling-average baseline, no calibration step
-- **Three sensitivity presets** — Gentle / Normal / Hard plus a Custom dial, adjustable when idle
-- **Reaction grading** — Perfect / Pro / Great / Good / Late / Red Light
-- **Audio cues** *(optional, default off)* — amber click per stage, green chirp at "go", result ping or red-light buzz; fires through the silent switch
-- **Series mode** *(optional, default off)* — run 3, 5, or 10 back-to-back stages; see average RT, best, worst, red-light count, and a consistency score (Consistent / Improving / Fading / Mixed) after the final run
-- **Session history** — last 30 runs logged, personal best highlighted
-- **Reaction time trend chart** — bar chart of recent runs below the history list; personal best marked in amber; red-light stubs shown in red
-- **Browser / simulator mode** — FLOOR IT button animates G-meter and fires timer
-
----
-
-## Tech stack
-
-- Expo SDK 54 · React Native 0.81.5 · v1.7.3
-- expo-router · expo-sensors · expo-av · React Native Reanimated 4
-- New Architecture enabled · npm · MIT license · fully offline
-- Distributed via Play Store and F-Droid (MR #41671 passing, pending merge)
+Expo SDK 54 · React Native 0.81 (New Architecture) · expo-router · expo-sensors · expo-av · TypeScript. MIT license.

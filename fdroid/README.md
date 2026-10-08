@@ -1,9 +1,28 @@
 # F-Droid — Current State
 
-MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671  
-fdroiddata fork: `flyboy-byte/fdroiddata`, branch `com.flyboybyte.dragtree`
+Listing: https://f-droid.org/packages/com.flyboybyte.dragtree/  
+Original inclusion MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671 (merged 2026-09-28)  
+fdroiddata fork: `flyboy-byte/fdroiddata` (local clone at `./fdroiddata/`, gitignored)
 
-**Status: v1.7.3 COMPLETE — permission cleanup applied, Run 2 byte comparison passed all 4 ABIs (2026-08-03, pipeline `2728036212`). Branch rebased on upstream/master. Awaiting merge. Self-hosted F-Droid repo live (2026-08-20). feature branch has bug fixes + tests — do not merge to main until MR merges.**
+**Status (2026-10-08): v1.7.3 (161–164) live on f-droid.org. v1.7.4 release in progress — see "Releasing an update" below.**
+
+Other docs in this folder: `AI_CONTEXT.md` (start here cold), `REPRO_EXECUTION.md` (repro playbook), `MR_ACTIVITY.md` (reviewer history), `REPRO_RESEARCH.md` (background only).
+
+---
+
+## Releasing an update
+
+The merged metadata has `AutoUpdateMode: Version` + `UpdateCheckMode: Tags`. F-Droid's `checkupdates` sees a new `vX.Y.Z` tag, reads `versionName`/`versionCode` from `android/app/build.gradle` at that tag, applies `VercodeOperation` (`10 * %c + 1..4`), and adds four build blocks copied from the latest ones — including each block's `binary:` URL. So **the four signed reference APKs must already be on the GitHub release when the tag appears**, or the byte comparison fails.
+
+Order:
+
+1. **Bump** `version` in `app.json` + `package.json`, `android.versionCode` in `app.json`, and `versionCode`/`versionName` in `android/app/build.gradle` (checkupdates reads this file).
+2. **Changelogs** — F-Droid looks up `fastlane/metadata/android/en-US/changelogs/<final versionCode>.txt`, i.e. `171.txt`–`174.txt` for base 17. (Play uses `10 * code + 0`, entered in Play Console.)
+3. **Merge to `main` and push. Do not tag yet.**
+4. **Run 1** — on a fresh fork branch off `upstream/master`, add four blocks for the new version (`commit:` = full SHA of the `main` commit, **no `binary:`**), bump `CurrentVersion`/`CurrentVersionCode`. Push; fix rewritemeta from the CI diff only. Download the four unsigned APKs from the build job artifacts; check each contains only its own `lib/<abi>/`.
+5. **Sign** each with `--v1-signing-enabled false --alignment-preserved true`, **verify the cert** (`ff739cf5…`), then `gh release create vX.Y.Z --target <sha>` with all four `drag-tree-vX.Y.Z-<abi>.apk` attached. This creates the tag with the reference APKs already present.
+6. **Run 2** — add `binary:` to the four fork blocks, push, confirm all four byte comparisons pass.
+7. Leave it to `checkupdates`. The fork branch is a verification harness — don't open an MR unless the auto-update stalls.
 
 ---
 

@@ -6,7 +6,7 @@ Role of this file:
 - session notes
 - long-form findings
 
-Do not use this as the primary action doc. For actual execution flow, use [FDROID_REPRO_EXECUTION.md](/home/logan/projects/drag-tree/FDROID_REPRO_EXECUTION.md).
+Do not use this as the primary action doc. For actual execution flow, use [REPRO_EXECUTION.md](REPRO_EXECUTION.md).
 
 ## F-Droid Official Docs (https://f-droid.org/docs/Reproducible_Builds/)
 
