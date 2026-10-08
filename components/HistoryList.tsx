@@ -8,6 +8,10 @@ import { computeConsistency, DEFAULT_WINDOW } from "@/lib/consistency";
 interface HistoryListProps {
   records: RunRecord[];
   onClear: () => void;
+  // Tapping a run opens time-slip entry for it. Timeouts aren't selectable.
+  onSelect?: (record: RunRecord) => void;
+  selectedId?: string | null;
+  slipIds?: Set<string>;   // runs that already have a slip entered
 }
 
 function gradeColor(grade: string | null): string {
@@ -22,7 +26,7 @@ function gradeColor(grade: string | null): string {
   }
 }
 
-export function HistoryList({ records, onClear }: HistoryListProps) {
+export function HistoryList({ records, onClear, onSelect, selectedId, slipIds }: HistoryListProps) {
   const colors = useColors();
 
   if (records.length === 0) {
@@ -51,8 +55,25 @@ export function HistoryList({ records, onClear }: HistoryListProps) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         scrollEnabled={records.length > 3}
-        renderItem={({ item }) => (
-          <View style={[styles.record, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        renderItem={({ item }) => {
+          const selectable = !!onSelect && item.reactionTime < 2;
+          const selected = item.id === selectedId;
+          return (
+          <Pressable
+            onPress={selectable ? () => onSelect!(item) : undefined}
+            disabled={!selectable}
+            style={[
+              styles.record,
+              { backgroundColor: colors.card, borderColor: selected ? colors.primary : colors.border },
+            ]}
+            accessibilityRole={selectable ? "button" : undefined}
+            accessibilityLabel={
+              item.grade === "redlight"
+                ? "Red light"
+                : `${item.reactionTime.toFixed(3)} seconds${slipIds?.has(item.id) ? ", slip entered" : ""}`
+            }
+            accessibilityHint={selectable ? "Add the reaction time from your time slip" : undefined}
+          >
             <Text style={[styles.recordGrade, { color: gradeColor(item.grade) }]}>
               {item.grade === "redlight" ? "RL" : (item.grade ?? "—").toUpperCase().slice(0, 3)}
             </Text>
@@ -62,10 +83,11 @@ export function HistoryList({ records, onClear }: HistoryListProps) {
                 : `${item.reactionTime.toFixed(3)}`}
             </Text>
             <Text style={[styles.recordMode, { color: colors.mutedForeground }]}>
-              {item.mode === "pro" ? "PRO" : "FULL"}
+              {item.mode === "pro" ? "PRO" : "FULL"}{slipIds?.has(item.id) ? " · SLIP" : ""}
             </Text>
-          </View>
-        )}
+          </Pressable>
+          );
+        }}
       />
     </View>
   );

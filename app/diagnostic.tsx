@@ -15,6 +15,7 @@ import * as Haptics from "expo-haptics";
 import { DeviceMotion } from "expo-sensors";
 import { useColors } from "@/hooks/useColors";
 import { LatencyCheck } from "@/components/LatencyCheck";
+import { TimeSlipCard } from "@/components/TimeSlipCard";
 import { SENSITIVITY_THRESHOLDS } from "@/hooks/useAccelerometer";
 import { launchTelemetry, type RealLaunchTelemetry } from "@/lib/launchTelemetry";
 import { settings, type SensitivityKey } from "@/lib/settings";
@@ -560,6 +561,8 @@ export default function DiagnosticScreen() {
             />
           </View>
         </View>
+
+        <TimeSlipCard />
 
         <LatencyCheck disabled={isSessionLocked || mode === "capturing"} />
 

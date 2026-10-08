@@ -18,6 +18,7 @@ import { ReactionDisplay } from "@/components/ReactionDisplay";
 import { HistoryList } from "@/components/HistoryList";
 import { RunHistoryChart } from "@/components/RunHistoryChart";
 import { FooterLinks } from "@/components/FooterLinks";
+import { SlipEntry } from "@/components/SlipEntry";
 import { useTreeSession, type SeriesSummary } from "@/hooks/useTreeSession";
 import { useAccelerometer, SENSITIVITY_THRESHOLDS } from "@/hooks/useAccelerometer";
 import { useColors } from "@/hooks/useColors";
@@ -26,6 +27,7 @@ import { settings } from "@/lib/settings";
 import { sessionLock } from "@/lib/sessionLock";
 import { coachingHint } from "@/lib/coaching";
 import { playGreenBeep, playResultTone } from "@/lib/audio";
+import { slipCalibration, averageOffset } from "@/lib/slipCalibration";
 
 function getStatusLabel(phase: string): string {
   switch (phase) {
@@ -192,6 +194,13 @@ export default function HomeScreen() {
   const seriesEnabled    = appSettings.seriesEnabled;
   const seriesSize       = appSettings.seriesSize;
   const showTrend        = appSettings.showTrend;
+  const slipPairs = useSyncExternalStore(slipCalibration.subscribe, slipCalibration.get, slipCalibration.get);
+  const slipOffset = slipPairs.length >= 2 ? averageOffset(slipPairs) : null;
+  const slipIds = React.useMemo(
+    () => new Set(slipPairs.flatMap(p => (p.recordId ? [p.recordId] : []))),
+    [slipPairs],
+  );
+  const [slipRecordId, setSlipRecordId] = React.useState<string | null>(null);
   // Resolved threshold in m/s² — presets look up from the table, custom uses the stored value.
   const thresholdValue: number =
     sensitivity === "custom"
@@ -462,6 +471,12 @@ export default function HomeScreen() {
         ? <SeriesSummaryCard summary={seriesSummary} />
         : <ReactionDisplay reactionTime={reactionTime} grade={grade} />
       }
+      {seriesSummary == null && slipOffset !== null && reactionTime !== null &&
+        grade !== null && grade !== "redlight" && reactionTime < 2 && (
+        <Text style={[styles.slipEst, { color: colors.mutedForeground }]}>
+          ≈ {(reactionTime + slipOffset).toFixed(3)} on your slip
+        </Text>
+      )}
 
       {/* Status + G meter */}
       <View style={styles.statusRow}>
@@ -566,7 +581,26 @@ export default function HomeScreen() {
 
       {/* History */}
       <View style={styles.history}>
-        <HistoryList records={records} onClear={clearHistory} />
+        <HistoryList
+          records={records}
+          onClear={() => { setSlipRecordId(null); clearHistory(); }}
+          onSelect={isActive ? undefined : r => setSlipRecordId(id => (id === r.id ? null : r.id))}
+          selectedId={slipRecordId}
+          slipIds={slipIds}
+        />
+        {(() => {
+          const rec = slipRecordId ? records.find(r => r.id === slipRecordId) : undefined;
+          if (!rec || isActive) return null;
+          const existing = slipPairs.find(p => p.recordId === rec.id);
+          return (
+            <SlipEntry
+              key={rec.id}
+              record={rec}
+              existing={existing ? existing.slipRT : null}
+              onClose={() => setSlipRecordId(null)}
+            />
+          );
+        })()}
         {showTrend && <RunHistoryChart records={records} bestTime={bestTime} />}
       </View>
 
@@ -702,6 +736,13 @@ const styles = StyleSheet.create({
     fontWeight: "700" as const,
     letterSpacing: 4,
     fontFamily: "Inter_700Bold",
+  },
+  slipEst: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    letterSpacing: 0.5,
+    marginTop: -4,
+    marginBottom: 6,
   },
   hint: {
     fontSize: 11,

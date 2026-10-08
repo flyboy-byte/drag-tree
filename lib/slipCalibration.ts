@@ -11,6 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export interface SlipPair {
   id: string;
+  recordId?: string; // RunRecord.id this slip was entered against
   appRT: number;   // seconds, from the app
   slipRT: number;  // seconds, from the time slip
   at: number;      // Date.now() when entered
@@ -29,6 +30,14 @@ export function averageOffset(pairs: SlipPair[]): number | null {
 
 export function applyOffset(rt: number, offset: number | null): number {
   return offset === null ? rt : rt + offset;
+}
+
+// Parse what a user types from a slip: "0.112", ".112", "-.05", "0,112".
+export function parseSlipInput(text: string): number | null {
+  const t = text.trim().replace(",", ".");
+  if (!/^-?\d*\.?\d+$/.test(t)) return null;
+  const v = Number(t);
+  return isValidSlipRT(v) ? v : null;
 }
 
 // Plausible slip RT: red lights show negative on a slip; > 2 s is a typo.
@@ -52,7 +61,8 @@ const notify = () => listeners.forEach(fn => fn());
         (p): p is SlipPair =>
           p && typeof p.id === "string" &&
           typeof p.appRT === "number" && typeof p.slipRT === "number" &&
-          typeof p.at === "number",
+          typeof p.at === "number" &&
+          (p.recordId === undefined || typeof p.recordId === "string"),
       );
       notify();
     }
@@ -69,10 +79,12 @@ export const slipCalibration = {
   get(): SlipPair[] {
     return pairs;
   },
-  add(appRT: number, slipRT: number): void {
+  // One slip per run: re-entering for the same recordId replaces it.
+  add(appRT: number, slipRT: number, recordId?: string): void {
     if (!isValidSlipRT(slipRT)) return;
-    const pair: SlipPair = { id: `${Date.now()}`, appRT, slipRT, at: Date.now() };
-    pairs = [pair, ...pairs].slice(0, MAX_PAIRS);
+    const pair: SlipPair = { id: `${Date.now()}`, recordId, appRT, slipRT, at: Date.now() };
+    const rest = recordId ? pairs.filter(p => p.recordId !== recordId) : pairs;
+    pairs = [pair, ...rest].slice(0, MAX_PAIRS);
     notify();
     persist();
   },

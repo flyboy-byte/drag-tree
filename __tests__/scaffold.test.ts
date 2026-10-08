@@ -2,7 +2,7 @@
 
 import { computeConsistency } from "../lib/consistency";
 import { rateStats, pairTaps, tapOffsetMs } from "../lib/latency";
-import { averageOffset, applyOffset, isValidSlipRT } from "../lib/slipCalibration";
+import { averageOffset, applyOffset, isValidSlipRT, parseSlipInput } from "../lib/slipCalibration";
 import { holdDecision, canStartCountdown } from "../lib/holdRelease";
 import { decideWinner, addToTally } from "../lib/versus";
 import { gradeRT } from "../lib/timing";
@@ -83,6 +83,15 @@ describe("slip calibration", () => {
     expect(isValidSlipRT(-0.05)).toBe(true);
     expect(isValidSlipRT(12.3)).toBe(false);
     expect(isValidSlipRT(NaN)).toBe(false);
+  });
+  it("parses slip input", () => {
+    expect(parseSlipInput("0.112")).toBeCloseTo(0.112);
+    expect(parseSlipInput(".112")).toBeCloseTo(0.112);
+    expect(parseSlipInput(" -.05 ")).toBeCloseTo(-0.05);
+    expect(parseSlipInput("0,112")).toBeCloseTo(0.112);
+    expect(parseSlipInput("")).toBeNull();
+    expect(parseSlipInput("abc")).toBeNull();
+    expect(parseSlipInput("12.3")).toBeNull();
   });
 });
 
