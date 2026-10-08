@@ -4,7 +4,7 @@ Listing: https://f-droid.org/packages/com.flyboybyte.dragtree/
 Original inclusion MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671 (merged 2026-09-28)  
 fdroiddata fork: `flyboy-byte/fdroiddata` (local clone at `./fdroiddata/`, gitignored)
 
-**Status (2026-10-08): v1.7.3 (161–164) live on f-droid.org. v1.7.4 release in progress — see "Releasing an update" below.**
+**Status (2026-10-08): v1.7.3 (161–164) live on f-droid.org. v1.7.4 (171–174) released: GitHub release + tag at `41abd76`, fork Run 1 `2927243619` (build ok), Run 2 `2927352215` — all 4 byte comparisons passed. Waiting on F-Droid `checkupdates` to pick up the tag (no MR needed). Fork branch: `dragtree-v1.7.4`.**
 
 Other docs in this folder: `AI_CONTEXT.md` (start here cold), `REPRO_EXECUTION.md` (repro playbook), `MR_ACTIVITY.md` (reviewer history), `REPRO_RESEARCH.md` (background only).
 
@@ -22,6 +22,7 @@ Order:
 4. **Run 1** — on a fresh fork branch off `upstream/master`, add four blocks for the new version (`commit:` = full SHA of the `main` commit, **no `binary:`**), bump `CurrentVersion`/`CurrentVersionCode`. Push; fix rewritemeta from the CI diff only. Download the four unsigned APKs from the build job artifacts; check each contains only its own `lib/<abi>/`.
 5. **Sign** each with `--v1-signing-enabled false --alignment-preserved true`, **verify the cert** (`ff739cf5…`), then `gh release create vX.Y.Z --target <sha>` with all four `drag-tree-vX.Y.Z-<abi>.apk` attached. This creates the tag with the reference APKs already present.
 6. **Run 2** — add `binary:` to the four fork blocks, push, confirm all four byte comparisons pass.
+   Expected Run 1 failures: `schema validation` (`binary` is required) and `checkupdates` (tag doesn't exist yet). Both pass in Run 2.
 7. Leave it to `checkupdates`. The fork branch is a verification harness — don't open an MR unless the auto-update stalls.
 
 ---
