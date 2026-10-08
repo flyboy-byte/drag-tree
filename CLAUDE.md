@@ -4,6 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+**State / roadmap:** `PLAN.md` (on the `dev` branch) — current status, beta, test checklist, assessment, merge gates. Read it first when resuming.
+
+---
+
 ## Commands
 
 All commands run from the **repo root**. The app is now at repo root — no subdirectory.
