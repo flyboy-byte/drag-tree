@@ -1,0 +1,4 @@
+- Personal best no longer set by a missed launch (2.0 s timeout)
+- Red lights show how early you went instead of a fixed value
+- Series stats now include late runs
+- Title no longer wraps on narrow screens; footer shows the real version
