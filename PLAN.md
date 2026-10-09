@@ -1,6 +1,6 @@
 # PLAN.md — where DragTree goes next
 
-Status (2026-10-08): **stable v1.7.4** released on GitHub; F-Droid: checkupdates bot merged 1.7.4 (codes 171–174) into fdroiddata on 2026-10-09 08:28 UTC ("bot: Update DragTree to 174"); not yet built — the build cycle running then had started 2026-10-08 09:22 UTC, before the update, so 1.7.4 lands in the next cycle (f-droid.org still 1.7.3 on 2026-10-09). No MR needed. **Beta v1.8.0-beta.2** (code 176, from `dev` @ babb63d, round-1 feedback fixed) published as a GitHub pre-release 2026-10-08 — waiting on Logan's phone test. beta.1 (code 175) superseded. Play AAB for 1.7.4 built, upload parked. Round-1 phone feedback addressed on dev (see checklist). Last updated 2026-10-08.
+Status (2026-10-08): **stable v1.7.4** released on GitHub; F-Droid: checkupdates bot merged 1.7.4 (codes 171–174) into fdroiddata on 2026-10-09 08:28 UTC ("bot: Update DragTree to 174"); not yet built — the build cycle running then had started 2026-10-08 09:22 UTC, before the update, so 1.7.4 lands in the next cycle (f-droid.org still 1.7.3 on 2026-10-09). No MR needed. **Beta v1.8.0-beta.3** (code 177, from `dev` @ 9bced7e: full-rate sensor + volume/remote launch + large-text fixes) published as a GitHub pre-release 2026-10-09 — needs a real launch and a volume-button test. beta.2 (176) looked good to Logan (2026-10-09). Play AAB for 1.7.4 built, upload parked. Round-1 phone feedback addressed on dev (see checklist). Last updated 2026-10-08.
 
 This is the roadmap for the `dev` branch. Releases happen when there's enough here worth shipping — no schedule.
 
@@ -11,6 +11,11 @@ This is the roadmap for the `dev` branch. Releases happen when there's enough he
 - **Android first.** iOS is not a goal. If an iOS or web build falls out cheaply, fine; never spend real effort on it.
 - **Play production access is parked** until Logan finds a better tester group. Not a dev-branch concern. AAB for 1.7.4 is at `~/dragtree-fdroid-build/play-v1.7.4/out/`.
 - **New modes are settings, off by default.** The default experience stays as it is.
+
+## Beta v1.8.0-beta.3 (GitHub pre-release, 2026-10-09)
+- https://github.com/flyboy-byte/drag-tree/releases/tag/v1.8.0-beta.3 — universal APK, signed ff739cf5…, **versionCode 177**, from `dev` @ 9bced7e. sha256 cd8cbdd2…725f95. Notes: `~/dragtree-fdroid-build/beta-1.8.0-beta.3/NOTES.md`. Next beta → 178.
+- First build with the native module: autolinked from `./modules` by plain `expo prebuild` (no recipe change), same permissions, same 68 `.so` files as beta.2 (module is Kotlin only).
+- **To test on the phone:** Settings → Last real launch / Sensor details should show ~200 Hz and "Linear acceleration"; a real launch (detects, no false fires, RT sane); Settings accelerometer test suggestion; Volume Buttons & Remotes on → volume button stages/launches, hold mode works, volume still works in Settings; a Bluetooth shutter remote if you have one; max font size.
 
 ## Beta v1.8.0-beta.2 (GitHub pre-release, 2026-10-08)
 - https://github.com/flyboy-byte/drag-tree/releases/tag/v1.8.0-beta.2 — universal APK, signed ff739cf5…, **versionCode 176**, from `dev` @ babb63d. sha256 1c77ba37…912545. Same recipe as beta.1 (below); version set only in the build clone. Notes: `~/dragtree-fdroid-build/beta-1.8.0-beta.2/NOTES.md`. Next beta → 177.
