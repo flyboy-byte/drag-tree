@@ -1,6 +1,6 @@
 # PLAN.md — where DragTree goes next
 
-Status (2026-10-08): **stable v1.7.4** released on GitHub; F-Droid pipeline passed, waiting on the checkupdates bot (f-droid.org still shows 1.7.3 as of 2026-10-08 evening). **Beta v1.8.0-beta.1** published as a GitHub pre-release from `dev` @ 067c319 — waiting on Logan's phone test. Play AAB for 1.7.4 built, upload parked. Round-1 phone feedback addressed on dev (see checklist). Last updated 2026-10-08.
+Status (2026-10-08): **stable v1.7.4** released on GitHub; F-Droid pipeline passed, waiting on the checkupdates bot (f-droid.org still shows 1.7.3 as of 2026-10-08 evening). **Beta v1.8.0-beta.2** (code 176, from `dev` @ babb63d, round-1 feedback fixed) published as a GitHub pre-release 2026-10-08 — waiting on Logan's phone test. beta.1 (code 175) superseded. Play AAB for 1.7.4 built, upload parked. Round-1 phone feedback addressed on dev (see checklist). Last updated 2026-10-08.
 
 This is the roadmap for the `dev` branch. Releases happen when there's enough here worth shipping — no schedule.
 
@@ -11,6 +11,11 @@ This is the roadmap for the `dev` branch. Releases happen when there's enough he
 - **Android first.** iOS is not a goal. If an iOS or web build falls out cheaply, fine; never spend real effort on it.
 - **Play production access is parked** until Logan finds a better tester group. Not a dev-branch concern. AAB for 1.7.4 is at `~/dragtree-fdroid-build/play-v1.7.4/out/`.
 - **New modes are settings, off by default.** The default experience stays as it is.
+
+## Beta v1.8.0-beta.2 (GitHub pre-release, 2026-10-08)
+- https://github.com/flyboy-byte/drag-tree/releases/tag/v1.8.0-beta.2 — universal APK, signed ff739cf5…, **versionCode 176**, from `dev` @ babb63d. sha256 1c77ba37…912545. Same recipe as beta.1 (below); version set only in the build clone. Notes: `~/dragtree-fdroid-build/beta-1.8.0-beta.2/NOTES.md`. Next beta → 177.
+- Android SDK reinstalled 2026-10-08 via command-line tools at `~/Android/Sdk` (platform 36, build-tools 36.0.0, NDK 27.1.12297006, cmake 3.22.1, platform-tools). Build took 6½ min.
+- Manifest includes `HIGH_SAMPLING_RATE_SENSORS`, so the 61 Hz seen on the Pixel 9 isn't the Android 12 permission cap.
 
 ## Beta v1.8.0-beta.1 (GitHub pre-release, 2026-10-08)
 
