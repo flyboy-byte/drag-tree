@@ -41,6 +41,8 @@ This is the roadmap for the `dev` branch. Releases happen when there's enough he
 - [ ] Sensor launch still works as before (regression)
 - [ ] Anything confusing, ugly, or too wordy
 
+Feedback, beta.3 (Pixel 9, 2026-10-09): Logan — "really impressed", "looks great", settings layout good; **holding both volume buttons works** (hold-to-launch via volume keys confirmed on device); saw and tried the time-slip entry (no real slip entered yet). Logan considers beta.3 done. **Not yet confirmed on device:** sensor rate (~200 Hz / "Linear acceleration" in Settings), a real car launch on the new sensor path, max font size, a Bluetooth shutter remote. Note for testers: slips entered under beta.1/2 were matched to the old early-biased sensor RTs — clear and re-enter.
+
 Feedback, round 1 (Pixel 9, 2026-10-08):
 - ~~Cold start draws the screen under the status bar ("slightly scrolled")~~ — FIXED on dev: `SafeAreaProvider initialMetrics={initialWindowMetrics}` so real insets exist on the first frame.
 - ~~2 PLAYER needs a scroll to reach~~ — FIXED: moved beside the PRO TREE pill at the top. Tree lights now scale with screen height (48 → min 30 dp) so header→button hint fits without scrolling on ~384×854 and taller. Still scrolls on very short screens (≤ ~360×740 with large insets).
