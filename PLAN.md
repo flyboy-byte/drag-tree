@@ -1,6 +1,6 @@
 # PLAN.md — where DragTree goes next
 
-Status (2026-10-08): **stable v1.7.4** released on GitHub; F-Droid pipeline passed, waiting on the checkupdates bot (f-droid.org still shows 1.7.3 as of 2026-10-08 evening). **Beta v1.8.0-beta.2** (code 176, from `dev` @ babb63d, round-1 feedback fixed) published as a GitHub pre-release 2026-10-08 — waiting on Logan's phone test. beta.1 (code 175) superseded. Play AAB for 1.7.4 built, upload parked. Round-1 phone feedback addressed on dev (see checklist). Last updated 2026-10-08.
+Status (2026-10-08): **stable v1.7.4** released on GitHub; F-Droid: checkupdates bot merged 1.7.4 (codes 171–174) into fdroiddata on 2026-10-09 08:28 UTC ("bot: Update DragTree to 174"); not yet built — the build cycle running then had started 2026-10-08 09:22 UTC, before the update, so 1.7.4 lands in the next cycle (f-droid.org still 1.7.3 on 2026-10-09). No MR needed. **Beta v1.8.0-beta.2** (code 176, from `dev` @ babb63d, round-1 feedback fixed) published as a GitHub pre-release 2026-10-08 — waiting on Logan's phone test. beta.1 (code 175) superseded. Play AAB for 1.7.4 built, upload parked. Round-1 phone feedback addressed on dev (see checklist). Last updated 2026-10-08.
 
 This is the roadmap for the `dev` branch. Releases happen when there's enough here worth shipping — no schedule.
 
