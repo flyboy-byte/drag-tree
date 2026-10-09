@@ -3,12 +3,14 @@
 // with greenAt from useTreeSession and writes the merged record here.
 // The Diagnostics screen subscribes via useSyncExternalStore.
 
+import type { MotionKind } from "./motionSource";
+
 export interface RealLaunchTelemetry {
   capturedAt: number;            // performance.now() when written
   greenAt: number | null;        // performance.now() of vsync after green lit
   onsetTime: number;             // jerk-onset (passed to RT calc)
   thresholdTime: number;         // first sample over magnitude threshold
-  confirmTime: number;           // sample where SUSTAINED_SAMPLES reached
+  confirmTime: number;           // sample where the sustain gate was met
   peakG: number;
   sampleIntervalMean: number;
   // Derived
@@ -16,7 +18,7 @@ export interface RealLaunchTelemetry {
   onsetToThresholdMs: number;        // = thresholdTime - onsetTime
   thresholdToConfirmMs: number;      // = confirmTime - thresholdTime
   rewindMs: number;                  // = confirmTime - onsetTime
-  source: "native" | "js";           // detection path that produced this record
+  source: MotionKind;                // sensor: "linear" (Android fusion) or "accel" (gravity filtered in-app)
 }
 
 let current: RealLaunchTelemetry | null = null;

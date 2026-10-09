@@ -1,7 +1,7 @@
 // Phone latency card for the Settings screen (PLAN.md idea 2).
 // Two checks:
 //   1. Timing check (2 s): screen refresh rate from requestAnimationFrame and
-//      sensor sample rate from DeviceMotion — together they bound how
+//      sensor sample rate from the motion stream — together they bound how
 //      precisely green and launch onset can be timed.
 //   2. Tap test: tap along with a steady flash; the mean offset is touch
 //      latency plus the person, so it's shown as an estimate.
@@ -9,12 +9,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import * as Haptics from "expo-haptics";
-import { DeviceMotion } from "expo-sensors";
+import { getMotionKind, subscribeMotion } from "@/lib/motionSource";
 import { useColors } from "@/hooks/useColors";
 import { rateStats, pairTaps, tapOffsetMs, type RateStats } from "@/lib/latency";
 
 const CHECK_MS = 2000;
-const SAMPLE_INTERVAL_MS = 8;
 const BEAT_MS = 600;
 const BEATS = 12;
 const WARMUP = 4;
@@ -51,22 +50,23 @@ export function LatencyCheck({ disabled }: { disabled?: boolean }) {
     const loop = (t: number) => { frames.push(t); raf = requestAnimationFrame(loop); };
     raf = requestAnimationFrame(loop);
 
-    let sub: { remove: () => void } | null = null;
-    const sensorOk = Platform.OS !== "web" && await DeviceMotion.isAvailableAsync().catch(() => false);
+    let unsubscribe: (() => void) | null = null;
+    const sensorOk = Platform.OS !== "web" && (await getMotionKind().catch(() => "none")) !== "none";
     if (sensorOk) {
-      DeviceMotion.setUpdateInterval(SAMPLE_INTERVAL_MS);
-      sub = DeviceMotion.addListener(() => { samples.push(performance.now()); });
+      // Hardware sample times, so this is the sensor's own rate, not
+      // when the JS thread got around to each sample.
+      unsubscribe = subscribeMotion(s => { samples.push(s.t); });
     }
 
     const timer = setTimeout(() => {
       cancelAnimationFrame(raf);
-      sub?.remove();
+      unsubscribe?.();
       cleanupRef.current = null;
       setCheck({ frame: rateStats(frames), sensor: sensorOk ? rateStats(samples) : null });
       setChecking(false);
     }, CHECK_MS);
 
-    cleanupRef.current = () => { clearTimeout(timer); cancelAnimationFrame(raf); sub?.remove(); };
+    cleanupRef.current = () => { clearTimeout(timer); cancelAnimationFrame(raf); unsubscribe?.(); };
   };
 
   const runTapTest = () => {

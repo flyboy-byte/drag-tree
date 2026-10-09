@@ -45,6 +45,17 @@ Feedback, round 1 (Pixel 9, 2026-10-08):
 - Also fixed while there: history tiles said "GOO"/"GRE" (3-letter cut) → full grade word; tree center stripe sat off-center on Android.
 - **Observed, not yet acted on:** Pixel 9 "Last real launch" shows 61 Hz sensor rate (16.4 ms) against an 8 ms / 125 Hz target, on the JS path. Worth checking whether expo-sensors' DeviceMotion is frame-limited on Android before 1.8.0 — it directly limits timing precision.
 
+## 1.8.0 scope — decided 2026-10-09 (do not re-ask)
+
+One big 1.8.0 instead of 1.8.0 + 1.9.0 (Logan: "build it out"). Ship each risky piece in its own beta first:
+- **beta.3 (177):** full-rate motion sensor + volume/remote launch + large-text / screen fixes. Needs a real launch and a volume-button test.
+- **beta.4 (178) / beta.5 (179):** fixes only. 180+ belongs to 1.8.0.
+- **Rule:** if volume-button launch stalls (remote quirks, F-Droid repro), ship 1.8.0 without it rather than hold everything.
+
+**Sensor rate fix (2026-10-09).** Root cause of the Pixel 9's 61 Hz: expo-sensors `DeviceMotion` on Android dispatches on Choreographer frames, so ≤ display refresh on every phone. Replaced by the local native module reading the sensor directly at ~200 Hz with hardware timestamps (`lib/motionSource.ts`). Side fixes: phones without a gyroscope (no linear-accel sensor) used to get *no* sensor — they now get raw accelerometer + gravity filter; the onset rewind used to land up to one slope-window *before* the real start (≈66 ms at 61 Hz), flattering sensor RTs — it now reports the first rising sample. **Expect sensor-path RTs to read somewhat slower than beta.2; that's the bias being removed.** Slip calibration absorbs any remaining constant offset.
+
+**Large text (2026-10-09).** Simulated 1.2–1.6× font on web at 360 dp: title, mode pills, Settings header, result numbers collided/truncated. Big display text now caps OS scaling (1.1–1.3×), body text scales fully, the mode row wraps, the tree sizing subtracts text growth. Needs a real check at max font size.
+
 ## Before merging dev → main (gates)
 
 1. **Reviewer findings reconciled.** #1, #2, #4 fixed in v1.7.4. #3 (title wrap) fixed on dev: badges incl. settings are icon-only; title fits with all four badges at 360 dp (web render 2026-10-08), truncates only below ~350 dp.
@@ -65,7 +76,7 @@ Gotcha found: on react-native-web a `Pressable` with only `onPressIn` never fire
 
 ## Ideas, scoped
 
-All built except 4b. Pure logic lives in `lib/` with tests in `__tests__/scaffold.test.ts`.
+All built, including 4b (2026-10-09). Pure logic lives in `lib/` with tests in `__tests__/scaffold.test.ts`.
 
 Each one stands alone; pick any order. Sizes are effort estimates, not rankings — the user rated all of these as good ideas worth building (2026-10-08). The bigger ones (web build, two-player, volume-key launch) are the ones most likely to grow the audience.
 
@@ -111,7 +122,7 @@ Closer to a real launch: hold, release on green (like a trans-brake button).
   - Volume keys also change volume unless the event is consumed — must test.
 - The physical button is the real prize — it's what makes this feel like a trans-brake. The on-screen version can ship first as a stepping stone, since it's pure JS and proves the mode before the native work.
 
-~~**Next:** on-screen hold mode.~~ — DONE (c421ff5): `holdToLaunch` setting, off by default. All handling on press-in/out; scroll locked and press-retention enlarged while holding. **4b (volume key) still open** — `lib/hardwareKeys.ts` returns `null`; build it as its own release after this one ships.
+~~**Next:** on-screen hold mode.~~ — DONE (c421ff5): `holdToLaunch` setting, off by default. All handling on press-in/out; scroll locked and press-retention enlarged while holding. ~~**4b (volume key) still open**~~ — DONE (2026-10-09) on dev, in 1.8.0 by Logan's call (one big release, separate betas). `keyLaunch` setting, off by default; native module `modules/dragtree-input`; works like the on-screen button incl. Hold to Launch; Space/Enter on web.
 
 ### 5. Web build on GitHub Pages — small
 

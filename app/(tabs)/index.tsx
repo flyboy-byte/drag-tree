@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { ChristmasTree } from "@/components/ChristmasTree";
@@ -30,6 +30,7 @@ import { coachingHint } from "@/lib/coaching";
 import { playGreenBeep, playResultTone, preloadAudio } from "@/lib/audio";
 import { slipCalibration, averageOffset } from "@/lib/slipCalibration";
 import { holdDecision } from "@/lib/holdRelease";
+import { getHardwareKeySource } from "@/lib/hardwareKeys";
 
 const HOLD_RETENTION = { top: 400, bottom: 400, left: 400, right: 400 };
 
@@ -40,9 +41,12 @@ const IDLE_CHROME = 456;
 const SERIES_BAR = 46;
 const LIGHT_ROWS = 5;
 const LIGHT_GLOW = 28; // TreeLight draws a glow ring 28 dp wider than the light
+// Part of IDLE_CHROME that is text and grows with the system font size.
+const IDLE_TEXT = 110;
 
-function treeLightSize(windowHeight: number, topPad: number, bottomPad: number, series: boolean): number {
-  const room = windowHeight - topPad - bottomPad - IDLE_CHROME - (series ? SERIES_BAR : 0);
+function treeLightSize(windowHeight: number, topPad: number, bottomPad: number, series: boolean, fontScale: number): number {
+  const textGrowth = IDLE_TEXT * (Math.min(fontScale, 2) - 1);
+  const room = windowHeight - topPad - bottomPad - IDLE_CHROME - textGrowth - (series ? SERIES_BAR : 0);
   return Math.max(30, Math.min(48, Math.floor(room / LIGHT_ROWS) - LIGHT_GLOW));
 }
 
@@ -201,7 +205,7 @@ const summaryStyles = StyleSheet.create({
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, fontScale } = useWindowDimensions();
   const appSettings = useSyncExternalStore(settings.subscribe, settings.get, settings.get);
   const showFloorIt      = appSettings.showFloorIt;
   const sensorEnabled    = appSettings.sensorEnabled;
@@ -213,6 +217,9 @@ export default function HomeScreen() {
   const seriesSize       = appSettings.seriesSize;
   const showTrend        = appSettings.showTrend;
   const holdToLaunch     = appSettings.holdToLaunch;
+  const keySource        = getHardwareKeySource();
+  const keyLaunch        = appSettings.keyLaunch && keySource !== null;
+  const keyName          = keySource?.kind === "keyboard" ? "Space" : "a volume button";
   const slipPairs = useSyncExternalStore(slipCalibration.subscribe, slipCalibration.get, slipCalibration.get);
   const slipOffset = slipPairs.length >= 2 ? averageOffset(slipPairs) : null;
   const slipIds = React.useMemo(
@@ -301,16 +308,17 @@ export default function HomeScreen() {
   // the on-screen button drives launches and red-lights. With the real
   // sensor armed, taps during the active sequence are ignored — the
   // accelerometer fires those events.
-  const onMainPress = () => {
+  // `at` is a hardware button's own event time; screen taps use now.
+  const onMainPress = (at?: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (phase === "idle") {
       startSequence();
     } else if (phase === "result" || phase === "redlight") {
       reset();
     } else if (phase === "go") {
-      if (useSimulation) simulateLaunch();
+      if (useSimulation) simulateLaunch(at);
     } else if (phase === "staging" || phase === "countdown") {
-      if (useSimulation) simulateRedLight();
+      if (useSimulation) simulateRedLight(at);
     }
   };
 
@@ -332,13 +340,13 @@ export default function HomeScreen() {
     }
   };
 
-  const onHoldOut = () => {
+  const onHoldOut = (at?: number) => {
     if (!holdingRef.current) return;
     setHold(false);
     if (phase !== "staging" && phase !== "countdown" && phase !== "go") return;
-    const out = holdDecision(phase, true, { kind: "release", at: performance.now() });
-    if (out.kind === "launch") simulateLaunch();
-    else if (out.kind === "redlight") simulateRedLight();
+    const out = holdDecision(phase, true, { kind: "release", at: at ?? performance.now() });
+    if (out.kind === "launch") simulateLaunch(out.at);
+    else if (out.kind === "redlight") simulateRedLight(out.at);
   };
 
   // A run that ends without a release (auto-late timeout, sensor launch)
@@ -348,6 +356,29 @@ export default function HomeScreen() {
       if (holdingRef.current && phase !== "idle") setHold(false);
     }
   }, [phase]);
+
+  // Hardware launch button (volume / headphone / Bluetooth remote, or
+  // Space/Enter on web): behaves exactly like the on-screen button. Only
+  // captured while this screen is in front and no slip is being typed, so
+  // the volume buttons work normally everywhere else.
+  const keyHandlersRef = React.useRef({ onMainPress, onHoldIn, onHoldOut, holdToLaunch });
+  keyHandlersRef.current = { onMainPress, onHoldIn, onHoldOut, holdToLaunch };
+  const typingSlip = slipRecordId !== null;
+  useFocusEffect(
+    React.useCallback(() => {
+      const source = keyLaunch && !typingSlip ? getHardwareKeySource() : null;
+      if (!source) return;
+      return source.subscribe(({ down, at }) => {
+        const h = keyHandlersRef.current;
+        if (h.holdToLaunch) {
+          if (down) h.onHoldIn();
+          else h.onHoldOut(at);
+        } else if (down) {
+          h.onMainPress(at);
+        }
+      });
+    }, [keyLaunch, typingSlip]),
+  );
 
   // Pulse animation when green is lit
   const pulseOpacity = React.useRef(new Animated.Value(1)).current;
@@ -416,7 +447,7 @@ export default function HomeScreen() {
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
-  const lightSize = treeLightSize(windowHeight, topPad, bottomPad, seriesEnabled);
+  const lightSize = treeLightSize(windowHeight, topPad, bottomPad, seriesEnabled, fontScale);
 
   // Button appearance
   const btnBg =
@@ -466,12 +497,12 @@ export default function HomeScreen() {
     >
       {/* Header row */}
       <View style={styles.header}>
-        <Text style={[styles.appTitle, { color: colors.foreground }]} numberOfLines={1}>DRAGTREE</Text>
+        <Text style={[styles.appTitle, { color: colors.foreground }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.1}>DRAGTREE</Text>
         <View style={styles.badges}>
           {bestTime !== null && (
             <View style={[styles.badge, { backgroundColor: "rgba(245,166,35,0.12)" }]}>
               <Ionicons name="trophy" size={10} color={colors.primary} />
-              <Text style={[styles.badgeText, { color: colors.primary }]}>{bestTime.toFixed(3)}</Text>
+              <Text style={[styles.badgeText, { color: colors.primary }]} maxFontSizeMultiplier={1.2}>{bestTime.toFixed(3)}</Text>
             </View>
           )}
           {sensorActive && (
@@ -523,7 +554,7 @@ export default function HomeScreen() {
           reachable without scrolling on any phone */}
       <View style={styles.modeRow}>
         <View style={[styles.proLabel, { borderColor: colors.border }]}>
-          <Text style={[styles.proText, { color: colors.mutedForeground }]} numberOfLines={1}>
+          <Text style={[styles.proText, { color: colors.mutedForeground }]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
             {treeMode === "pro" ? "PRO TREE  •  0.400s" : "SPORTSMAN  •  0.500s"}
           </Text>
         </View>
@@ -545,7 +576,7 @@ export default function HomeScreen() {
           accessibilityHint="Race a friend on this phone"
         >
           <Ionicons name="people-outline" size={13} color={colors.mutedForeground} />
-          <Text style={[styles.versusText, { color: colors.mutedForeground }]} numberOfLines={1}>2 PLAYER</Text>
+          <Text style={[styles.versusText, { color: colors.mutedForeground }]} numberOfLines={1} maxFontSizeMultiplier={1.2}>2 PLAYER</Text>
         </Pressable>
       </View>
 
@@ -628,9 +659,9 @@ export default function HomeScreen() {
             elevation: phase === "idle" || (phase === "go" && useSimulation) ? 10 : 0,
           },
         ]}
-        onPress={holdToLaunch ? () => {} : onMainPress}
+        onPress={holdToLaunch ? () => {} : () => onMainPress()}
         onPressIn={holdToLaunch ? onHoldIn : undefined}
-        onPressOut={holdToLaunch ? onHoldOut : undefined}
+        onPressOut={holdToLaunch ? () => onHoldOut() : undefined}
         // Finger drift during a long hold must not count as letting go.
         pressRetentionOffset={holdToLaunch ? HOLD_RETENTION : undefined}
         disabled={btnDisabled}
@@ -638,7 +669,7 @@ export default function HomeScreen() {
         accessibilityLabel={btnLabel}
         accessibilityState={{ disabled: btnDisabled }}
       >
-        <Text style={[styles.mainBtnText, { color: btnTextColor }]}>
+        <Text style={[styles.mainBtnText, { color: btnTextColor }]} maxFontSizeMultiplier={1.3}>
           {btnLabel}
         </Text>
       </Pressable>
@@ -646,7 +677,11 @@ export default function HomeScreen() {
       {/* Contextual hint */}
       {phase === "idle" && (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          {holdToLaunch
+          {keyLaunch && holdToLaunch
+            ? `Hold the button or ${keyName}, let go on green`
+            : keyLaunch && useSimulation
+            ? `Press the button or ${keyName} to stage`
+            : holdToLaunch
             ? "Hold the button, let go when the green lights"
             : sensorActive && showFloorIt
             ? "Sensor armed — tap FLOOR IT or launch to detect"
@@ -740,6 +775,7 @@ const styles = StyleSheet.create({
   },
   modeRow: {
     flexDirection: "row",
+    flexWrap: "wrap",          // narrow phone + large text: 2 PLAYER drops below
     alignItems: "center",
     justifyContent: "center",
     gap: 8,

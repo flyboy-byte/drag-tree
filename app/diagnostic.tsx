@@ -12,7 +12,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { DeviceMotion } from "expo-sensors";
 import { useColors } from "@/hooks/useColors";
 import { LatencyCheck } from "@/components/LatencyCheck";
 import { TimeSlipCard } from "@/components/TimeSlipCard";
@@ -20,7 +19,10 @@ import { SENSITIVITY_THRESHOLDS } from "@/hooks/useAccelerometer";
 import { launchTelemetry, type RealLaunchTelemetry } from "@/lib/launchTelemetry";
 import { settings, type SensitivityKey } from "@/lib/settings";
 import { sessionLock } from "@/lib/sessionLock";
+import { getHardwareKeySource } from "@/lib/hardwareKeys";
 import { sustainedPeak, suggestSensitivity, NOISE_MARGIN } from "@/lib/sensorNoise";
+import { detectInRecording, type MotionSample } from "@/lib/launchDetector";
+import { getMotionKind, subscribeMotion, activeMotionKind, type MotionKind } from "@/lib/motionSource";
 
 const SENS_OPTIONS: { key: SensitivityKey; label: string; sub: string }[] = [
   { key: "gentle", label: "GENTLE", sub: "0.15g" },
@@ -29,21 +31,10 @@ const SENS_OPTIONS: { key: SensitivityKey; label: string; sub: string }[] = [
   { key: "custom", label: "CUSTOM", sub: "adj."  },
 ];
 
-const SAMPLE_INTERVAL_MS = 8;
 const CAPTURE_DURATION_MS = 5000;
 const SPARK_BARS = 60;
 
-interface Sample { t: number; mag: number; }
-
-function tsToMs(raw: number): number {
-  if (raw > 1e12) return raw / 1e6;
-  if (raw > 1e9)  return raw;
-  if (raw > 1e6)  return raw;
-  return raw * 1000;
-}
-function magnitude3(x: number, y: number, z: number): number {
-  return Math.sqrt(x*x + y*y + z*z);
-}
+type Sample = MotionSample;
 
 interface PerSensitivityResult {
   fired: boolean;
@@ -63,26 +54,9 @@ interface CaptureResult {
   peakG: number;
   peakMag: number;
   noiseMag: number;  // strongest sustained level (m/s²) — what a launch gate would see
+  kind: MotionKind;  // which sensor produced the capture
   spark: number[];   // downsampled magnitudes (0..1) for sparkline
   perSensitivity: { gentle: PerSensitivityResult; normal: PerSensitivityResult; hard: PerSensitivityResult };
-}
-
-const SUSTAINED = 5;
-const SLOPE_WINDOW = 4;
-const ONSET_SLOPE = 0.004;
-const MAX_REWIND_MS = 150;
-
-function findOnset(samples: Sample[], confirmIdx: number, confirmTime: number): number {
-  let onsetIdx = confirmIdx;
-  for (let i = confirmIdx; i >= SLOPE_WINDOW; i--) {
-    if (samples[i].t < confirmTime - MAX_REWIND_MS) break;
-    const dt = samples[i].t - samples[i - SLOPE_WINDOW].t;
-    if (dt <= 0) continue;
-    const slope = (samples[i].mag - samples[i - SLOPE_WINDOW].mag) / dt;
-    if (slope >= ONSET_SLOPE) onsetIdx = i - SLOPE_WINDOW;
-    else break;
-  }
-  return samples[onsetIdx].t;
 }
 
 function downsample(samples: Sample[], n: number): number[] {
@@ -105,36 +79,27 @@ function downsample(samples: Sample[], n: number): number[] {
 }
 
 function analyzeFor(samples: Sample[], threshold: number, t0: number): PerSensitivityResult {
-  let sustained = 0;
-  let firstAbove: number | null = null;
-  for (let i = 0; i < samples.length; i++) {
-    if (samples[i].mag >= threshold) {
-      if (sustained === 0) firstAbove = samples[i].t;
-      sustained += 1;
-      if (sustained >= SUSTAINED) {
-        const confirmT = samples[i].t;
-        const onsetT = findOnset(samples, i, confirmT);
-        return {
-          fired: true,
-          onsetMs: onsetT - t0,
-          thresholdMs: (firstAbove ?? confirmT) - t0,
-          confirmMs: confirmT - t0,
-          rewindMs: confirmT - onsetT,
-          onsetToThresholdMs: (firstAbove ?? confirmT) - onsetT,
-          thresholdToConfirmMs: confirmT - (firstAbove ?? confirmT),
-        };
-      }
-    } else { sustained = 0; firstAbove = null; }
+  const d = detectInRecording(samples, threshold);
+  if (!d) {
+    return { fired: false, onsetMs: null, thresholdMs: null, confirmMs: null,
+             rewindMs: null, onsetToThresholdMs: null, thresholdToConfirmMs: null };
   }
-  return { fired: false, onsetMs: null, thresholdMs: null, confirmMs: null,
-           rewindMs: null, onsetToThresholdMs: null, thresholdToConfirmMs: null };
+  return {
+    fired: true,
+    onsetMs: d.onsetT - t0,
+    thresholdMs: d.thresholdT - t0,
+    confirmMs: d.confirmT - t0,
+    rewindMs: d.confirmT - d.onsetT,
+    onsetToThresholdMs: d.thresholdT - d.onsetT,
+    thresholdToConfirmMs: d.confirmT - d.thresholdT,
+  };
 }
 
-function analyzeCapture(samples: Sample[]): CaptureResult {
+function analyzeCapture(samples: Sample[], kind: MotionKind): CaptureResult {
   if (samples.length === 0) {
     return {
       totalSamples: 0, durationMs: 0, meanIntervalMs: 0, jitterMs: 0, achievedHz: 0,
-      peakG: 0, peakMag: 0, noiseMag: 0, spark: new Array(SPARK_BARS).fill(0),
+      peakG: 0, peakMag: 0, noiseMag: 0, kind, spark: new Array(SPARK_BARS).fill(0),
       perSensitivity: {
         gentle: analyzeFor([], SENSITIVITY_THRESHOLDS.gentle, 0),
         normal: analyzeFor([], SENSITIVITY_THRESHOLDS.normal, 0),
@@ -161,7 +126,8 @@ function analyzeCapture(samples: Sample[]): CaptureResult {
     achievedHz: meanInterval > 0 ? 1000 / meanInterval : 0,
     peakG: peakMag / 9.81,
     peakMag,
-    noiseMag: sustainedPeak(samples.map(s => s.mag), SUSTAINED),
+    noiseMag: sustainedPeak(samples),
+    kind,
     spark: downsample(samples, SPARK_BARS),
     perSensitivity: {
       gentle: analyzeFor(samples, SENSITIVITY_THRESHOLDS.gentle, t0),
@@ -186,9 +152,9 @@ export default function DiagnosticScreen() {
   const [countdown, setCountdown] = useState(0);
 
   const samplesRef = useRef<Sample[]>([]);
-  const offsetRef = useRef<number | null>(null);
   const captureStartRef = useRef<number>(0);
-  const subRef = useRef<{ remove: () => void } | null>(null);
+  const kindRef = useRef<MotionKind>("none");
+  const subRef = useRef<(() => void) | null>(null);
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sparkTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -206,14 +172,15 @@ export default function DiagnosticScreen() {
   // Subscribe to session lock (separate store so the home screen's phase
   // transitions don't trigger settings re-renders on this screen).
   const isSessionLocked = useSyncExternalStore(sessionLock.subscribe, sessionLock.get, sessionLock.get);
+  const keySource = getHardwareKeySource();
 
   useEffect(() => {
     if (Platform.OS === "web") { setAvailable(false); return; }
-    DeviceMotion.isAvailableAsync().then(setAvailable);
+    getMotionKind().then(k => setAvailable(k !== "none")).catch(() => setAvailable(false));
   }, []);
 
   const stopCapture = () => {
-    if (subRef.current)      { subRef.current.remove(); subRef.current = null; }
+    if (subRef.current)      { subRef.current(); subRef.current = null; }
     if (stopTimerRef.current){ clearTimeout(stopTimerRef.current); stopTimerRef.current = null; }
     if (tickRef.current)     { clearInterval(tickRef.current); tickRef.current = null; }
     if (sparkTickRef.current){ clearInterval(sparkTickRef.current); sparkTickRef.current = null; }
@@ -223,7 +190,6 @@ export default function DiagnosticScreen() {
   const startCapture = () => {
     if (!available || mode === "capturing") return;
     samplesRef.current = [];
-    offsetRef.current = null;
     setLiveG(0); setLivePeak(0); setLiveCount(0);
     setLiveSpark(new Array(SPARK_BARS).fill(0));
     setResult(null);
@@ -231,31 +197,18 @@ export default function DiagnosticScreen() {
     setCountdown(Math.ceil(CAPTURE_DURATION_MS / 1000));
     captureStartRef.current = performance.now();
 
-    DeviceMotion.setUpdateInterval(SAMPLE_INTERVAL_MS);
-    subRef.current = DeviceMotion.addListener(({ acceleration, interval }) => {
-      if (!acceleration) return;
-      const perfNow = performance.now();
-      let sampleT = perfNow;
-      const rawTs = (acceleration as { timestamp?: number }).timestamp;
-      if (rawTs != null && Number.isFinite(rawTs) && rawTs !== 0) {
-        const tsMs = tsToMs(rawTs);
-        if (offsetRef.current === null) offsetRef.current = perfNow - tsMs;
-        sampleT = tsMs + offsetRef.current;
-        if (sampleT > perfNow || sampleT < perfNow - 200) sampleT = perfNow - (interval ?? SAMPLE_INTERVAL_MS);
-      } else {
-        sampleT = perfNow - Math.max(0, Math.min(interval ?? SAMPLE_INTERVAL_MS, 50));
-      }
-      const mag = magnitude3(acceleration.x, acceleration.y, acceleration.z);
-      samplesRef.current.push({ t: sampleT, mag });
-      const g = mag / 9.81;
-      setLiveG(g);
+    subRef.current = subscribeMotion(s => {
+      samplesRef.current.push(s);
+      const g = s.mag / 9.81;
       setLivePeak(p => (g > p ? g : p));
     });
+    kindRef.current = activeMotionKind();
 
     // Update sample count + live sparkline at 30 Hz, not on every sample
     sparkTickRef.current = setInterval(() => {
       const samples = samplesRef.current;
       setLiveCount(samples.length);
+      if (samples.length > 0) setLiveG(samples[samples.length - 1].mag / 9.81);
       if (samples.length > 0) setLiveSpark(downsample(samples, SPARK_BARS));
     }, 33);
 
@@ -267,7 +220,7 @@ export default function DiagnosticScreen() {
 
     stopTimerRef.current = setTimeout(() => {
       stopCapture();
-      setResult(analyzeCapture(samplesRef.current));
+      setResult(analyzeCapture(samplesRef.current, kindRef.current));
       setMode("result");
     }, CAPTURE_DURATION_MS);
   };
@@ -292,9 +245,9 @@ export default function DiagnosticScreen() {
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={20} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={22} color={colors.foreground} />
-            <Text style={[styles.backText, { color: colors.foreground }]}>BACK</Text>
+            <Text style={[styles.backText, { color: colors.foreground }]} maxFontSizeMultiplier={1.2}>BACK</Text>
           </Pressable>
-          <Text style={[styles.title, { color: colors.foreground }]}>SETTINGS</Text>
+          <Text style={[styles.title, { color: colors.foreground }]} maxFontSizeMultiplier={1.2}>SETTINGS</Text>
           <View style={{ width: 60 }} />
         </View>
 
@@ -460,6 +413,38 @@ export default function DiagnosticScreen() {
               accessibilityHint="Hold the button during the tree and release on green"
             />
           </View>
+
+          {keySource && (
+            <>
+              <View style={[styles.divider, { borderColor: colors.border }]} />
+              <View style={styles.toggleRow}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={[styles.rowVal, { color: colors.foreground }]}>
+                    {keySource.kind === "keyboard" ? "Keyboard Launch" : "Volume Buttons & Remotes"}
+                  </Text>
+                  <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+                    {keySource.kind === "keyboard"
+                      ? "Space or Enter works like the on-screen button — hold it if Hold to Launch is on."
+                      : "Use a volume button, a wired headphone button or a Bluetooth camera remote as the " +
+                        "launch button. Works like the on-screen button — hold it if Hold to Launch is on. " +
+                        "On the main screen the volume buttons won't change the volume while this is on."}
+                  </Text>
+                </View>
+                <Switch
+                  value={appSettings.keyLaunch}
+                  onValueChange={(v) => {
+                    Haptics.selectionAsync();
+                    settings.set({ keyLaunch: v });
+                  }}
+                  disabled={isSessionLocked}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={appSettings.keyLaunch ? colors.primaryForeground : colors.mutedForeground}
+                  accessibilityLabel="Hardware button launch toggle"
+                  accessibilityHint="Use volume buttons or a remote as the launch button"
+                />
+              </View>
+            </>
+          )}
         </View>
 
         {/* ── ACCELEROMETER TEST: noise check next to the sensitivity it informs ── */}
@@ -727,11 +712,9 @@ export default function DiagnosticScreen() {
             <Row label="Peak G"                value={`${realLaunch.peakG.toFixed(3)} g`} />
             <Row label="Sample interval"       value={`${realLaunch.sampleIntervalMean.toFixed(2)} ms`}
                  sub={`${(1000/realLaunch.sampleIntervalMean).toFixed(0)} Hz achieved`} />
-            <Row label="Detection path"
-                 value={realLaunch.source === "native" ? "NATIVE (sensor thread)" : "JS (bridge)"}
-                 sub={realLaunch.source === "native"
-                      ? "single bridge crossing at confirmed onset"
-                      : "fallback — running per-sample over the JS bridge"} />
+            <Row label="Sensor"
+                 value={sensorLabel(realLaunch.source)}
+                 sub={sensorSub(realLaunch.source)} />
             <Text style={[styles.cardFoot, { color: colors.mutedForeground }]}>
               Updated automatically after each real green-light launch.
             </Text>
@@ -745,7 +728,8 @@ export default function DiagnosticScreen() {
               <Row label="Total samples"  value={`${result.totalSamples}`} />
               <Row label="Duration"       value={`${result.durationMs.toFixed(0)} ms`} />
               <Row label="Mean interval"  value={`${result.meanIntervalMs.toFixed(2)} ms`}
-                   sub={`target ${SAMPLE_INTERVAL_MS} ms · ${result.achievedHz.toFixed(0)} Hz achieved`} />
+                   sub={`${result.achievedHz.toFixed(0)} Hz achieved`} />
+              <Row label="Sensor"         value={sensorLabel(result.kind)} sub={sensorSub(result.kind)} />
               <Row label="Jitter (σ)"     value={`${result.jitterMs.toFixed(2)} ms`} />
               <Row label="Peak G"         value={`${result.peakG.toFixed(3)} g`}
                    sub={`${result.peakMag.toFixed(2)} m/s²`} />
@@ -768,6 +752,15 @@ export default function DiagnosticScreen() {
       </ScrollView>
     </>
   );
+}
+
+function sensorLabel(kind: MotionKind): string {
+  return kind === "linear" ? "Linear acceleration" : kind === "accel" ? "Accelerometer" : "—";
+}
+function sensorSub(kind: MotionKind): string | undefined {
+  return kind === "linear" ? "gravity removed by Android"
+       : kind === "accel"  ? "gravity filtered by the app — keep the phone mounted"
+       : undefined;
 }
 
 function Row({ label, value, sub }: { label: string; value: string; sub?: string }) {

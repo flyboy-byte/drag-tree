@@ -31,6 +31,10 @@ export interface AppSettings {
   // Hold the main button through the tree and let go on green (trans-brake
   // style). Letting go early is a red light. Implies tap input.
   holdToLaunch: boolean;
+  // Volume buttons, a wired headphone button or a Bluetooth camera remote
+  // (Space/Enter on web) act as the launch button on the home screen.
+  // Off by default — while on, volume buttons don't change the volume there.
+  keyLaunch: boolean;
 }
 
 // Fields written to AsyncStorage on every change.
@@ -48,6 +52,7 @@ let current: AppSettings = {
   seriesSize: 5,
   showTrend: true,
   holdToLaunch: false,
+  keyLaunch: false,
 };
 
 const listeners = new Set<() => void>();
@@ -92,6 +97,9 @@ const listeners = new Set<() => void>();
     if (typeof saved.holdToLaunch === "boolean")
       patch.holdToLaunch = saved.holdToLaunch;
 
+    if (typeof saved.keyLaunch === "boolean")
+      patch.keyLaunch = saved.keyLaunch;
+
     if (Object.keys(patch).length > 0) {
       current = { ...current, ...patch };
       listeners.forEach(fn => fn());
@@ -107,10 +115,10 @@ function persist(): void {
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
     persistTimer = null;
-    const { showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize, showTrend, holdToLaunch } = current;
+    const { showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize, showTrend, holdToLaunch, keyLaunch } = current;
     AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize, showTrend, holdToLaunch }),
+      JSON.stringify({ showFloorIt, sensitivity, customThreshold, sensorEnabled, treeMode, soundEnabled, seriesEnabled, seriesSize, showTrend, holdToLaunch, keyLaunch }),
     ).catch(() => {});
   }, 250);
 }

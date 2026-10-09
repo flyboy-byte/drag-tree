@@ -7,6 +7,9 @@ import { holdDecision, canStartCountdown } from "../lib/holdRelease";
 import { decideWinner, addToTally, laneRT } from "../lib/versus";
 import { gradeRT } from "../lib/timing";
 import { sustainedPeak, suggestSensitivity } from "../lib/sensorNoise";
+import { createLaunchDetector, detectInRecording, SUSTAIN_MS } from "../lib/launchDetector";
+import { createGravityFilter } from "../lib/gravity";
+import { createClockMap } from "../lib/motionSource";
 import type { RunRecord } from "../hooks/useTreeSession";
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
@@ -141,17 +144,23 @@ describe("versus", () => {
 
 describe("sensorNoise", () => {
   const T = { gentle: 1.5, normal: 2.5, hard: 4.5 };
+  // 200 Hz recording from magnitudes
+  const rec = (mags: number[], dt = 5) => mags.map((mag, i) => ({ t: i * dt, mag }));
 
-  it("ignores a single spike shorter than the sustain window", () => {
-    expect(sustainedPeak([0.1, 0.1, 5, 0.1, 0.1, 0.1, 0.1])).toBeCloseTo(0.1);
+  it("ignores a spike shorter than the sustain window", () => {
+    const m = new Array(40).fill(0.1);
+    for (let i = 10; i < 14; i++) m[i] = 5; // 20 ms spike
+    expect(sustainedPeak(rec(m))).toBeCloseTo(0.1);
   });
 
   it("finds the strongest sustained level", () => {
-    expect(sustainedPeak([0.2, 1.0, 1.2, 1.1, 1.3, 1.0, 0.2])).toBeCloseTo(1.0);
+    const m = new Array(60).fill(0.2);
+    for (let i = 10; i < 30; i++) m[i] = 1.0 + (i % 2) * 0.3; // 100 ms at ≥ 1.0
+    expect(sustainedPeak(rec(m))).toBeCloseTo(1.0);
   });
 
-  it("returns 0 when there are too few samples", () => {
-    expect(sustainedPeak([3, 3, 3])).toBe(0);
+  it("returns 0 for a recording shorter than the window", () => {
+    expect(sustainedPeak(rec([3, 3, 3]))).toBe(0);
   });
 
   it("suggests the most sensitive preset with margin", () => {
@@ -159,5 +168,83 @@ describe("sensorNoise", () => {
     expect(suggestSensitivity(1.3, T)).toBe("normal"); // 1.5 < 1.3 * 1.25
     expect(suggestSensitivity(3.0, T)).toBe("hard");
     expect(suggestSensitivity(4.0, T)).toBeNull();
+  });
+});
+
+describe("launchDetector", () => {
+  // Quiet, then a linear ramp from `rampAt` ms reaching `peak` m/s² after 80 ms, then held.
+  const launch = (hz: number, rampAt = 500, peak = 4, total = 1000) => {
+    const dt = 1000 / hz;
+    const out = [];
+    for (let t = 0; t <= total; t += dt) {
+      const r = t < rampAt ? 0 : Math.min(1, (t - rampAt) / 80);
+      out.push({ t, mag: 0.1 + r * peak });
+    }
+    return out;
+  };
+
+  it.each([60, 125, 200])("finds onset near the ramp start at %i Hz", hz => {
+    const d = detectInRecording(launch(hz), 1.5)!;
+    expect(d).not.toBeNull();
+    // never before the real start, at most one sample + a few ms after
+    expect(d.onsetT).toBeGreaterThanOrEqual(500);
+    expect(d.onsetT - 500).toBeLessThanOrEqual(1000 / hz + 3);
+    expect(d.confirmT - d.thresholdT).toBeGreaterThanOrEqual(SUSTAIN_MS - 1);
+  });
+
+  it("rejects a short bump", () => {
+    const s = launch(200, 99999); // quiet throughout
+    for (const x of s) if (x.t >= 300 && x.t < 325) x.mag = 6; // 25 ms
+    expect(detectInRecording(s, 1.5)).toBeNull();
+  });
+
+  it("fires only once per detector", () => {
+    const d = createLaunchDetector(1.5);
+    const hits = launch(200).map(s => d.push(s)).filter(Boolean);
+    expect(hits).toHaveLength(1);
+  });
+
+  it("seeded buffer lets the onset rewind past the hand-over", () => {
+    const s = launch(200);
+    const first = createLaunchDetector(99); // never fires
+    const cut = s.findIndex(x => x.t >= 520);
+    s.slice(0, cut).forEach(x => first.push(x));
+    const second = createLaunchDetector(1.5, first.buffer);
+    let hit = null;
+    for (const x of s.slice(cut)) hit = hit ?? second.push(x);
+    expect(hit!.onsetT).toBeLessThan(510);
+  });
+});
+
+describe("gravity filter", () => {
+  it("reads ~0 for a still, tilted phone and sees a launch", () => {
+    const f = createGravityFilter();
+    let mag = 0;
+    for (let t = 0; t < 2000; t += 5) mag = f.push(0, 6.9, 6.9, t); // 45° tilt
+    expect(mag).toBeCloseTo(0, 3);
+    for (let t = 2000; t < 2100; t += 5) mag = f.push(3, 6.9, 6.9, t); // 3 m/s² forward
+    expect(mag).toBeGreaterThan(2.9); // frozen, not absorbed
+  });
+
+  it("re-settles after a lasting tilt", () => {
+    const f = createGravityFilter();
+    for (let t = 0; t < 1000; t += 5) f.push(0, 0, 9.81, t);
+    let mag = 0;
+    for (let t = 1000; t < 6000; t += 5) mag = f.push(0, 3, 9.34, t); // tilted ~18°
+    expect(mag).toBeLessThan(0.3);
+  });
+});
+
+describe("clock map", () => {
+  it("uses a plausible measured offset", () => {
+    const c = createClockMap(1000);
+    expect(c.map(50, 1052)).toBe(1050);
+  });
+
+  it("falls back to the running minimum when the offset is wrong", () => {
+    const c = createClockMap(999999);
+    c.map(0, 1010);
+    c.map(10, 1012);
+    expect(c.map(20, 1030)).toBe(1022); // min(arrival - t) = 1002
   });
 });

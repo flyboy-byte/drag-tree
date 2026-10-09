@@ -137,17 +137,20 @@ Key refs guard against stale closures and prevent unnecessary re-renders:
 
 To migrate incompatibly: bump `.v1` → `.v2` and handle the old key in the hydration IIFE.
 
-### Accelerometer (`useAccelerometer.ts`)
+### Motion sensing (`lib/motionSource.ts`, `lib/launchDetector.ts`, `hooks/useAccelerometer.ts`)
 
-Sensor: `DeviceMotion` from `expo-sensors` at 8 ms intervals (125 Hz target). Uses `DeviceMotion.acceleration` — linear acceleration with gravity removed by Android sensor fusion.
+Sensor stream: `lib/motionSource.ts` — one shared, ref-counted stream of linear-acceleration magnitude (m/s²) with **hardware sample times mapped onto `performance.now()`**. Sources, best first: the local native module `modules/dragtree-input` reading `TYPE_LINEAR_ACCELERATION` at ~200 Hz; the same module's raw `TYPE_ACCELEROMETER` with gravity filtered in JS (`lib/gravity.ts`) on phones without a gyroscope; expo-sensors `Accelerometer` if the module is missing. **Do not go back to expo-sensors `DeviceMotion`** — on Android it dispatches once per display frame (~60 Hz).
 
-Detection flow:
-1. Each sample pushed into a 24-sample rolling buffer
-2. When magnitude ≥ threshold for `SUSTAINED_SAMPLES` (5) consecutive samples (~40 ms), fire
-3. On fire: walk back through buffer via slope analysis to find the **jerk-onset timestamp** — RT is reported from onset, not confirmation
-4. `watchForRedLight=true` during staging/countdown: fire → `onRedLight()` instead
+Detection (`lib/launchDetector.ts`, pure + tested), all in milliseconds so it behaves the same at 60 or 200 Hz:
+1. Sustain gate: magnitude ≥ threshold for `SUSTAIN_MS` (40) and ≥ 3 samples → fire
+2. Onset rewind: walk back while each sample is still on a rise (slope over 30 ms ≥ 0.004 m/s²/ms) — RT is reported from the earliest rising sample, never before the real start
+3. `watchForRedLight=true` during staging/countdown: fire → `onRedLight()` instead
 
-**Critical design:** `onLaunch`, `onRedLight`, `onLaunchTelemetry` are stored in refs updated each render. Without this, the DeviceMotion subscription would teardown/recreate 125×/s. `firedRef` prevents double-fire between sensor and FLOOR IT button.
+**Critical design:** one sensor subscription runs across the whole run (staging → go); a phase change swaps the detector (seeded with the recent buffer), it does not restart the sensor. Callbacks and mode live in refs. `firedRef` prevents double-fire between sensor and FLOOR IT button. Settings' accelerometer test and the latency check use the same stream and detector.
+
+### Native module (`modules/dragtree-input`, Kotlin, Android only)
+
+Autolinked from `./modules` (no config plugin; prebuild leaves it alone). Provides the motion stream above and **hardware launch buttons**: while the `keyLaunch` setting is on and the home screen is focused, volume / headset / Bluetooth-remote keys (and Space/Enter on web) are consumed and forwarded with their event time (`lib/hardwareKeys.ts`). Done by wrapping the activity `Window.Callback` — `MainActivity` is not edited. Plain Kotlin → dex only, no `.so`.
 
 ### Home screen button logic
 

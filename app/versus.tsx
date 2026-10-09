@@ -69,7 +69,7 @@ export default function VersusScreen() {
           accessibilityRole="button"
           accessibilityLabel={phase === "done" ? "Race again" : "Start race"}
         >
-          <Text style={[styles.startText, { color: racing ? colors.mutedForeground : colors.primaryForeground }]}>
+          <Text style={[styles.startText, { color: racing ? colors.mutedForeground : colors.primaryForeground }]} maxFontSizeMultiplier={1.3}>
             {racing ? "RACING" : phase === "done" ? "AGAIN" : "START"}
           </Text>
         </Pressable>
@@ -155,7 +155,7 @@ function Lane({
       </View>
 
       <View style={styles.resultArea} pointerEvents="none">
-        {big !== "" && <Text style={[styles.big, { color: bigColor }]}>{big}</Text>}
+        {big !== "" && <Text style={[styles.big, { color: bigColor }]} maxFontSizeMultiplier={1.15} numberOfLines={1} adjustsFontSizeToFit>{big}</Text>}
         {small !== "" && <Text style={[styles.small, { color: colors.mutedForeground }]}>{small}</Text>}
       </View>
     </View>

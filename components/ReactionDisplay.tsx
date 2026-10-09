@@ -63,8 +63,8 @@ export function ReactionDisplay({ reactionTime, grade }: ReactionDisplayProps) {
 
   return (
     <Animated.View style={[styles.container, animStyle]}>
-      <Text style={[styles.grade, { color: info.color }]}>{info.label}</Text>
-      <Text style={[styles.time, { color: colors.foreground }]}>{rtDisplay}</Text>
+      <Text style={[styles.grade, { color: info.color }]} maxFontSizeMultiplier={1.3}>{info.label}</Text>
+      <Text style={[styles.time, { color: colors.foreground }]} maxFontSizeMultiplier={1.15} numberOfLines={1} adjustsFontSizeToFit>{rtDisplay}</Text>
       <Text style={[styles.desc, { color: colors.mutedForeground }]}>{info.desc}</Text>
     </Animated.View>
   );

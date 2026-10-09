@@ -1,0 +1,7 @@
+{
+  "name": "dragtree-input",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "description": "DragTree native input: full-rate motion sensor and hardware launch buttons (Android)"
+}

@@ -1,19 +1,25 @@
 // Background-noise reading for the Settings accelerometer test.
-// A launch fires once the signal stays over the threshold for SUSTAINED
-// samples in a row, so the noise that matters is the strongest *sustained*
-// level — the max over every SUSTAINED-sample window of that window's
+// A launch fires once the signal stays over the threshold for SUSTAIN_MS
+// (lib/launchDetector), so the noise that matters is the strongest
+// *sustained* level — the max over every SUSTAIN_MS window of that window's
 // minimum — not a single spike.
+
+import { SUSTAIN_MS, type MotionSample } from "./launchDetector";
 
 export type PresetKey = "gentle" | "normal" | "hard";
 
 export const NOISE_MARGIN = 1.25; // suggest a preset at least 25% above the noise
 
-export function sustainedPeak(mags: number[], sustained = 5): number {
-  if (mags.length < sustained) return 0;
+export function sustainedPeak(samples: readonly MotionSample[], windowMs = SUSTAIN_MS): number {
   let best = 0;
-  for (let i = 0; i + sustained <= mags.length; i++) {
+  for (let i = 0; i < samples.length; i++) {
     let lo = Infinity;
-    for (let j = i; j < i + sustained; j++) if (mags[j] < lo) lo = mags[j];
+    let j = i;
+    for (; j < samples.length && samples[j].t - samples[i].t < windowMs; j++) {
+      if (samples[j].mag < lo) lo = samples[j].mag;
+    }
+    if (j >= samples.length) break; // window runs past the end of the recording
+    if (samples[j].mag < lo) lo = samples[j].mag;
     if (lo > best) best = lo;
   }
   return best;
