@@ -1,6 +1,6 @@
 # PLAN.md — where DragTree goes next
 
-Status (2026-10-08): **stable v1.7.4** released on GitHub; F-Droid: checkupdates bot merged 1.7.4 (codes 171–174) into fdroiddata on 2026-10-09 08:28 UTC ("bot: Update DragTree to 174"); not yet built — the build cycle running then had started 2026-10-08 09:22 UTC, before the update, so 1.7.4 lands in the next cycle (f-droid.org still 1.7.3 on 2026-10-09). No MR needed. **Beta v1.8.0-beta.3** (code 177, from `dev` @ 9bced7e: full-rate sensor + volume/remote launch + large-text fixes) published as a GitHub pre-release 2026-10-09 — needs a real launch and a volume-button test. beta.2 (176) looked good to Logan (2026-10-09). Play AAB for 1.7.4 built, upload parked. Round-1 phone feedback addressed on dev (see checklist). Last updated 2026-10-08.
+Status (2026-10-09): **stable v1.7.4** on GitHub; on F-Droid it's merged into fdroiddata (bot, 2026-10-09 08:28 UTC) but not yet built/published — f-droid.org still 1.7.3 at 17:56 UTC; their build cycle that started 2026-10-08 09:22 UTC predates the update. If still not live by ~2026-10-12, check F-Droid build logs. **Beta v1.8.0-beta.3** (code 177, `dev` @ 9bced7e) is the current pre-release; Logan is happy with it ("really impressed"), volume-button hold launch confirmed on the Pixel 9, and he is still testing. **Next:** Logan keeps testing; open checks below; then 1.8.0 release prep. Play AAB for 1.7.4 built, upload parked. Last updated 2026-10-09.
 
 This is the roadmap for the `dev` branch. Releases happen when there's enough here worth shipping — no schedule.
 
@@ -152,25 +152,27 @@ Big addition, and a strong one: offline head-to-head turns the app from solo pra
 
 ~~**Next:** build it out.~~ — DONE (c245335): `hooks/useVersusSession.ts` + `app/versus.tsx`. Shared tree timing; one light row per lane (answers the open question); lanes use raw `onTouchStart` (pointer events on web) because RN's responder tracks one touch at a time; score in the middle (long-press resets); "2 PLAYER" button under the main button when idle. Never writes solo history/best. Light size scales with screen width.
 
-## Assessment (2026-10-08)
+## Assessment (2026-10-08, refreshed 2026-10-09)
 
 **Where it stands.** The app is technically solid and well past the hard part: a reproducible F-Droid build (the thing that took attempts A1–A6), one signing key across all three stores, a documented release runbook, CI on every push, and now a real feature set on dev. What it doesn't have is users — no measurement (by design, no analytics) and no distribution push. The roadmap so far has been building things; the next phase is getting them in front of people.
 
 **Strengths.** Offline/no-account/no-tracking is genuinely rare and is the F-Droid audience's whole value system. Sensor launch detection with onset rewind is real engineering, not a toy. 2 Player turns it from a niche practice tool into something people hand to a friend — that's the widest audience the app has.
 
 **Risks / weak spots.**
-- *Untested on real hardware.* Everything new was verified in a web render, not on Android. Multitouch, haptics and hold-feel are exactly what browsers fake badly. The phone test is the real gate.
-- *Release machinery is fragile and local.* F-Droid repro depends on a precise recipe; Play/beta builds depend on a local SDK (now deleted) and a stale committed `android/`. One wrong step and a release breaks. The runbook mitigates this — follow it literally.
+- ~~*Untested on real hardware.*~~ Mostly cleared 2026-10-09: betas 2–3 tested on a Pixel 9 (layout, settings, hold, volume-button hold). **Still open on device:** the ~200 Hz sensor path in a real car launch, max font size, a Bluetooth shutter remote, other phones.
+- *Release machinery is fragile and local.* F-Droid repro depends on a precise recipe; Play/beta builds depend on a local SDK (reinstalled 2026-10-09 at `~/Android/Sdk`) and a stale committed `android/`. New since 2026-10-09: a local native module (`modules/dragtree-input`, Kotlin only) — not yet through an F-Droid pipeline. One wrong step and a release breaks. The runbook mitigates this — follow it literally.
 - *The committed `android/` is stale* (manifest still lists blocked perms). Harmless for F-Droid (prebuild regenerates) but a trap for anyone building locally. Consider regenerating and committing it in its own commit, or documenting "never build from committed android/".
 - *Disk is tight* (338 GB, was at 0). Builds fail mid-way with corrupted Gradle state when it fills.
 - *Play Store is stuck* on the testers requirement — out of our hands until Logan finds testers.
 - *Web (Pages) has no sensor.* Fine as a try-it link; don't oversell it.
 
-**Recommended order from here.**
-1. Logan tests the beta → fix feedback on dev → beta.2 if needed.
-2. Confirm v1.7.4 lands on f-droid.org (bot). If nothing by ~2026-10-15, open an MR from fork branch `dragtree-v1.7.4`.
-3. Merge dev → main as **1.8.0** (versionCode 18 → F-Droid 181–184, Play 180), full F-Droid two-run release per `fdroid/README.md`, deploy Pages, upload Play AAB when testers exist.
-4. Then distribution: the web link + 2 Player are the shareable hooks (car forums/groups, r/fdroid, a short screen recording). Volume-key launch (4b) as its own later release.
+**Recommended order from here (2026-10-09).**
+1. Logan keeps testing beta.3. Open device checks: Settings → Sensor details shows ~200 Hz + "Linear acceleration"; one real car launch (detects, no false fires, sane RT); max font size; a shutter remote if available. Fix on dev → beta.4 (178) only if needed.
+2. Wait for v1.7.4 on f-droid.org (merge gate). If not live by ~2026-10-12, read the F-Droid build log for 171–174.
+3. 1.8.0 release prep (can start any time, Logan hasn't asked yet — offered 2026-10-09): changelogs `181–184.txt` + Play text, store description for the everyone-with-a-car/game audience (lead: 2 Player, Hold to Launch with volume buttons/remote, precise timing), new screenshots (real Pixel shots preferred), README, and an **F-Droid dry-run pipeline on the fork using dev** to prove the native module rebuilds reproducibly.
+4. Merge dev → main as **1.8.0** (versionCode 18 → F-Droid 181–184, Play 180), full F-Droid two-run release per `fdroid/README.md`, deploy Pages, Play AAB when testers exist.
+5. Distribution: web link + 2 Player + the shutter-remote trick are the shareable hooks.
+6. Parked ideas (offered, not chosen): auto-start (tree starts when the car is still and staged), bracket "perfect light" scoring, deep staging. Suggested auto-start for after 1.8.0.
 
 ## Out of scope
 
