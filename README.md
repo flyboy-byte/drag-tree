@@ -1,6 +1,6 @@
 # DragTree — NHRA Pro Tree Reaction Timer
 
-An Android app that simulates an NHRA Christmas Tree and measures your launch reaction time with the phone's accelerometer. Mount the phone on the dash, stage, watch the tree, and launch. The app detects the launch and records how quickly you reacted to the green. You don't need to tap anything.
+An Android reaction game built on an NHRA Christmas Tree. Watch the ambers, react to the green, and see how fast you were. Launch with the phone's motion sensor (mount it on the dash and drive off), a tap, a held button, or a volume button or Bluetooth remote. Race a friend on one phone in 2 Player.
 
 Fully offline. No account, no ads, no network permission.
 
@@ -24,20 +24,28 @@ All three are signed with the same key, so you can switch between them without u
 
 - **Pro Tree** (.400) — all three ambers at once, green 0.400 s later
 - **Sportsman Tree** (.500) — ambers count down one at a time, green 0.500 s after the last
-- **Accelerometer launch detection** — no calibration; reaction time is measured from the start of acceleration, not from when the threshold was crossed
-- **Sensitivity** — Gentle / Normal / Hard presets plus a custom threshold
+- **Motion-sensor launch** — no calibration; reaction time is measured from the start of acceleration, not from when the threshold was crossed
+- **Hold to Launch** — hold the button through the tree and let go on green, like a trans-brake button
+- **Volume Buttons & Remotes** — a volume button, a wired headphone button or a Bluetooth camera-shutter remote as the launch button (off by default)
+- **2 Player** — head-to-head on one phone, a lane each; best reaction wins, a red light loses
 - **Grading** — Perfect (≤ .049) · Pro (≤ .099) · Great (≤ .199) · Good (≤ .349) · Late · Red Light (with the actual time early)
+- **Consistency stats** — average, spread, how often you land within ±.020, and your streak
 - **Series mode** — 3, 5, or 10 runs with average, best, worst, red-light count, and a consistency read
 - **History and trend chart** — last 30 runs, personal best highlighted
-- **Audio cues** (optional) — amber click, green chirp, result ping, red-light buzz
-- **Diagnostics** — live G-force, sample rate, and a breakdown of the last launch
+- **Time-slip comparison** — enter the RT from a real slip and see how the phone differs
+- **Accelerometer test** — records 5 seconds of background vibration and suggests the most sensitive setting it won't trip
+- **Phone latency check** — screen rate, sensor rate, and a tap test
+- **Sensitivity** — Gentle / Normal / Hard presets plus a custom threshold
+- **Sounds** (optional) — a tick per amber, a soft beep at green, result ping, red-light buzz
 - **FLOOR IT button** — simulated launch for practice without a car, or in a browser
 
 The displayed RT is a launch-reaction estimate. Track time slips also include rollout and drivetrain response, so the app is best for training consistency rather than predicting a slip.
 
 ## How detection works
 
-The app reads `DeviceMotion.acceleration`, which is linear acceleration with gravity already removed by Android's sensor fusion. That makes phone orientation irrelevant. A launch fires when the magnitude stays above the threshold for 5 consecutive samples (~40 ms at 125 Hz), which rejects bumps and taps. The app then walks back through a short sample buffer to find where the acceleration ramp began, and reports RT from that point.
+A small native module (`modules/dragtree-input`, Kotlin) reads the motion sensor directly at up to 200 Hz and passes every sample on with the sensor's own timestamp. Android's linear-acceleration sensor is used when it is fast enough; some phones run it far slower than the raw accelerometer (a Pixel 9 does 50 Hz against 400 Hz), and phones without a gyroscope don't have it at all. In those cases the raw accelerometer is used and the app removes gravity with a slow filter.
+
+A launch fires when the magnitude stays above the threshold for 40 ms (at least 3 samples), which rejects bumps and taps. The app then walks back through a short sample buffer to find where the acceleration ramp began, and reports RT from that point — never earlier than the real start. Everything is in milliseconds, so it behaves the same at 50, 60 or 200 Hz.
 
 | Preset | Threshold | Typical use |
 |---|---|---|
@@ -53,7 +61,7 @@ The app reads `DeviceMotion.acceleration`, which is linear acceleration with gra
 | Fires right after STAGE | Phone was moving when staged; hold still first |
 | Never fires | Try Gentle; check the sample rate on the Diagnostics screen |
 
-**Permissions:** only `HIGH_SAMPLING_RATE_SENSORS` (auto-granted, needed for >200 Hz sensor rates on Android 12+). Internet, microphone, and storage permissions are explicitly blocked.
+**Permissions:** `HIGH_SAMPLING_RATE_SENSORS` (auto-granted, needed for >200 Hz sensor rates on Android 12+), `VIBRATE` (touch feedback) and `MODIFY_AUDIO_SETTINGS` (sound effects). Internet, network state, microphone, and storage permissions are explicitly blocked.
 
 ## Build from source
 
@@ -84,4 +92,4 @@ F-Droid builds this app from source with a reproducible recipe. The release proc
 
 ## Tech
 
-Expo SDK 54 · React Native 0.81 (New Architecture) · expo-router · expo-sensors · expo-av · TypeScript. MIT license.
+Expo SDK 54 · React Native 0.81 (New Architecture) · expo-router · expo-av · a local Kotlin module for the motion sensor and hardware buttons · TypeScript. MIT license.

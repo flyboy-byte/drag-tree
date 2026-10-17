@@ -1,0 +1,9 @@
+- 2 Player: race a friend on one phone
+- Hold to Launch: hold through the tree, let go on green
+- Launch with volume buttons, headphone or Bluetooth remote buttons
+- Motion sensor up to 200 readings a second; sensor times are more accurate and may read slightly slower
+- Sensor launch on phones without a gyroscope
+- Consistency stats, time-slip comparison, phone latency check
+- Amber ticks and a softer green beep
+- Better fit on small screens and large text
+- One unused permission removed

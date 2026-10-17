@@ -1,32 +1,41 @@
-DragTree simulates a real NHRA Christmas Tree (drag strip starting lights) and uses your phone's accelerometer to measure your launch reaction time — no tapping required.
+DragTree is a reaction-time game built on a real NHRA Christmas Tree (the drag strip starting lights). Watch the ambers, react to the green, and see how fast you were. Beat your best, or beat a friend.
 
-Mount your phone on the dash, stage up, watch the tree, and floor it. The app detects launch G-force and records how quickly you reacted to the green. Fully offline — no internet, no account, no ads.
+Launch it however you like:
+• Motion sensor — mount the phone in the car, stage, and drive off. The app detects the launch and times it from the start of acceleration. No tapping.
+• Tap — a big on-screen button.
+• Hold to Launch — hold the button through the tree and let go on green, like a trans-brake button.
+• Volume buttons and remotes — use a volume button, a wired headphone button, or a cheap Bluetooth camera-shutter remote as your launch button (Settings, off by default).
 
-The displayed RT is your launch-reaction estimate — how fast you responded after the green. On-track time slips also include vehicle rollout and drivetrain response, so DragTree is most useful for training consistency and anticipation, not predicting your exact slip.
+Fully offline — no internet, no account, no ads, no tracking.
 
-TREE MODES
-• Pro Tree (.400s) — all three ambers fire simultaneously, green follows 0.400s later
-• Sportsman Tree (.500s) — ambers count down one at a time, green follows 0.500s after the last amber
+TWO PLAYER
+Put the phone between two people. Each gets their own lane and light; best reaction wins, and a red light loses.
 
-REACTION GRADING
-• Perfect: 0–0.049s
-• Pro: 0.050–0.099s
-• Great: 0.100–0.199s
-• Good: 0.200–0.349s
-• Late: over 0.349s
-• Red Light: launched before green (shows how early)
+TREES
+• Pro Tree (.400) — all three ambers together, green 0.400 s later
+• Sportsman Tree (.500) — ambers count down one at a time, green 0.500 s after the last
 
-FEATURES
-• Accelerometer launch detection — no calibration step; RT measured from the start of acceleration
-• Three sensitivity presets: Gentle (0.15g), Normal (0.25g), Hard (0.46g) plus custom dial
-• Session history — last 30 runs, personal best highlighted
-• Reaction time trend chart — bar chart of recent runs
-• Series mode — run 3, 5, or 10 back-to-back stages with avg RT, best/worst, and consistency score
-• Optional audio cues — amber click, green chirp, result ping, red-light buzz
-• Diagnostics screen — live G-force, sensor telemetry, last-launch breakdown
-• Browser / simulator mode — on-screen FLOOR IT button for desktop practice
+GRADES
+Perfect (under .050) · Pro · Great · Good · Late · Red Light, which shows how early you went.
+
+TRACK YOUR PROGRESS
+• History of your last 30 runs, personal best, and a trend chart
+• Consistency stats: average, spread, how often you land within ±.020, and your streak
+• Series mode: 3, 5 or 10 runs back to back with a summary
+• Time-slip comparison: enter the reaction time from a real slip and see how your phone differs
+
+BUILT FOR PRECISION
+• The motion sensor is read up to 200 times a second with the sensor's own timestamps, on phones with or without a gyroscope
+• Accelerometer test: records 5 seconds of background vibration and suggests the most sensitive setting it won't trip
+• Phone latency check: screen rate, sensor rate and a tap test, so you know how much of a time is the phone
+• Three sensitivity presets plus a custom setting
+
+Optional sounds: a tick on each amber, a soft beep at green and a tone for your result.
+
+The reaction time shown is how quickly you responded after the green. A track time slip also includes the car's rollout and drivetrain response, so DragTree is best for practice and consistency, not for predicting your exact slip.
 
 PERMISSIONS
-• HIGH_SAMPLING_RATE_SENSORS — required for 125 Hz accelerometer sampling. No other sensor or location permissions used.
-
-No internet connection required after install.
+• HIGH_SAMPLING_RATE_SENSORS — fast motion-sensor readings
+• VIBRATE — touch feedback
+• MODIFY_AUDIO_SETTINGS — plays the sound effects
+There is no internet permission at all, and no microphone, location or storage access.
