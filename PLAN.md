@@ -1,6 +1,6 @@
 # PLAN.md — where DragTree goes next
 
-Status (2026-10-16): **stable v1.7.4 live on f-droid.org** (171–174, picked up by checkupdates — auto-update path proven). **Beta v1.8.0-beta.3** (code 177, `dev` @ 9bced7e) is the current pre-release; Logan is happy with it and considers it done. Since beta.3, dev has one fix: `ACCESS_NETWORK_STATE` blocked (55387e8, issue #2). **Next:** 1.8.0 — fully scoped in "1.8.0 release plan" below (Phase A: beta.4 + device checks). Play AAB for 1.7.4 built, upload parked. Last updated 2026-10-16.
+Status (2026-10-16): **stable v1.7.4 live on f-droid.org** (171–174, picked up by checkupdates — auto-update path proven). **Beta v1.8.0-beta.4** (code 178, `dev` @ 2e2edf5) is the current pre-release — beta.3 plus `ACCESS_NETWORK_STATE` blocked (55387e8, issue #2); Logan to run the Phase A device checks on it. **Next:** 1.8.0 — fully scoped in "1.8.0 release plan" below (Phase A: beta.4 + device checks). Play AAB for 1.7.4 built, upload parked. Last updated 2026-10-16.
 
 This is the roadmap for the `dev` branch. Releases happen when there's enough here worth shipping — no schedule.
 
@@ -11,6 +11,8 @@ This is the roadmap for the `dev` branch. Releases happen when there's enough he
 - **Android first.** iOS is not a goal. If an iOS or web build falls out cheaply, fine; never spend real effort on it.
 - **Play production access is parked** until Logan finds a better tester group. Not a dev-branch concern. AAB for 1.7.4 is at `~/dragtree-fdroid-build/play-v1.7.4/out/`.
 - **New modes are settings, off by default.** The default experience stays as it is.
+
+Beta.1 and beta.2 releases **and tags** deleted 2026-10-16 (Logan); their records below stay (built from 067c319 and babb63d). Delete beta.3 once beta.4 is confirmed.
 
 ## Beta v1.8.0-beta.3 (GitHub pre-release, 2026-10-09)
 - https://github.com/flyboy-byte/drag-tree/releases/tag/v1.8.0-beta.3 — universal APK, signed ff739cf5…, **versionCode 177**, from `dev` @ 9bced7e. sha256 cd8cbdd2…725f95. Notes: `~/dragtree-fdroid-build/beta-1.8.0-beta.3/NOTES.md`. Next beta → 178.
@@ -71,7 +73,7 @@ Each phase ends in a check; don't start the next until it passes. Phases A–C c
 
 ### Phase A — finish the code (dev)
 - [x] Block `ACCESS_NETWORK_STATE` — 55387e8 (issue #2, see below).
-- [ ] **Beta.4 (178)** from dev with the usual beta recipe (above). Purpose: confirm sounds still play without the permission, and give a fresh build for the remaining device checks. Check `aapt2 dump permissions` shows only HIGH_SAMPLING_RATE_SENSORS, MODIFY_AUDIO_SETTINGS, VIBRATE (+ the app's own DYNAMIC_RECEIVER permission).
+- [x] **Beta.4 (178)** — DONE 2026-10-16: https://github.com/flyboy-byte/drag-tree/releases/tag/v1.8.0-beta.4, from `dev` @ 2e2edf5, signed ff739cf5…, sha256 61ef4a30…3e9278, 68 `.so`. Permissions confirmed: HIGH_SAMPLING_RATE_SENSORS, MODIFY_AUDIO_SETTINGS, VIBRATE (+ DYNAMIC_RECEIVER). Build took 12 min (Gradle cache had been cleared). Notes: `~/dragtree-fdroid-build/beta-1.8.0-beta.4/NOTES.md`. Was: Purpose: confirm sounds still play without the permission, and give a fresh build for the remaining device checks. Check `aapt2 dump permissions` shows only HIGH_SAMPLING_RATE_SENSORS, MODIFY_AUDIO_SETTINGS, VIBRATE (+ the app's own DYNAMIC_RECEIVER permission).
 - [ ] **Logan's device checks on beta.4** (the ones still open): sounds play; Settings → Sensor details ≈200 Hz + "Linear acceleration"; one real car launch (detects, no false fires, sane RT); 2 Player with two thumbs at once; max system font size. Shutter remote only if one is around — not a gate.
 - Any fix → beta.5 (179, the last beta code). If volume-button launch misbehaves, ship 1.8.0 without it (rule from 2026-10-09) rather than slip.
 - **Exit:** Logan OKs beta.4 (or .5).
