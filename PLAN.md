@@ -52,6 +52,7 @@ Feedback, beta.5 (Pixel 9, 2026-10-17):
 - ✅ Background noise 0.15 g (peak 0.19 g), suggestion NORMAL: Logan was holding the phone while driving, so that's hand + road noise, not a gravity-filter problem. A still-table reading hasn't been taken; not needed unless a mounted launch false-fires.
 - ✅ Home screen in 3-button and gesture navigation both look good (Logan, 2026-10-17).
 - ✅ Sound works on beta.5 (network-state permission removal did not break audio). Logan unsure the cues are the best audio feedback — design question, not a bug; not a 1.8.0 blocker.
+- **Audio rework (Logan, 2026-10-17: "just a loud beep at green"; fail sound fine)** — c10f8a6 on dev, **not in beta.5**: quiet 800 Hz tick per amber (Pro once, Sportsman three; also 2 Player), green beep 620→760 Hz at about half the amplitude (was 1400→2000 Hz chirp), green beep skipped when the motion sensor is detecting the launch (CLAUDE.md claimed this; code didn't). Tones chosen by number, not ear — **needs a listen on the phone**; tune amplitudes in `lib/audio.ts` (`makeTickSamples`, `makeGreenSamples`) if too quiet/loud. Goes into the 1.8.0 RC build.
 - Still to test: a mounted car launch, two-thumb 2 Player, max font.
 
 Feedback, beta.4 Settings screenshots (Pixel 9, 2026-10-17):
