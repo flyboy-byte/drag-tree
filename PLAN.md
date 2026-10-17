@@ -51,7 +51,8 @@ Feedback, beta.5 (Pixel 9, 2026-10-17):
 - ✅ Settings no longer scrolls under the status bar / gesture bar.
 - ✅ Background noise 0.15 g (peak 0.19 g), suggestion NORMAL: Logan was holding the phone while driving, so that's hand + road noise, not a gravity-filter problem. A still-table reading hasn't been taken; not needed unless a mounted launch false-fires.
 - ✅ Home screen in 3-button and gesture navigation both look good (Logan, 2026-10-17).
-- Still to test: sounds, a mounted car launch, two-thumb 2 Player, max font.
+- ✅ Sound works on beta.5 (network-state permission removal did not break audio). Logan unsure the cues are the best audio feedback — design question, not a bug; not a 1.8.0 blocker.
+- Still to test: a mounted car launch, two-thumb 2 Player, max font.
 
 Feedback, beta.4 Settings screenshots (Pixel 9, 2026-10-17):
 - **Sensor at 50 Hz, not 200.** Accelerometer test: 250 samples / 4969 ms, mean 19.96 ms, jitter 0.01 ms, "Linear acceleration"; latency check also 50 Hz. So the native path works (hardware-timed, no frame limit), but the Pixel 9's `TYPE_LINEAR_ACCELERATION` (fusion) delivers 50 Hz at a 5 ms request. → c113ad5: use raw `TYPE_ACCELEROMETER` + JS gravity filter when linear can't reach 100 Hz (stated minDelay, or measured over its first 15 samples) and raw can; Settings shows both sensors' rated Hz ("Phone sensors" row). INFERRED that the Pixel's raw accelerometer does ≥ 100 Hz — the new row will show it. **Check on beta.5:** Sensor = Accelerometer, ≈200 Hz; a launch still detects cleanly with the gravity filter.
