@@ -27,6 +27,7 @@
         "android.permission.HIGH_SAMPLING_RATE_SENSORS"
       ],
       "blockedPermissions": [
+        "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.ACTIVITY_RECOGNITION",
         "android.permission.INTERNET",
         "android.permission.RECORD_AUDIO",
