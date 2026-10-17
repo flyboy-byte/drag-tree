@@ -7,11 +7,13 @@
 // 1. Sustain gate: the magnitude must stay at/over the threshold for
 //    SUSTAIN_MS (and at least MIN_SUSTAIN_SAMPLES samples). Bumps and
 //    vibration spikes are over in < 30 ms and get rejected.
-// 2. Onset rewind: from the confirming sample, walk back while each sample
-//    is still on a rise (slope over the SLOPE_WINDOW_MS before it ≥
+// 2. Onset rewind: from the first sample over the threshold, walk back while
+//    each sample is still on a rise (slope over the SLOPE_WINDOW_MS before it ≥
 //    ONSET_SLOPE). The earliest such sample is the reported launch time —
-//    the start of acceleration, not the moment it crossed the threshold or
-//    was confirmed. Reporting the sample itself (not the start of its slope
+//    the start of acceleration, never later than the threshold crossing.
+//    (Walking back from the confirming sample instead stopped short whenever
+//    the push had levelled off by then, reporting the onset *after* the
+//    crossing.) Reporting the sample itself (not the start of its slope
 //    window) keeps the estimate from landing before the real start; it can
 //    be a few ms late on a very gentle ramp, never early.
 
@@ -90,7 +92,9 @@ export function createLaunchDetector(threshold: number, seed: readonly MotionSam
       runCount += 1;
       if (runCount >= MIN_SUSTAIN_SAMPLES && s.t - runStart.t >= SUSTAIN_MS - 1) {
         fired = true;
-        return { onsetT: findOnset(buf, buf.length - 1), thresholdT: runStart.t, confirmT: s.t };
+        const crossIdx = buf.lastIndexOf(runStart);
+        const onsetT = crossIdx >= 0 ? findOnset(buf, crossIdx) : runStart.t;
+        return { onsetT, thresholdT: runStart.t, confirmT: s.t };
       }
       return null;
     },

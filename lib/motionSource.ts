@@ -3,7 +3,9 @@
 //
 // Sources, best first:
 //   1. Native module, TYPE_LINEAR_ACCELERATION  (~200 Hz, gravity removed by Android)
-//   2. Native module, TYPE_ACCELEROMETER        (~200 Hz, gravity filtered here)
+//   2. Native module, TYPE_ACCELEROMETER        (~200 Hz, gravity filtered here) —
+//      also used when the phone's linear sensor is slow (Pixel 9: 50 Hz); the
+//      module switches over after its first samples, and says so per sample
 //   3. expo-sensors Accelerometer               (builds without the native module)
 // expo-sensors' DeviceMotion is not used: on Android it dispatches once per
 // display frame, which capped sampling at ~60 Hz.
@@ -72,9 +74,10 @@ function start(): void {
       if (b - a < best) { best = b - a; offset = (a + b) / 2 - dev; }
     }
     const clock = createClockMap(offset);
-    const kind = native.motionKind();
-    const sub = native.addListener("onMotion", ({ x, y, z, t }) => {
+    const startKind = native.motionKind();
+    const sub = native.addListener("onMotion", ({ x, y, z, t, kind = startKind }) => {
       const mag = kind === "linear" ? Math.sqrt(x * x + y * y + z * z) : gravity.push(x, y, z, t);
+      activeKind = kind;
       emit({ t: clock.map(t, performance.now()), mag });
     });
     activeKind = native.startMotion();
@@ -105,6 +108,15 @@ export function subscribeMotion(fn: Listener): () => void {
     listeners.delete(fn);
     if (listeners.size === 0 && stop) { stop(); stop = null; activeKind = "none"; }
   };
+}
+
+export interface SensorInfo { name: string; vendor: string; maxHz: number }
+export interface MotionInfo { linear: SensorInfo | null; accel: SensorInfo | null; linearTooSlow: boolean }
+
+/** The phone's motion sensors as Android describes them (native module only). */
+export function getMotionInfo(): MotionInfo | null {
+  if (Platform.OS === "web" || !DragTreeInput?.motionInfo) return null;
+  try { return DragTreeInput.motionInfo(); } catch { return null; }
 }
 
 /** Which sensor the running stream uses ("none" when nothing is subscribed). */

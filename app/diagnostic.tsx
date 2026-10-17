@@ -22,7 +22,7 @@ import { sessionLock } from "@/lib/sessionLock";
 import { getHardwareKeySource } from "@/lib/hardwareKeys";
 import { sustainedPeak, suggestSensitivity, NOISE_MARGIN } from "@/lib/sensorNoise";
 import { detectInRecording, type MotionSample } from "@/lib/launchDetector";
-import { getMotionKind, subscribeMotion, activeMotionKind, type MotionKind } from "@/lib/motionSource";
+import { getMotionKind, getMotionInfo, subscribeMotion, activeMotionKind, type MotionKind } from "@/lib/motionSource";
 
 const SENS_OPTIONS: { key: SensitivityKey; label: string; sub: string }[] = [
   { key: "gentle", label: "GENTLE", sub: "0.15g" },
@@ -219,6 +219,8 @@ export default function DiagnosticScreen() {
     }, 250);
 
     stopTimerRef.current = setTimeout(() => {
+      // Read before unsubscribing: the stream can switch sensor mid-capture.
+      kindRef.current = activeMotionKind();
       stopCapture();
       setResult(analyzeCapture(samplesRef.current, kindRef.current));
       setMode("result");
@@ -355,7 +357,7 @@ export default function DiagnosticScreen() {
                   onPress={() => {
                     Haptics.selectionAsync();
                     settings.set({
-                      customThreshold: Math.min(6.0, Math.round((appSettings.customThreshold + 0.1) * 10) / 10),
+                      customThreshold: Math.min(CUSTOM_MAX, Math.round((appSettings.customThreshold + 0.1) * 10) / 10),
                     });
                   }}
                   hitSlop={10}
@@ -530,15 +532,19 @@ export default function DiagnosticScreen() {
 
               {result && (() => {
                 const suggestion = suggestSensitivity(result.noiseMag, SENSITIVITY_THRESHOLDS);
+                const needed = result.noiseMag * NOISE_MARGIN; // m/s²
+                const customFits = needed <= CUSTOM_MAX;
                 return (
                   <View style={styles.noiseBox}>
                     <Row label="Background noise" value={`${(result.noiseMag / 9.81).toFixed(2)} g`}
                          sub="strongest steady level, ignoring single bumps" />
                     <Row label="Suggested sensitivity"
-                         value={suggestion ? suggestion.toUpperCase() : "CUSTOM"}
+                         value={suggestion ? suggestion.toUpperCase() : customFits ? "CUSTOM" : "—"}
                          sub={suggestion
                            ? `${(SENSITIVITY_THRESHOLDS[suggestion] / 9.81).toFixed(2)} g`
-                           : `above ${(result.noiseMag * NOISE_MARGIN / 9.81).toFixed(2)} g — or the test caught a launch`} />
+                           : customFits
+                           ? `above ${(needed / 9.81).toFixed(2)} g — or the test caught a launch`
+                           : "too much movement to suggest one — hold the phone still and test again"} />
                     {suggestion && appSettings.sensitivity !== suggestion && (
                       <Pressable
                         onPress={() => { Haptics.selectionAsync(); settings.set({ sensitivity: suggestion }); }}
@@ -732,6 +738,16 @@ export default function DiagnosticScreen() {
               <Row label="Mean interval"  value={`${result.meanIntervalMs.toFixed(2)} ms`}
                    sub={`${result.achievedHz.toFixed(0)} Hz achieved`} />
               <Row label="Sensor"         value={sensorLabel(result.kind)} sub={sensorSub(result.kind)} />
+              {(() => {
+                const info = getMotionInfo();
+                if (!info) return null;
+                const hz = (s: { maxHz: number } | null) => !s ? "none" : s.maxHz > 0 ? `up to ${s.maxHz.toFixed(0)} Hz` : "rate not stated";
+                return (
+                  <Row label="Phone sensors"
+                       value={`linear ${hz(info.linear)}`}
+                       sub={`accelerometer ${hz(info.accel)}${info.linearTooSlow ? " · linear measured slow, using accelerometer" : ""}`} />
+                );
+              })()}
               <Row label="Jitter (σ)"     value={`${result.jitterMs.toFixed(2)} ms`} />
               <Row label="Peak G"         value={`${result.peakG.toFixed(3)} g`}
                    sub={`${result.peakMag.toFixed(2)} m/s²`} />
@@ -756,6 +772,8 @@ export default function DiagnosticScreen() {
     </>
   );
 }
+
+const CUSTOM_MAX = 6.0; // m/s², top of the CUSTOM stepper (matches lib/settings)
 
 function sensorLabel(kind: MotionKind): string {
   return kind === "linear" ? "Linear acceleration" : kind === "accel" ? "Accelerometer" : "—";

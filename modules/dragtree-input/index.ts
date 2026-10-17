@@ -6,7 +6,9 @@ import { requireOptionalNativeModule, type EventSubscription } from "expo-module
 
 export type MotionKind = "linear" | "accel" | "none";
 
-export interface NativeMotionSample { x: number; y: number; z: number; t: number } // m/s², elapsedRealtime ms
+export interface NativeMotionSample { x: number; y: number; z: number; t: number; kind?: MotionKind } // m/s², elapsedRealtime ms
+export interface NativeSensorInfo { name: string; vendor: string; maxHz: number } // maxHz 0 = not stated
+export interface NativeMotionInfo { linear: NativeSensorInfo | null; accel: NativeSensorInfo | null; linearTooSlow: boolean }
 export interface NativeKeyEvent { down: boolean; keyCode: number; t: number }      // uptime ms
 
 interface DragTreeInputNative {
@@ -15,6 +17,8 @@ interface DragTreeInputNative {
   uptimeNowMs(): number;
   startMotion(): MotionKind;
   stopMotion(): void;
+  activeMotionKind?(): MotionKind;
+  motionInfo?(): NativeMotionInfo;
   setKeyCapture(enabled: boolean): Promise<void>;
   addListener(event: "onMotion", fn: (s: NativeMotionSample) => void): EventSubscription;
   addListener(event: "onKey", fn: (e: NativeKeyEvent) => void): EventSubscription;

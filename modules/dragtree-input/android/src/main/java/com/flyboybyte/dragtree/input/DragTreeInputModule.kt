@@ -22,7 +22,11 @@ import expo.modules.kotlin.modules.ModuleDefinition
 // at ~200 Hz on a background thread and forwards every sample with its
 // hardware timestamp. Prefers TYPE_LINEAR_ACCELERATION (gravity removed by
 // Android sensor fusion); phones without it get raw TYPE_ACCELEROMETER and
-// the JS side filters gravity out.
+// the JS side filters gravity out. Some phones run their fusion sensor much
+// slower than the raw one (Pixel 9: linear acceleration at 50 Hz). If linear
+// acceleration can't reach FAST_HZ — by its spec, or as measured over the
+// first samples — and the raw accelerometer can, the raw one is used instead.
+// Each event carries its kind so JS knows whether to filter gravity.
 //
 // Keys: while capture is on, volume / headset / Bluetooth-remote buttons are
 // consumed (the volume doesn't change) and forwarded as down/up events with
@@ -36,15 +40,26 @@ class DragTreeInputModule : Module() {
     get() = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
 
   private var sensorThread: HandlerThread? = null
-  private var motionListener: SensorEventListener? = null
+  @Volatile private var motionListener: SensorEventListener? = null
 
   @Volatile private var keyCapture = false
   private var hookedWindow: Window? = null
 
+  // Linear acceleration measured slower than this on this phone → raw
+  // accelerometer for the rest of the app session.
+  @Volatile private var linearTooSlow = false
+  @Volatile private var activeKind = "none"
+
+  private fun maxHz(s: Sensor?): Double =
+    if (s == null || s.minDelay <= 0) 0.0 else 1_000_000.0 / s.minDelay
+
   private fun motionSensor(): Pair<Sensor, String>? {
     val sm = sensorManager ?: return null
-    sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)?.let { return it to "linear" }
-    sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let { return it to "accel" }
+    val linear = sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
+    val accel = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    val linearFast = !linearTooSlow && (maxHz(linear) == 0.0 || maxHz(linear) >= FAST_HZ)
+    if (linear != null && (linearFast || accel == null || maxHz(accel) < FAST_HZ)) return linear to "linear"
+    if (accel != null) return accel to "accel"
     return null
   }
 
@@ -53,29 +68,81 @@ class DragTreeInputModule : Module() {
     val sm = sensorManager ?: return "none"
     val (sensor, kind) = motionSensor() ?: return "none"
     val thread = HandlerThread("DragTreeMotion").apply { start() }
+    val handler = Handler(thread.looper)
     val listener = object : SensorEventListener {
+      var first = 0L
+      var count = 0
+      var checked = kind != "linear"
       override fun onSensorChanged(e: SensorEvent) {
+        if (motionListener !== this) return
         sendEvent("onMotion", Bundle().apply {
           putDouble("x", e.values[0].toDouble())
           putDouble("y", e.values[1].toDouble())
           putDouble("z", e.values[2].toDouble())
           putDouble("t", e.timestamp / 1_000_000.0) // ns → ms, elapsedRealtime base
+          putString("kind", kind)
         })
+        if (checked) return
+        if (count == 0) first = e.timestamp
+        count += 1
+        if (count < RATE_CHECK_SAMPLES) return
+        checked = true
+        val hz = (count - 1) * 1e9 / (e.timestamp - first).coerceAtLeast(1L)
+        val accel = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        if (hz < FAST_HZ && accel != null && maxHz(accel) >= FAST_HZ) {
+          linearTooSlow = true
+          // Switch on this same thread: no gap in the stream beyond one sample.
+          sm.unregisterListener(this)
+          val next = rawListener(sm)
+          motionListener = next
+          activeKind = "accel"
+          sm.registerListener(next, accel, SAMPLING_US, handler)
+        }
       }
       override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
     }
-    // 5 ms ≈ 200 Hz. Allowed because the app declares HIGH_SAMPLING_RATE_SENSORS.
-    sm.registerListener(listener, sensor, 5_000, Handler(thread.looper))
     sensorThread = thread
     motionListener = listener
+    activeKind = kind
+    // Allowed at 200 Hz because the app declares HIGH_SAMPLING_RATE_SENSORS.
+    sm.registerListener(listener, sensor, SAMPLING_US, handler)
     return kind
+  }
+
+  private fun rawListener(sm: SensorManager): SensorEventListener = object : SensorEventListener {
+    override fun onSensorChanged(e: SensorEvent) {
+      if (motionListener !== this) return
+      sendEvent("onMotion", Bundle().apply {
+        putDouble("x", e.values[0].toDouble())
+        putDouble("y", e.values[1].toDouble())
+        putDouble("z", e.values[2].toDouble())
+        putDouble("t", e.timestamp / 1_000_000.0)
+        putString("kind", "accel")
+      })
+    }
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
   }
 
   private fun stopMotion() {
     motionListener?.let { sensorManager?.unregisterListener(it) }
     motionListener = null
+    activeKind = "none"
     sensorThread?.quitSafely()
     sensorThread = null
+  }
+
+  private fun sensorInfo(s: Sensor?): Bundle? = s?.let {
+    Bundle().apply {
+      putString("name", it.name)
+      putString("vendor", it.vendor)
+      putDouble("maxHz", maxHz(it))
+    }
+  }
+
+  companion object {
+    const val SAMPLING_US = 5_000       // 200 Hz
+    const val FAST_HZ = 100.0
+    const val RATE_CHECK_SAMPLES = 15   // ≈ 0.3 s at 50 Hz
   }
 
   private fun isLaunchKey(code: Int): Boolean = when (code) {
@@ -135,6 +202,18 @@ class DragTreeInputModule : Module() {
     Function("uptimeNowMs") { SystemClock.uptimeMillis().toDouble() }
 
     Function("startMotion") { startMotion() }
+    // Kind of the running stream (may change from "linear" to "accel" once
+    // the first samples show linear acceleration is slow).
+    Function("activeMotionKind") { activeKind }
+    // Both candidate sensors, for Settings → Sensor details.
+    Function("motionInfo") {
+      val sm = sensorManager
+      Bundle().apply {
+        putBundle("linear", sensorInfo(sm?.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)))
+        putBundle("accel", sensorInfo(sm?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)))
+        putBoolean("linearTooSlow", linearTooSlow)
+      }
+    }
     Function("stopMotion") { stopMotion() }
 
     AsyncFunction("setKeyCapture") { enabled: Boolean ->

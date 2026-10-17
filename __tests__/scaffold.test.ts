@@ -183,13 +183,23 @@ describe("launchDetector", () => {
     return out;
   };
 
-  it.each([60, 125, 200])("finds onset near the ramp start at %i Hz", hz => {
+  it.each([50, 60, 125, 200])("finds onset near the ramp start at %i Hz", hz => {
     const d = detectInRecording(launch(hz), 1.5)!;
     expect(d).not.toBeNull();
     // never before the real start, at most one sample + a few ms after
     expect(d.onsetT).toBeGreaterThanOrEqual(500);
     expect(d.onsetT - 500).toBeLessThanOrEqual(1000 / hz + 3);
     expect(d.confirmT - d.thresholdT).toBeGreaterThanOrEqual(SUSTAIN_MS - 1);
+  });
+
+  it("never reports the onset after the threshold crossing (push already level at confirm)", () => {
+    // 50 Hz, an abrupt step that is flat by the time the sustain gate confirms
+    const s = [];
+    for (let t = 0; t <= 1000; t += 20) s.push({ t, mag: t < 500 ? 0.1 : 5 });
+    const d = detectInRecording(s, 4.5)!;
+    expect(d.thresholdT).toBe(500);
+    expect(d.onsetT).toBeLessThanOrEqual(d.thresholdT);
+    expect(d.onsetT).toBeGreaterThanOrEqual(480);
   });
 
   it("rejects a short bump", () => {
