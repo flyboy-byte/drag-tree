@@ -237,9 +237,11 @@ export default function DiagnosticScreen() {
   return (
     <>
       <Stack.Screen options={{ title: "Settings", headerShown: false }} />
+      {/* Scrolls between the status and navigation bars, never under them. */}
+      <View style={[styles.scroll, { backgroundColor: colors.background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <ScrollView
-        style={[styles.scroll, { backgroundColor: colors.background }]}
-        contentContainerStyle={[styles.container, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24 }]}
+        style={styles.scroll}
+        contentContainerStyle={[styles.container, { paddingTop: 12, paddingBottom: 24 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -750,6 +752,7 @@ export default function DiagnosticScreen() {
           </>
         )}
       </ScrollView>
+      </View>
     </>
   );
 }

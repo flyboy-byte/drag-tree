@@ -38,6 +38,8 @@ const HOLD_RETENTION = { top: 400, bottom: 400, left: 400, right: 400 };
 // main button, except the tree's light rows (dp; measured on web). Used to
 // size the lights so that block fits on one screen without scrolling.
 const IDLE_CHROME = 456;
+// Breathing room between the hint and the navigation bar.
+const HERO_BOTTOM = 16;
 const SERIES_BAR = 46;
 const LIGHT_ROWS = 5;
 const LIGHT_GLOW = 28; // TreeLight draws a glow ring 28 dp wider than the light
@@ -46,7 +48,7 @@ const IDLE_TEXT = 110;
 
 function treeLightSize(windowHeight: number, topPad: number, bottomPad: number, series: boolean, fontScale: number): number {
   const textGrowth = IDLE_TEXT * (Math.min(fontScale, 2) - 1);
-  const room = windowHeight - topPad - bottomPad - IDLE_CHROME - textGrowth - (series ? SERIES_BAR : 0);
+  const room = windowHeight - topPad - bottomPad - IDLE_CHROME - HERO_BOTTOM - textGrowth - (series ? SERIES_BAR : 0);
   return Math.max(30, Math.min(48, Math.floor(room / LIGHT_ROWS) - LIGHT_GLOW));
 }
 
@@ -483,18 +485,21 @@ export default function HomeScreen() {
 
   const btnDisabled = isActive && !useSimulation;
 
+  // Nothing draws under the status or navigation bar: the page scrolls
+  // between them, and the first screen (header → hint) fills exactly the
+  // space between them, with History starting below it. Height the tree
+  // can't use (lights at max size) goes to the two spacers.
   return (
+    <View style={[styles.scroll, { backgroundColor: colors.background, paddingTop: topPad, paddingBottom: bottomPad }]}>
     <ScrollView
-      style={[styles.scroll, { backgroundColor: colors.background }]}
-      contentContainerStyle={[
-        styles.container,
-        { paddingTop: topPad + 6, paddingBottom: bottomPad + 20 },
-      ]}
+      style={styles.scroll}
+      contentContainerStyle={[styles.container, { paddingBottom: 20 }]}
       showsVerticalScrollIndicator={false}
       bounces={false}
       // A scroll gesture would cancel the held press and fire a red light.
       scrollEnabled={!holding}
     >
+      <View style={[styles.hero, { minHeight: windowHeight - topPad - bottomPad }]}>
       {/* Header row */}
       <View style={styles.header}>
         <Text style={[styles.appTitle, { color: colors.foreground }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.1}>DRAGTREE</Text>
@@ -580,6 +585,8 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.heroSpacer} />
+
       {/* The tree */}
       <View style={styles.treeWrap}>
         <ChristmasTree state={tree} lightSize={lightSize} />
@@ -621,6 +628,10 @@ export default function HomeScreen() {
           </View>
         )}
       </View>
+
+      {/* Spare height is split above the tree and here, so the button sits at
+          the bottom of the first screen and the tree stays balanced */}
+      <View style={styles.heroSpacer} />
 
       {/* Series status bar — visible whenever series mode is on and summary not yet shown */}
       {seriesEnabled && seriesSummary == null && (
@@ -707,6 +718,7 @@ export default function HomeScreen() {
           </Text>
         ) : null;
       })()}
+      </View>
 
       {/* History */}
       <View style={styles.history}>
@@ -736,12 +748,15 @@ export default function HomeScreen() {
       {/* Footer: privacy + source links */}
       <FooterLinks />
     </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   container: { alignItems: "center" },
+  hero: { width: "100%", alignItems: "center", paddingTop: 6, paddingBottom: HERO_BOTTOM },
+  heroSpacer: { flexGrow: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
