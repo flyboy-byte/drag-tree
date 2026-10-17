@@ -50,7 +50,8 @@ Feedback, beta.5 (Pixel 9, 2026-10-17):
 - ✅ **Sensor rate fixed:** accelerometer test 1005 samples / 5008 ms, mean 4.99 ms, jitter 0.02 ms, **200 Hz achieved**, Sensor = Accelerometer; latency check "200 Hz, timed to within 5.0 ms". Phone sensors row: **linear up to 50 Hz, accelerometer up to 400 Hz** — confirms the Pixel 9's fusion sensor is rated 50 Hz (switch happened by stated minDelay).
 - ✅ Settings no longer scrolls under the status bar / gesture bar.
 - ✅ Background noise 0.15 g (peak 0.19 g), suggestion NORMAL: Logan was holding the phone while driving, so that's hand + road noise, not a gravity-filter problem. A still-table reading hasn't been taken; not needed unless a mounted launch false-fires.
-- Still to test: sounds, home screen in 3-button + gesture nav, a mounted car launch, two-thumb 2 Player, max font.
+- ✅ Home screen in 3-button and gesture navigation both look good (Logan, 2026-10-17).
+- Still to test: sounds, a mounted car launch, two-thumb 2 Player, max font.
 
 Feedback, beta.4 Settings screenshots (Pixel 9, 2026-10-17):
 - **Sensor at 50 Hz, not 200.** Accelerometer test: 250 samples / 4969 ms, mean 19.96 ms, jitter 0.01 ms, "Linear acceleration"; latency check also 50 Hz. So the native path works (hardware-timed, no frame limit), but the Pixel 9's `TYPE_LINEAR_ACCELERATION` (fusion) delivers 50 Hz at a 5 ms request. → c113ad5: use raw `TYPE_ACCELEROMETER` + JS gravity filter when linear can't reach 100 Hz (stated minDelay, or measured over its first 15 samples) and raw can; Settings shows both sensors' rated Hz ("Phone sensors" row). INFERRED that the Pixel's raw accelerometer does ≥ 100 Hz — the new row will show it. **Check on beta.5:** Sensor = Accelerometer, ≈200 Hz; a launch still detects cleanly with the gravity filter.
