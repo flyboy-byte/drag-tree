@@ -134,7 +134,7 @@ Changelog draft (181–184, 490 chars):
 
 ### Phase D — release (one sitting, ~2–3 h incl. F-Droid CI)
 Follows `fdroid/README.md` → "Releasing an update", steps 3–7, with Run 1 already done in Phase B:
-1. `git checkout main && git merge --ff-only dev && git push` — **do not tag**. Confirm `main` SHA == RC SHA from Phase B (if not, redo Run 1 on the new SHA).
+1. Fast-forward `main` to **exactly the RC commit**, not dev's tip (dev gets docs commits after the RC): `git push origin 95117883072a9a8c7ffdd196ac1ec96a35672a34:refs/heads/main` (ff-only, so it fails safely if main moved). **Do not tag.** `main` SHA must equal the SHA in the fork's four `commit:` lines; if you change anything shipped, new RC → new Run 1.
 2. Sign the four Phase-B unsigned APKs: `apksigner --v1-signing-enabled false --alignment-preserved true`, **verify cert `ff739cf5…`** (NEVER rule 6), name `drag-tree-v1.8.0-<abi>.apk` (NEVER rule 8: one per ABI, no universal).
 3. `gh release create v1.8.0 --target <RC full SHA>` with all four APKs + notes (changelog + "Fully offline, no tracking"). Not a pre-release. This creates the tag with the reference APKs already present.
 4. **Run 2:** add the four `binary:` lines to the fork blocks, push, confirm all four byte comparisons pass.
