@@ -1,6 +1,6 @@
 # PLAN.md — where DragTree goes next
 
-Status (2026-10-16): **stable v1.7.4 live on f-droid.org** (171–174, picked up by checkupdates — auto-update path proven). **Beta v1.8.0-beta.3** (code 177, `dev` @ 9bced7e) is the current pre-release; Logan is happy with it and considers it done. Since beta.3, dev has one fix: `ACCESS_NETWORK_STATE` blocked (55387e8, issue #2). **Next:** 1.8.0 release readiness — see "1.8.0 readiness (2026-10-16)" below. Play AAB for 1.7.4 built, upload parked. Last updated 2026-10-16.
+Status (2026-10-16): **stable v1.7.4 live on f-droid.org** (171–174, picked up by checkupdates — auto-update path proven). **Beta v1.8.0-beta.3** (code 177, `dev` @ 9bced7e) is the current pre-release; Logan is happy with it and considers it done. Since beta.3, dev has one fix: `ACCESS_NETWORK_STATE` blocked (55387e8, issue #2). **Next:** 1.8.0 — fully scoped in "1.8.0 release plan" below (Phase A: beta.4 + device checks). Play AAB for 1.7.4 built, upload parked. Last updated 2026-10-16.
 
 This is the roadmap for the `dev` branch. Releases happen when there's enough here worth shipping — no schedule.
 
@@ -63,12 +63,70 @@ One big 1.8.0 instead of 1.8.0 + 1.9.0 (Logan: "build it out"). Ship each risky 
 
 **Large text (2026-10-09).** Simulated 1.2–1.6× font on web at 360 dp: title, mode pills, Settings header, result numbers collided/truncated. Big display text now caps OS scaling (1.1–1.3×), body text scales fully, the mode row wraps, the tree sizing subtracts text growth. Needs a real check at max font size.
 
-## 1.8.0 readiness (2026-10-16)
+## 1.8.0 release plan (scoped 2026-10-16)
 
-- **Issue #2 (2026-10-10, Quantum-Future): "Why ACCESS_NETWORK_STATE?"** Not from our code: merged in from ExoPlayer 2.18.1 (pulled in by expo-av for the sounds), which uses it only to guess network type for streaming bandwidth. The 1.7.3 cleanup blocked exactly the reviewer's list (2026-08-02), which didn't include it, so 1.7.3/1.7.4/betas all ship it. INTERNET is blocked, so the app can't connect regardless. Fixed on dev 55387e8 (`blockedPermissions`). Verified in ExoPlayer source (`NetworkTypeObserver`): missing permission → catches SecurityException → NETWORK_TYPE_UNKNOWN. Logan replied on the issue. Close it when 1.8.0 ships. **Check on device:** sounds still play.
-- **Gates:** 1 done · 3 done · 4 mostly (hold, volume-button hold, settings, slip UI confirmed; car launch on the new sensor path, ~200 Hz reading, max font, 2 Player two-thumb, shutter remote not confirmed) · 2 partly (web sims at 360 dp + large font; only one real phone).
-- **Biggest unknown: the native module through F-Droid.** First release with code outside node_modules that autolinking compiles. Its `build.gradle` declares no repositories (what the scanner flagged in the scanignored libs), but only a pipeline proves scanner + reproducible dex. → **Dry run on the fork with dev's SHA before any merge** (Run 1 style: 4 blocks, no `binary:`, then diff our locally-signed build against the unsigned output — or just confirm build + scanner pass). Not a release, nothing tagged.
-- **Remaining prep (none started):** changelogs `181–184.txt`, Play text (180), store description, screenshots, README; version bump 1.8.0 / code 18 in app.json, package.json, android/app/build.gradle at merge time.
+Each phase ends in a check; don't start the next until it passes. Phases A–C can be done in any order or across nights — nothing in them is public except a beta pre-release. **Phase D is the point of no return** (tag = F-Droid picks it up) and should be done in one sitting.
+
+**Key fact that shapes the plan:** `main` is an ancestor of `dev` (checked 2026-10-16), so the merge is a fast-forward and the release commit SHA is the same on both branches. That means the F-Droid dry run in Phase B can run on the *exact* commit that ships — the dry run *is* Run 1, done early.
+
+### Phase A — finish the code (dev)
+- [x] Block `ACCESS_NETWORK_STATE` — 55387e8 (issue #2, see below).
+- [ ] **Beta.4 (178)** from dev with the usual beta recipe (above). Purpose: confirm sounds still play without the permission, and give a fresh build for the remaining device checks. Check `aapt2 dump permissions` shows only HIGH_SAMPLING_RATE_SENSORS, MODIFY_AUDIO_SETTINGS, VIBRATE (+ the app's own DYNAMIC_RECEIVER permission).
+- [ ] **Logan's device checks on beta.4** (the ones still open): sounds play; Settings → Sensor details ≈200 Hz + "Linear acceleration"; one real car launch (detects, no false fires, sane RT); 2 Player with two thumbs at once; max system font size. Shutter remote only if one is around — not a gate.
+- Any fix → beta.5 (179, the last beta code). If volume-button launch misbehaves, ship 1.8.0 without it (rule from 2026-10-09) rather than slip.
+- **Exit:** Logan OKs beta.4 (or .5).
+
+### Phase B — release-candidate commit + F-Droid dry run
+1. **RC commit on dev** — all the files F-Droid reads at the tag:
+   - Version: `app.json` version `1.8.0` + `android.versionCode` 18; `package.json` version `1.8.0`; `android/app/build.gradle` `versionCode 18` / `versionName "1.8.0"` (checkupdates reads this file). Safe on dev: F-Droid only tracks tags matching `^v[\d+.]+$`, and no tag exists yet.
+   - Changelogs `fastlane/metadata/android/en-US/changelogs/181.txt`–`184.txt` (identical; draft below; ≤ 500 chars).
+   - `full_description.txt` refresh (see Phase C — can be same commit or a later one before tagging; F-Droid reads it from the tag).
+2. **Dry run = Run 1** (`fdroid/README.md` step 4) on a new fork branch `dragtree-v1.8.0` off `upstream/master` in `./fdroiddata`: copy the four 1.7.4 blocks, set `versionName: 1.8.0`, `versionCode: 181..184`, `commit:` = RC full SHA, **no `binary:`**; bump `CurrentVersion`/`CurrentVersionCode` to 1.8.0/184. Recipe otherwise unchanged (prebuild already autolinks `./modules`). Push to the GitLab fork; fix formatting only from the CI rewritemeta diff (NEVER rule 4).
+   - Expected failures, same as every Run 1: `schema validation` (no `binary`) and `checkupdates` (no tag).
+   - **What this proves:** the scanner accepts `modules/dragtree-input` (outside `scandelete: node_modules`; its `build.gradle` declares no repositories, unlike the six scanignored libs), and the module compiles in F-Droid's container.
+   - If the scanner flags `modules/dragtree-input/android/build.gradle`: add it to `scanignore` — one variable class, one attempt (NEVER rule 5).
+3. **Check the four unsigned APKs** from the build-job artifacts: each has only its own `lib/<abi>/`; `aapt2 dump permissions` matches beta.4; `classes*.dex` contains `com/flyboybyte/dragtree/input/` (module compiled in).
+- **Exit:** all four builds succeed in the fork pipeline, ABI contents and permissions correct. Code changes after this point mean a new RC SHA and a new Run 1.
+
+### Phase C — store text, screenshots, README (any time; text only)
+- **`full_description.txt`** — rewrite for the everyone-with-a-car + reaction-game audience (see Decided). Lead with: real tree, sensor *or* tap/hold/volume-button launch, 2 Player, offline. Fix stale facts: "125 Hz" → up to 200 Hz; permissions section should list HIGH_SAMPLING_RATE_SENSORS (fast sensor), VIBRATE (haptics), MODIFY_AUDIO_SETTINGS (sound playback); say there is no INTERNET permission. Add new features: 2 Player, Hold to Launch, Volume Buttons & Remotes, consistency stats, time-slip comparison, phone latency check, accelerometer test. F-Droid limit 4000 chars.
+- **`short_description.txt`** — currently "NHRA Pro Tree reaction timer — accelerometer launch detection, no internet" (≤ 80 chars). Consider adding 2 Player; optional.
+- **Screenshots** — `images/phoneScreenshots/` has only `1.png`. Want 4–6 real Pixel shots from Logan (home idle, tree mid-run, result, 2 Player, Settings). **Owner: Logan** (needs the phone). Not a gate — can land in a later commit; F-Droid reads them from the next tag.
+- **README.md** — Features list + "How detection works" (now native ~200 Hz, hardware timestamps, gravity filter fallback, no early-onset bias); mention the web link once Pages is live.
+- **Play text (code 180)** — same as the changelog; entered in Play Console when Play un-parks. Nothing to do now.
+
+Changelog draft (181–184, 490 chars):
+```
+- 2 Player: race a friend head-to-head on one phone
+- Hold to Launch: hold through the tree, let go on green
+- Launch with volume buttons, a headphone button or a Bluetooth camera remote (Settings)
+- Motion sensor reads up to 200 times a second; sensor times are more accurate and may read slightly slower
+- Sensor launch on phones without a gyroscope
+- Consistency stats, time-slip comparison, phone latency check
+- Better fit on small screens and large text
+- Removed an unused permission
+```
+
+### Phase D — release (one sitting, ~2–3 h incl. F-Droid CI)
+Follows `fdroid/README.md` → "Releasing an update", steps 3–7, with Run 1 already done in Phase B:
+1. `git checkout main && git merge --ff-only dev && git push` — **do not tag**. Confirm `main` SHA == RC SHA from Phase B (if not, redo Run 1 on the new SHA).
+2. Sign the four Phase-B unsigned APKs: `apksigner --v1-signing-enabled false --alignment-preserved true`, **verify cert `ff739cf5…`** (NEVER rule 6), name `drag-tree-v1.8.0-<abi>.apk` (NEVER rule 8: one per ABI, no universal).
+3. `gh release create v1.8.0 --target <RC full SHA>` with all four APKs + notes (changelog + "Fully offline, no tracking"). Not a pre-release. This creates the tag with the reference APKs already present.
+4. **Run 2:** add the four `binary:` lines to the fork blocks, push, confirm all four byte comparisons pass.
+5. Leave it to `checkupdates` (worked for 1.7.4 with no MR, 2026-10-09→16). Watch https://f-droid.org/api/v1/packages/com.flyboybyte.dragtree for 181–184; if not live in ~7 days, read their build log.
+6. **After tagging:** deploy Pages (Settings → Pages → Source: GitHub Actions, run "Web (Pages)"); close issue #2 pointing at 1.8.0; strike through this plan; update `fdroid/README.md` status + `MR_ACTIVITY.md` pipeline IDs; `dev` keeps going from the same SHA.
+7. **Play** — build AAB 180 only when Play un-parks (Logan's call).
+
+### Known, deliberately not in 1.8.0
+- `android.hardware.microphone` uses-feature still in the manifest (from expo-av; not removable with `blockedPermissions`). Harmless — no RECORD_AUDIO.
+- `MODIFY_AUDIO_SETTINGS` kept (decided 2026-08-03: expo-av audio focus on older phones).
+- Committed `android/` stays stale; F-Droid and betas regenerate it with prebuild.
+
+### Issue #2 — ACCESS_NETWORK_STATE (2026-10-10, Quantum-Future)
+Not from our code: merged in from ExoPlayer 2.18.1 (pulled in by expo-av for the sounds), which uses it only to guess network type for streaming bandwidth. The 1.7.3 cleanup blocked exactly the reviewer's list (2026-08-02), which didn't include it, so 1.7.3/1.7.4/betas 1–3 all ship it. INTERNET is blocked, so the app can't connect regardless. Fixed on dev 55387e8. Verified in ExoPlayer source (`NetworkTypeObserver`): missing permission → catches SecurityException → NETWORK_TYPE_UNKNOWN. Logan replied on the issue 2026-10-16. Close when 1.8.0 ships.
+
+### Gate status (2026-10-16)
+1 done · 3 done · 4 mostly (hold, volume-button hold, settings, slip UI confirmed; rest in Phase A) · 2 partly (web sims at 360 dp + large font, one real phone — Phase A device checks are the practical bar; no second phone available).
 
 ## Before merging dev → main (gates)
 
