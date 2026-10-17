@@ -1,6 +1,6 @@
 # PLAN.md — where DragTree goes next
 
-Status (2026-10-16): **stable v1.7.4 live on f-droid.org** (171–174, picked up by checkupdates — auto-update path proven). **Beta v1.8.0-beta.4** (code 178, `dev` @ 2e2edf5) is the current pre-release — beta.3 plus `ACCESS_NETWORK_STATE` blocked (55387e8, issue #2); Logan to run the Phase A device checks on it. **Next:** 1.8.0 — fully scoped in "1.8.0 release plan" below (Phase A: beta.4 + device checks). Play AAB for 1.7.4 built, upload parked. Last updated 2026-10-16.
+Status (2026-10-17): **stable v1.7.4 live on f-droid.org** (171–174, picked up by checkupdates — auto-update path proven). **Beta v1.8.0-beta.5** (code 179, the last beta code, `dev` @ c113ad5) is the current pre-release — beta.4 plus safe-area layout fix, raw-accelerometer switch for slow linear sensors (Pixel 9 linear = 50 Hz), onset-after-threshold fix. Logan to run the Phase A device checks on it. **Next:** 1.8.0 — fully scoped in "1.8.0 release plan" below (Phase A: beta.5 device checks). Play AAB for 1.7.4 built, upload parked. Last updated 2026-10-17.
 
 This is the roadmap for the `dev` branch. Releases happen when there's enough here worth shipping — no schedule.
 
@@ -11,6 +11,9 @@ This is the roadmap for the `dev` branch. Releases happen when there's enough he
 - **Android first.** iOS is not a goal. If an iOS or web build falls out cheaply, fine; never spend real effort on it.
 - **Play production access is parked** until Logan finds a better tester group. Not a dev-branch concern. AAB for 1.7.4 is at `~/dragtree-fdroid-build/play-v1.7.4/out/`.
 - **New modes are settings, off by default.** The default experience stays as it is.
+
+- [x] **Beta.5 (179, last beta code)** — 2026-10-17: https://github.com/flyboy-byte/drag-tree/releases/tag/v1.8.0-beta.5, from `dev` @ c113ad5, signed ff739cf5…, sha256 6923b124…5e8f9e, 68 `.so`, same 3 permissions as beta.4. Adds: no drawing under status/nav bars (17553da), raw-accelerometer switch when linear is slow + "Phone sensors" row, onset-from-crossing fix, no impossible CUSTOM suggestion (c113ad5). Notes: `~/dragtree-fdroid-build/beta-1.8.0-beta.5/NOTES.md`. **Any further fix:** reuse 179 (Android installs an equal versionCode over itself) or go straight to the 1.8.0 RC — 180+ is 1.8.0's.
+- **Check on beta.5:** home screen in 3-button and gesture nav; Settings test still → Sensor "Accelerometer" ≈200 Hz and the "Phone sensors" row; sounds; then car launch, two-thumb 2 Player, max font.
 
 Beta.1 and beta.2 releases **and tags** deleted 2026-10-16 (Logan); their records below stay (built from 067c319 and babb63d). Delete beta.3 once beta.4 is confirmed.
 
