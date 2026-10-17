@@ -1,6 +1,6 @@
 # PLAN.md — where DragTree goes next
 
-Status (2026-10-09): **stable v1.7.4** on GitHub; on F-Droid it's merged into fdroiddata (bot, 2026-10-09 08:28 UTC) but not yet built/published — f-droid.org still 1.7.3 at 17:56 UTC; their build cycle that started 2026-10-08 09:22 UTC predates the update. If still not live by ~2026-10-12, check F-Droid build logs. **Beta v1.8.0-beta.3** (code 177, `dev` @ 9bced7e) is the current pre-release; Logan is happy with it ("really impressed"), volume-button hold launch confirmed on the Pixel 9, and he is still testing. **Next:** Logan keeps testing; open checks below; then 1.8.0 release prep. Play AAB for 1.7.4 built, upload parked. Last updated 2026-10-09.
+Status (2026-10-16): **stable v1.7.4 live on f-droid.org** (171–174, picked up by checkupdates — auto-update path proven). **Beta v1.8.0-beta.3** (code 177, `dev` @ 9bced7e) is the current pre-release; Logan is happy with it and considers it done. Since beta.3, dev has one fix: `ACCESS_NETWORK_STATE` blocked (55387e8, issue #2). **Next:** 1.8.0 release readiness — see "1.8.0 readiness (2026-10-16)" below. Play AAB for 1.7.4 built, upload parked. Last updated 2026-10-16.
 
 This is the roadmap for the `dev` branch. Releases happen when there's enough here worth shipping — no schedule.
 
@@ -63,17 +63,24 @@ One big 1.8.0 instead of 1.8.0 + 1.9.0 (Logan: "build it out"). Ship each risky 
 
 **Large text (2026-10-09).** Simulated 1.2–1.6× font on web at 360 dp: title, mode pills, Settings header, result numbers collided/truncated. Big display text now caps OS scaling (1.1–1.3×), body text scales fully, the mode row wraps, the tree sizing subtracts text growth. Needs a real check at max font size.
 
+## 1.8.0 readiness (2026-10-16)
+
+- **Issue #2 (2026-10-10, Quantum-Future): "Why ACCESS_NETWORK_STATE?"** Not from our code: merged in from ExoPlayer 2.18.1 (pulled in by expo-av for the sounds), which uses it only to guess network type for streaming bandwidth. The 1.7.3 cleanup blocked exactly the reviewer's list (2026-08-02), which didn't include it, so 1.7.3/1.7.4/betas all ship it. INTERNET is blocked, so the app can't connect regardless. Fixed on dev 55387e8 (`blockedPermissions`). Verified in ExoPlayer source (`NetworkTypeObserver`): missing permission → catches SecurityException → NETWORK_TYPE_UNKNOWN. Logan replied on the issue. Close it when 1.8.0 ships. **Check on device:** sounds still play.
+- **Gates:** 1 done · 3 done · 4 mostly (hold, volume-button hold, settings, slip UI confirmed; car launch on the new sensor path, ~200 Hz reading, max font, 2 Player two-thumb, shutter remote not confirmed) · 2 partly (web sims at 360 dp + large font; only one real phone).
+- **Biggest unknown: the native module through F-Droid.** First release with code outside node_modules that autolinking compiles. Its `build.gradle` declares no repositories (what the scanner flagged in the scanignored libs), but only a pipeline proves scanner + reproducible dex. → **Dry run on the fork with dev's SHA before any merge** (Run 1 style: 4 blocks, no `binary:`, then diff our locally-signed build against the unsigned output — or just confirm build + scanner pass). Not a release, nothing tagged.
+- **Remaining prep (none started):** changelogs `181–184.txt`, Play text (180), store description, screenshots, README; version bump 1.8.0 / code 18 in app.json, package.json, android/app/build.gradle at merge time.
+
 ## Before merging dev → main (gates)
 
 1. **Reviewer findings reconciled.** #1, #2, #4 fixed in v1.7.4. #3 (title wrap) fixed on dev: badges incl. settings are icon-only; title fits with all four badges at 360 dp (web render 2026-10-08), truncates only below ~350 dp.
 2. **Works across Android phones, best practice:** small screens (360 dp), large font scale, 60/90/120 Hz displays, phones whose sensor can't do 125 Hz, phones without a motion sensor (tap-only must work end to end), Android versions down to minSdk. Every new mode must degrade cleanly when a capability is missing.
-3. **v1.7.4 confirmed live on f-droid.org via the checkupdates bot** — proves the auto-update path before shipping the next one.
+3. ~~**v1.7.4 confirmed live on f-droid.org via the checkupdates bot**~~ — DONE (seen live 2026-10-16, 171–174).
 4. Logan's on-phone test pass (hold-to-launch, two-player multitouch).
 
 ## Already on dev
 
 - ~~98b2733 — icon-only ACCEL / FLOOR IT badges~~ — DONE, plus icon-only settings badge (3525baf); verified in web render at 393 and 360 dp.
-- No native code or dependency changes anywhere on dev — the F-Droid recipe is unaffected.
+- ~~No native code or dependency changes anywhere on dev~~ — no longer true since 9bced7e: local native module `modules/dragtree-input` (Kotlin only, autolinked, no recipe change expected). Unproven in an F-Droid pipeline until the dry run.
 
 ## How this was tested (2026-10-08) and what still needs a phone
 

@@ -4,7 +4,7 @@ Listing: https://f-droid.org/packages/com.flyboybyte.dragtree/
 Original inclusion MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671 (merged 2026-09-28)  
 fdroiddata fork: `flyboy-byte/fdroiddata` (local clone at `./fdroiddata/`, gitignored)
 
-**Status (2026-10-08): v1.7.3 (161–164) live on f-droid.org. v1.7.4 (171–174) released: GitHub release + tag at `41abd76`, fork Run 1 `2927243619` (build ok), Run 2 `2927352215` — all 4 byte comparisons passed. Waiting on F-Droid `checkupdates` to pick up the tag (no MR needed). Fork branch: `dragtree-v1.7.4`.**
+**Status (2026-10-16): v1.7.4 (171–174) live on f-droid.org, picked up by `checkupdates` from the tag with no MR (GitHub release + tag at `41abd76`; fork Run 1 `2927243619`, Run 2 `2927352215`, all 4 byte comparisons passed; fork branch `dragtree-v1.7.4`). Next: 1.8.0 (181–184) — first release with the local native module `modules/dragtree-input`; dry-run it on the fork before merging.**
 
 Other docs in this folder: `AI_CONTEXT.md` (start here cold), `REPRO_EXECUTION.md` (repro playbook), `MR_ACTIVITY.md` (reviewer history), `REPRO_RESEARCH.md` (background only).
 
