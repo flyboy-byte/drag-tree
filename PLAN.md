@@ -43,6 +43,8 @@ Beta.1 and beta.2 releases **and tags** deleted 2026-10-16 (Logan); their record
 - [ ] Sensor launch still works as before (regression)
 - [ ] Anything confusing, ugly, or too wordy
 
+Feedback, beta.4 (Pixel 9, 2026-10-16): ~~bottom of the home screen on a cold open looks low and odd, worse with 3-button navigation ("I don't feel like this is quality UI")~~ — FIXED on dev 17553da. Cause: the page scrolled behind the nav bar and the idle block was sized to end flush against it, so History peeked out under the 3-button bar and the hint sat on the gesture pill. Home and Settings now scroll between the bars; first screen ends 16 dp above the nav bar; History starts below the fold. Checked in a web render at 412×915; **needs a phone check in both navigation modes.** Very short screens (≤ ~393×852 with web-sized bars) still scroll to reach the hint — lights already at their 30 dp minimum.
+
 Feedback, beta.3 (Pixel 9, 2026-10-09): Logan — "really impressed", "looks great", settings layout good; **holding both volume buttons works** (hold-to-launch via volume keys confirmed on device); saw and tried the time-slip entry (no real slip entered yet). Logan considers beta.3 done. **Not yet confirmed on device:** sensor rate (~200 Hz / "Linear acceleration" in Settings), a real car launch on the new sensor path, max font size, a Bluetooth shutter remote. Note for testers: slips entered under beta.1/2 were matched to the old early-biased sensor RTs — clear and re-enter.
 
 Feedback, round 1 (Pixel 9, 2026-10-08):
