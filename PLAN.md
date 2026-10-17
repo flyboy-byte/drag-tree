@@ -15,7 +15,7 @@ This is the roadmap for the `dev` branch. Releases happen when there's enough he
 - [x] **Beta.5 (179, last beta code)** — 2026-10-17: https://github.com/flyboy-byte/drag-tree/releases/tag/v1.8.0-beta.5, from `dev` @ c113ad5, signed ff739cf5…, sha256 6923b124…5e8f9e, 68 `.so`, same 3 permissions as beta.4. Adds: no drawing under status/nav bars (17553da), raw-accelerometer switch when linear is slow + "Phone sensors" row, onset-from-crossing fix, no impossible CUSTOM suggestion (c113ad5). Notes: `~/dragtree-fdroid-build/beta-1.8.0-beta.5/NOTES.md`. **Any further fix:** reuse 179 (Android installs an equal versionCode over itself) or go straight to the 1.8.0 RC — 180+ is 1.8.0's.
 - **Check on beta.5:** home screen in 3-button and gesture nav; Settings test still → Sensor "Accelerometer" ≈200 Hz and the "Phone sensors" row; sounds; then car launch, two-thumb 2 Player, max font.
 
-Beta.1 and beta.2 releases **and tags** deleted 2026-10-16 (Logan); their records below stay (built from 067c319 and babb63d). Delete beta.3 once beta.4 is confirmed.
+Beta.1–.4 releases **and tags** deleted (1–2 on 2026-10-16, 3–4 on 2026-10-17, Logan); records below stay (built from 067c319, babb63d, 9bced7e, 2e2edf5). Only beta.5 is published.
 
 ## Beta v1.8.0-beta.3 (GitHub pre-release, 2026-10-09)
 - https://github.com/flyboy-byte/drag-tree/releases/tag/v1.8.0-beta.3 — universal APK, signed ff739cf5…, **versionCode 177**, from `dev` @ 9bced7e. sha256 cd8cbdd2…725f95. Notes: `~/dragtree-fdroid-build/beta-1.8.0-beta.3/NOTES.md`. Next beta → 178.
