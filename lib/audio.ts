@@ -1,4 +1,4 @@
-// Programmatic audio cues for tree countdown and result tones.
+// Programmatic audio cues: amber ticks, a soft green beep, result tones.
 // Uses expo-av with synthesized WAV data URIs — no bundled asset files needed.
 // Android plays them on the media stream (media volume); iOS plays through the
 // silent switch. Background music dips briefly rather than stopping.
@@ -46,18 +46,35 @@ function buildWavUri(samples: Float32Array): string {
   return "data:audio/wav;base64," + btoa(bin);
 }
 
-// Rising chirp for green (~60ms, sweeps 1400→2000 Hz)
-function makeGreenSamples(): Float32Array {
-  const n = Math.floor(SR * 0.060);
+// Soft tick for each amber (~35ms, 800 Hz, fast decay). Short and quiet: it
+// marks that the tree is running without being a cue to react to.
+function makeTickSamples(): Float32Array {
+  const n = Math.floor(SR * 0.035);
   const out = new Float32Array(n);
   let phase = 0;
-  const attackN = Math.floor(SR * 0.008);
+  const attackN = Math.floor(SR * 0.003);
   for (let i = 0; i < n; i++) {
     const t = i / SR;
-    const env = Math.min(1, i / attackN) * Math.exp(-t * 16);
-    const freq = 1400 + (t / 0.060) * 600;
+    const env = Math.min(1, i / attackN) * Math.exp(-t * 85);
+    phase += (2 * Math.PI * 800) / SR;
+    out[i] = 0.16 * env * Math.sin(phase);
+  }
+  return out;
+}
+
+// Gentle low beep for green (~100ms, 620→760 Hz). The old 1400→2000 Hz chirp
+// sat in the ear's most sensitive range and read as harsh next to the ping.
+function makeGreenSamples(): Float32Array {
+  const n = Math.floor(SR * 0.100);
+  const out = new Float32Array(n);
+  let phase = 0;
+  const attackN = Math.floor(SR * 0.012);
+  for (let i = 0; i < n; i++) {
+    const t = i / SR;
+    const env = Math.min(1, i / attackN) * Math.exp(-t * 14);
+    const freq = 620 + (t / 0.100) * 140;
     phase += (2 * Math.PI * freq) / SR;
-    out[i] = 0.27 * env * Math.sin(phase);
+    out[i] = 0.14 * env * Math.sin(phase);
   }
   return out;
 }
@@ -99,14 +116,17 @@ function makeResultRedLightSamples(): Float32Array {
 
 type SoundSlot = { sound: Audio.Sound } | null;
 
-const cache: Record<"green" | "good" | "redlight", SoundSlot> = {
+type SoundKey = "tick" | "green" | "good" | "redlight";
+
+const cache: Record<SoundKey, SoundSlot> = {
+  tick:     null,
   green:    null,
   good:     null,
   redlight: null,
 };
 
 // Lazily-built WAV data URIs — generated once the first time ensureReady() runs.
-let wavUris: Record<"green" | "good" | "redlight", string> | null = null;
+let wavUris: Record<SoundKey, string> | null = null;
 
 let initPromise: Promise<void> | null = null;
 
@@ -116,6 +136,7 @@ async function ensureReady(): Promise<void> {
     // Build WAV data URIs on first use (sync ~1–2ms on device).
     if (!wavUris) {
       wavUris = {
+        tick:     buildWavUri(makeTickSamples()),
         green:    buildWavUri(makeGreenSamples()),
         good:     buildWavUri(makeResultGoodSamples()),
         redlight: buildWavUri(makeResultRedLightSamples()),
@@ -137,7 +158,7 @@ async function ensureReady(): Promise<void> {
       // Some devices reject an audio-mode field; play with the defaults.
     }
 
-    const keys = ["green", "good", "redlight"] as const;
+    const keys = ["tick", "green", "good", "redlight"] as const;
     await Promise.all(
       keys.map(async (key) => {
         if (cache[key]) return;
@@ -159,7 +180,7 @@ async function ensureReady(): Promise<void> {
   return initPromise;
 }
 
-async function playSlot(key: "green" | "good" | "redlight"): Promise<void> {
+async function playSlot(key: SoundKey): Promise<void> {
   const slot = cache[key];
   if (!slot) return;
   try {
@@ -176,6 +197,19 @@ async function playSlot(key: "green" | "good" | "redlight"): Promise<void> {
 export function preloadAudio(): void {
   if (!settings.get().soundEnabled) return;
   void ensureReady();
+}
+
+// One tick per amber. Pro Tree ambers light together (three state updates in
+// the same instant), so ticks closer than TICK_GAP_MS collapse into one.
+const TICK_GAP_MS = 120;
+let lastTickAt = 0;
+export async function playAmberTick(): Promise<void> {
+  if (!settings.get().soundEnabled) return;
+  const now = Date.now();
+  if (now - lastTickAt < TICK_GAP_MS) return;
+  lastTickAt = now;
+  await ensureReady();
+  await playSlot("tick");
 }
 
 export async function playGreenBeep(): Promise<void> {

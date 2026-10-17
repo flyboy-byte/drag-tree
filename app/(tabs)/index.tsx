@@ -28,6 +28,7 @@ import { settings } from "@/lib/settings";
 import { sessionLock } from "@/lib/sessionLock";
 import { coachingHint } from "@/lib/coaching";
 import { playGreenBeep, playResultTone, preloadAudio } from "@/lib/audio";
+import { useAmberTicks } from "@/hooks/useAmberTicks";
 import { slipCalibration, averageOffset } from "@/lib/slipCalibration";
 import { holdDecision } from "@/lib/holdRelease";
 import { getHardwareKeySource } from "@/lib/hardwareKeys";
@@ -424,14 +425,18 @@ export default function HomeScreen() {
     if (soundEnabled) preloadAudio();
   }, [soundEnabled]);
 
-  // Green beep: fires when phase becomes "go".
+  useAmberTicks(tree);
+
+  // Green beep: fires when phase becomes "go" — but not while the motion
+  // sensor is listening for the launch (the speaker would buzz the phone right
+  // when it's watching for movement; the light is the cue, as on a real tree).
   const prevIsArmedRef = React.useRef(false);
   React.useEffect(() => {
-    if (isArmed && !prevIsArmedRef.current) {
+    if (isArmed && !prevIsArmedRef.current && useSimulation) {
       void playGreenBeep();
     }
     prevIsArmedRef.current = isArmed;
-  }, [isArmed]);
+  }, [isArmed, useSimulation]);
 
   // Result tone: fires on first render where isDone is true.
   const prevIsDoneRef = React.useRef(false);

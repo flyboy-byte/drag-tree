@@ -17,6 +17,7 @@ import { useColors } from "@/hooks/useColors";
 import { useVersusSession } from "@/hooks/useVersusSession";
 import { settings } from "@/lib/settings";
 import { playGreenBeep } from "@/lib/audio";
+import { useAmberTicks } from "@/hooks/useAmberTicks";
 import type { Player, VersusPhase, VersusResult, VersusTally } from "@/lib/versus";
 
 const LABEL: Record<Player, string> = { bottom: "PLAYER 1", top: "PLAYER 2" };
@@ -25,6 +26,8 @@ export default function VersusScreen() {
   const colors = useColors();
   const { treeMode } = useSyncExternalStore(settings.subscribe, settings.get, settings.get);
   const { phase, tree, lanes, result, tally, start, tap, resetTally } = useVersusSession(treeMode);
+
+  useAmberTicks(tree);
 
   const prevPhase = useRef(phase);
   useEffect(() => {

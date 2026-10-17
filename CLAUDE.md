@@ -165,8 +165,8 @@ When sensor is active and FLOOR IT is off, the button shows "ARMED" and is disab
 
 All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asset files. Lazy-initialized on first play via `ensureReady()`. Each function no-ops if `soundEnabled === false`.
 
-- **Amber click** (~40 ms, 900 Hz) — fires on each amber stage
-- **Green chirp** (~70 ms, 1400→2000 Hz sweep) — fires at "go", **only in simulation mode** (skipped when sensor-armed to avoid masking launch)
+- **Amber tick** (~35 ms, 800 Hz, quiet) — one per amber lit (`hooks/useAmberTicks`): once on the Pro Tree, three times on Sportsman. Ticks within 120 ms collapse into one.
+- **Green beep** (~100 ms, 620→760 Hz, soft) — fires at "go", **only when the sensor isn't detecting the launch** (tap / hold / key / FLOOR IT, and 2 Player); skipped when sensor-armed so the speaker doesn't buzz the phone while it listens. Was a loud 1400→2000 Hz chirp before 1.8.0.
 - **Result ping** (~110 ms) — fires for any non-redlight, non-late grade
 - **Red-light buzz** (~180 ms, 220→60 Hz) — fires for redlight
 
