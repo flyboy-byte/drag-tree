@@ -7,7 +7,7 @@ import { Audio } from "expo-av";
 import type { ReactionGrade } from "@/components/ReactionDisplay";
 import { settings } from "./settings";
 
-const SR = 22050; // sample rate
+const SR = 44100; // sample rate
 
 // ── WAV synthesis helpers ──────────────────────────────────────────────────
 
@@ -46,70 +46,83 @@ function buildWavUri(samples: Float32Array): string {
   return "data:audio/wav;base64," + btoa(bin);
 }
 
-// Soft tick for each amber (~35ms, 800 Hz, fast decay). Short and quiet: it
-// marks that the tree is running without being a cue to react to.
+// Phone speakers are small and thin, so bare high sine waves sound harsh and
+// tinny. These cues sit in the low-mid range, add a couple of softer
+// harmonics for body, and use rounded attacks so nothing clicks or pierces.
+
+// One pitched note: fundamental plus decaying harmonics, soft attack,
+// exponential decay. `glide` moves the pitch by that many Hz over the note.
+function note(
+  seconds: number,
+  freq: number,
+  amp: number,
+  decay: number,
+  attack: number,
+  harmonics: number[] = [1, 0.35, 0.12],
+  glide = 0,
+): Float32Array {
+  const n = Math.floor(SR * seconds);
+  const out = new Float32Array(n);
+  const attackN = Math.max(1, Math.floor(SR * attack));
+  const norm = harmonics.reduce((a, b) => a + b, 0);
+  const phases = harmonics.map(() => 0);
+  for (let i = 0; i < n; i++) {
+    const t = i / SR;
+    const f = freq + (glide * t) / seconds;
+    // cosine-shaped attack, exponential decay, and a short fade at the end
+    const a = i < attackN ? 0.5 - 0.5 * Math.cos((Math.PI * i) / attackN) : 1;
+    const tail = Math.min(1, (n - i) / Math.floor(SR * 0.008));
+    const env = a * Math.exp(-t * decay) * tail;
+    let v = 0;
+    for (let h = 0; h < harmonics.length; h++) {
+      phases[h] += (2 * Math.PI * f * (h + 1)) / SR;
+      v += harmonics[h] * Math.sin(phases[h]);
+    }
+    out[i] = (amp * env * v) / norm;
+  }
+  return out;
+}
+
+function concat(...parts: Float32Array[]): Float32Array {
+  const out = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
+  let o = 0;
+  for (const p of parts) {
+    out.set(p, o);
+    o += p.length;
+  }
+  return out;
+}
+
+function mix(a: Float32Array, b: Float32Array): Float32Array {
+  const out = new Float32Array(Math.max(a.length, b.length));
+  for (let i = 0; i < out.length; i++) out[i] = (a[i] ?? 0) + (b[i] ?? 0);
+  return out;
+}
+
+// Amber tick (~45 ms): a low, dry "tock" that marks each amber without
+// reading as a cue to react to.
 function makeTickSamples(): Float32Array {
-  const n = Math.floor(SR * 0.035);
-  const out = new Float32Array(n);
-  let phase = 0;
-  const attackN = Math.floor(SR * 0.003);
-  for (let i = 0; i < n; i++) {
-    const t = i / SR;
-    const env = Math.min(1, i / attackN) * Math.exp(-t * 85);
-    phase += (2 * Math.PI * 800) / SR;
-    out[i] = 0.7 * env * Math.sin(phase);
-  }
-  return out;
+  return note(0.045, 430, 0.6, 70, 0.003, [1, 0.5, 0.2]);
 }
 
-// Clear mid-pitch beep for green (~100ms, 880→1000 Hz), loud enough to hear
-// over an engine. Lower than the old 1400→2000 Hz chirp, which read as harsh.
+// Green beep (~140 ms): one clear mid-pitch note with a soft attack.
 function makeGreenSamples(): Float32Array {
-  const n = Math.floor(SR * 0.100);
-  const out = new Float32Array(n);
-  let phase = 0;
-  const attackN = Math.floor(SR * 0.012);
-  for (let i = 0; i < n; i++) {
-    const t = i / SR;
-    const env = Math.min(1, i / attackN) * Math.exp(-t * 10);
-    const freq = 880 + (t / 0.100) * 120;
-    phase += (2 * Math.PI * freq) / SR;
-    out[i] = 0.85 * env * Math.sin(phase);
-  }
-  return out;
+  return note(0.14, 660, 0.6, 9, 0.010, [1, 0.4, 0.15]);
 }
 
-// Bright rising ping for clean results (~110ms, 1600→2100 Hz)
+// Clean result (~260 ms): a gentle two-note chime, rising.
 function makeResultGoodSamples(): Float32Array {
-  const n = Math.floor(SR * 0.110);
-  const out = new Float32Array(n);
-  let phase = 0;
-  const attackN = Math.floor(SR * 0.006);
-  for (let i = 0; i < n; i++) {
-    const t = i / SR;
-    const env = Math.min(1, i / attackN) * Math.exp(-t * 9);
-    const freq = 1600 + (t / 0.110) * 500;
-    phase += (2 * Math.PI * freq) / SR;
-    out[i] = 0.8 * env * Math.sin(phase);
-  }
-  return out;
+  const first = note(0.26, 587, 0.5, 11, 0.006, [1, 0.3, 0.1]);
+  const second = concat(
+    new Float32Array(Math.floor(SR * 0.09)),
+    note(0.17, 784, 0.5, 11, 0.006, [1, 0.3, 0.1]),
+  );
+  return mix(first, second);
 }
 
-// Low descending buzz for red light (~180ms, 220→60 Hz with square distortion)
+// Red light (~220 ms): a low, falling thud, not a buzz.
 function makeResultRedLightSamples(): Float32Array {
-  const n = Math.floor(SR * 0.180);
-  const out = new Float32Array(n);
-  let phase = 0;
-  const attackN = Math.floor(SR * 0.005);
-  for (let i = 0; i < n; i++) {
-    const t = i / SR;
-    const env = Math.min(1, i / attackN) * Math.exp(-t * 7);
-    const freq = Math.max(60, 220 - (t / 0.180) * 160);
-    phase += (2 * Math.PI * freq) / SR;
-    const sine = Math.sin(phase);
-    out[i] = 0.85 * env * (0.7 * sine + 0.3 * Math.sign(sine));
-  }
-  return out;
+  return note(0.22, 180, 0.7, 10, 0.006, [1, 0.5, 0.25], -70);
 }
 
 // ── Sound cache ────────────────────────────────────────────────────────────
