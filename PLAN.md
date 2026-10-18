@@ -290,3 +290,9 @@ Logan on rc.1: the sound change wasn't noticeable; no volume, especially with th
 - Late launches timed to 5 s and green beep in all modes are from fc50185 (rc.2).
 - **RC 3 SHA 23d9d3d424d388c4d726af0da6c1f5582d80660c** (supersedes fc50185 and 9511788; Phase D step 1 must push this SHA to main). Logan kept the new red-light thud (2026-10-18). Fork dragtree-v1.8.0 @ 358e9c5057, Run 1 pipeline 2959708314 started 2026-10-18. Then: determinism retry, sign the four, rc.3 pre-release, Phase D.
 **RC 3 Run 1 result (2026-10-18):** build ✅ job 17262098501 (expected schema/checkupdates failures). APKs in `~/dragtree-fdroid-build/release-v1.8.0/rc3/unsigned/tmp/`; one ABI each; permissions HIGH_SAMPLING_RATE_SENSORS, MODIFY_AUDIO_SETTINGS, VIBRATE. **Determinism: retry job 17262247639 → all four byte-identical.** Signed (ff739cf5… verified) in `rc3/signed/drag-tree-v1.8.0-<abi>.apk` — these are the Phase D release assets. Pre-release **v1.8.0-rc.3** (arm64) published and installed on Logan's Pixel; rc.2, beta.6, beta.5 deleted. Waiting on Logan's go for Phase D with SHA 23d9d3d424d388c4d726af0da6c1f5582d80660c.
+
+### Phase D — 1.8.0 published (2026-10-18)
+- `main` fast-forwarded to **23d9d3d** (d21d0e1..23d9d3d). GitHub release **v1.8.0** (Latest) with the four signed APKs from `rc3/signed/`; tag v1.8.0 → 23d9d3d. rc.3 pre-release deleted.
+- **Run 2:** fork dragtree-v1.8.0 @ 350d2f8c7c adds `binary:` to the four blocks; pipeline 2960334879 running.
+- **Issue #2 stays open for now (Logan's call, 2026-10-18).** Don't close it until he says.
+- Remaining: Run 2 result → MR to upstream fdroiddata isn't needed (AutoUpdateMode/checkupdates picks up the tag); watch f-droid.org for 1.8.0. Deploy Pages if the site lists the version.
