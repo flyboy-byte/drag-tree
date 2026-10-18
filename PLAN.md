@@ -293,6 +293,6 @@ Logan on rc.1: the sound change wasn't noticeable; no volume, especially with th
 
 ### Phase D — 1.8.0 published (2026-10-18)
 - `main` fast-forwarded to **23d9d3d** (d21d0e1..23d9d3d). GitHub release **v1.8.0** (Latest) with the four signed APKs from `rc3/signed/`; tag v1.8.0 → 23d9d3d. rc.3 pre-release deleted.
-- **Run 2:** fork dragtree-v1.8.0 @ 350d2f8c7c adds `binary:` to the four blocks; pipeline 2960334879 running.
+- **Run 2 ✅ (2026-10-18):** fork dragtree-v1.8.0 @ 350d2f8c7c adds `binary:`; pipeline 2960334879 fully green (build, checkupdates, schema validation, check apk); all four builds "successfully verified" against the release APKs.
 - **Issue #2 stays open for now (Logan's call, 2026-10-18).** Don't close it until he says.
 - Remaining: Run 2 result → MR to upstream fdroiddata isn't needed (AutoUpdateMode/checkupdates picks up the tag); watch f-droid.org for 1.8.0. Deploy Pages if the site lists the version.
