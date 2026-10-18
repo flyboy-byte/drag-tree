@@ -274,3 +274,11 @@ Big addition, and a strong one: offline head-to-head turns the app from solo pra
 ## Release hygiene reminder
 
 Every release follows `fdroid/README.md` → "Releasing an update". Changelogs go in `changelogs/<10*code+1..4>.txt`. Native-dependency changes (idea 4b) get their own release.
+
+### RC 2 (2026-10-18): feedback on rc.1 and changes
+Logan on rc.1: the sound change wasn't noticeable; no volume, especially with the motion sensor off; wants it loud, the Sound toggle first in Settings → Launch, one Sound setting for all launch modes; asked why a reaction over 2 s shows only 2 s.
+- **Cause of quiet sound:** cue amplitudes 0.14–0.29 on top of player volume 0.55. Now player volume 1.0 and amplitudes tick 0.7, green 0.85, ping 0.8, buzz 0.85; green beep 880→1000 Hz.
+- **Green beep now plays in every launch mode**, including sensor-armed (the old skip is gone). Watch for the speaker tripping the sensor on a mounted phone.
+- **Sound toggle** moved to the top of Launch.
+- **2 s cap was the auto-late timeout.** Now 5 s (`TIMEOUT_RT` in `useTreeSession.ts`); launches between 2 and 5 s are measured and graded LATE; a launch that never comes records 5.000. Consistency stats still ignore anything ≥ 2 s. 2 Player keeps its 2 s cutoff.
+- **New RC SHA fc501858e2f8558e98d968da2bd0fab3d062f8c4** (supersedes 9511788; Phase D step 1 must push this SHA). Fork branch dragtree-v1.8.0 @ f377afa2c5, Run 1 pipeline 2959503217 started 2026-10-18 02:15 UTC. Old Run 1 outputs and the rc.1 pre-release are stale: rebuild the preview APK from the new unsigned output.
