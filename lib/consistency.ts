@@ -15,7 +15,8 @@ export interface ConsistencyStats {
 // ±20 ms is the "tight" band most bracket racers talk about.
 export const DEFAULT_WINDOW = 0.020;
 
-// Auto-late timeouts are recorded as 2.0 s — a missed launch, not a reaction.
+// Reactions over 2 s are late launches (and 5 s auto-late timeouts are missed
+// ones), not reactions to measure consistency on.
 const TIMEOUT_RT = 2.0;
 
 const isClean = (r: RunRecord) =>

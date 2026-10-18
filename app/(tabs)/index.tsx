@@ -427,16 +427,12 @@ export default function HomeScreen() {
 
   useAmberTicks(tree);
 
-  // Green beep: fires when phase becomes "go" — but not while the motion
-  // sensor is listening for the launch (the speaker would buzz the phone right
-  // when it's watching for movement; the light is the cue, as on a real tree).
+  // Green beep: fires when the light goes green, in every launch mode.
   const prevIsArmedRef = React.useRef(false);
   React.useEffect(() => {
-    if (isArmed && !prevIsArmedRef.current && useSimulation) {
-      void playGreenBeep();
-    }
+    if (isArmed && !prevIsArmedRef.current) void playGreenBeep();
     prevIsArmedRef.current = isArmed;
-  }, [isArmed, useSimulation]);
+  }, [isArmed]);
 
   // Result tone: fires on first render where isDone is true.
   const prevIsDoneRef = React.useRef(false);

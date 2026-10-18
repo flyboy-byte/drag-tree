@@ -268,7 +268,7 @@ export default function DiagnosticScreen() {
             <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={[styles.rowVal, { color: colors.foreground }]}>Sound</Text>
               <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
-                A tick on each amber, a beep at green (not when the motion sensor is launching) and a tone with your result. Plays at media volume, so turn it up.
+                A tick on each amber, a beep at green and a tone with your result. Plays at media volume, so turn it up.
               </Text>
             </View>
             <Switch

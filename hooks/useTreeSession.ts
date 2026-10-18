@@ -50,6 +50,9 @@ const INITIAL_TREE: TreeState = {
 
 // AsyncStorage keys — bumping the suffix is the migration path if the
 // shape of RunRecord ever changes incompatibly.
+// Seconds of green before a launch that never came is recorded as a miss.
+const TIMEOUT_RT = 5.0;
+
 const STORAGE_KEY_RECORDS  = "dragtree.history.v1";
 const STORAGE_KEY_BEST     = "dragtree.bestTime.v1";
 
@@ -286,17 +289,19 @@ export function useTreeSession() {
       });
     }, lastAmberAt + greenDelay));
 
-    // Auto-late after 2s of green
+    // Auto-late after 5s of green. Launches between 2 and 5 s are still
+    // measured and shown as LATE; only a launch that never comes is recorded
+    // as the timeout.
     ids.push(setTimeout(() => {
       if (phaseRef.current === "go") {
-        const rt = 2.0;
+        const rt = TIMEOUT_RT;
         const g = gradeRT(rt);
         setTree(t => ({ ...t, green: false }));
         // A timeout is a missed launch, not a measured reaction.
         recordResult(rt, g, false);
         updatePhase("result");
       }
-    }, lastAmberAt + greenDelay + 2000));
+    }, lastAmberAt + greenDelay + TIMEOUT_RT * 1000));
 
     timerIdsRef.current = ids;
   }, [recordResult]);
