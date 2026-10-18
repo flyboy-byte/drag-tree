@@ -142,6 +142,35 @@ const cache: Record<SoundKey, SoundSlot> = {
 // Lazily-built WAV data URIs — generated once the first time ensureReady() runs.
 let wavUris: Record<SoundKey, string> | null = null;
 
+// A freshly created player plays its first cue silently on some phones (seen
+// on a Pixel 9: the whole first run was mute, every later run fine). Play each
+// sound once at zero volume while loading so the first real cue isn't a first.
+const PRIME_MS = 160;
+async function primeSounds(): Promise<void> {
+  const slots = Object.values(cache).filter((s): s is { sound: Audio.Sound } => s !== null);
+  try {
+    await Promise.all(
+      slots.map(async ({ sound }) => {
+        await sound.setVolumeAsync(0);
+        await sound.replayAsync();
+      }),
+    );
+    await new Promise<void>((r) => setTimeout(r, PRIME_MS));
+  } catch {
+    // Priming is best-effort.
+  }
+  await Promise.all(
+    slots.map(async ({ sound }) => {
+      try {
+        await sound.stopAsync();
+        await sound.setVolumeAsync(1.0);
+      } catch {
+        // ignore
+      }
+    }),
+  );
+}
+
 let initPromise: Promise<void> | null = null;
 
 async function ensureReady(): Promise<void> {
@@ -190,6 +219,7 @@ async function ensureReady(): Promise<void> {
         }
       }),
     );
+    await primeSounds();
   })().catch(() => {
     // Let the next cue try again instead of staying broken for the session.
     initPromise = null;
