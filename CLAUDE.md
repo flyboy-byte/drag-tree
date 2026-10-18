@@ -163,12 +163,14 @@ When sensor is active and FLOOR IT is off, the button shows "ARMED" and is disab
 
 ### Audio (`lib/audio.ts`)
 
-All sounds are 16-bit PCM WAV data URIs generated at runtime — no bundled asset files. Lazy-initialized on first play via `ensureReady()`. Each function no-ops if `soundEnabled === false`.
+All sounds are 16-bit PCM WAVs synthesized at runtime (44.1 kHz, fundamental + soft harmonics, rounded attacks) — no bundled asset files. Lazy-initialized via `ensureReady()` (preloaded on the home screen). Each function no-ops if `soundEnabled === false`.
 
-- **Amber tick** (~35 ms, 800 Hz, loud enough to hear over an engine) — one per amber lit (`hooks/useAmberTicks`): once on the Pro Tree, three times on Sportsman. Ticks within 120 ms collapse into one.
-- **Green beep** (~100 ms, 880→1000 Hz, loud) — fires at "go" in every launch mode, sensor included. All cues play at full player volume; the clip levels are the loudness.
-- **Result ping** (~110 ms) — fires for any non-redlight, non-late grade
-- **Red-light buzz** (~180 ms, 220→60 Hz) — fires for redlight
+**Android plays cues through `SoundPool` in `modules/dragtree-input`** (`loadCues` / `playCue`, USAGE_GAME on the media volume, no audio focus). Don't move them back to expo-av on Android: its ExoPlayer path mixed the whole first run after launch at zero gain on a Pixel 9 (verified in `dumpsys media.audio_flinger`), and `Audio.setAudioModeAsync` always calls `setSpeakerphoneOn(true)` there. iOS/web still use expo-av.
+
+- **Amber tick** (~45 ms, 430 Hz "tock") — one per amber lit (`hooks/useAmberTicks`): once on the Pro Tree, three times on Sportsman. Ticks within 120 ms collapse into one.
+- **Green beep** (~140 ms, 660 Hz) — fires at "go" in every launch mode, sensor included.
+- **Result chime** (~260 ms, two rising notes) — fires for any non-redlight, non-late grade
+- **Red-light thud** (~220 ms, 180→110 Hz, falling) — fires for redlight. Before beta 6 this was a low square-edged buzz (220→60 Hz), which Logan liked best of the old set.
 
 ---
 

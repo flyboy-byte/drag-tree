@@ -36,7 +36,7 @@ All three are signed with the same key, so you can switch between them without u
 - **Accelerometer test** — records 5 seconds of background vibration and suggests the most sensitive setting it won't trip
 - **Phone latency check** — screen rate, sensor rate, and a tap test
 - **Sensitivity** — Gentle / Normal / Hard presets plus a custom threshold
-- **Sounds** (optional) — a tick per amber, a soft beep at green, result ping, red-light buzz
+- **Sounds** (optional) — a tick per amber, a beep at green, result chime, red-light buzz
 - **FLOOR IT button** — simulated launch for practice without a car, or in a browser
 
 The displayed RT is a launch-reaction estimate. Track time slips also include rollout and drivetrain response, so the app is best for training consistency rather than predicting a slip.

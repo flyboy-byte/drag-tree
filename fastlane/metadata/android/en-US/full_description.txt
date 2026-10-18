@@ -30,7 +30,7 @@ BUILT FOR PRECISION
 • Phone latency check: screen rate, sensor rate and a tap test, so you know how much of a time is the phone
 • Three sensitivity presets plus a custom setting
 
-Optional sounds: a tick on each amber, a soft beep at green and a tone for your result.
+Optional sounds: a tick on each amber, a beep at green and a chime for your result.
 
 The reaction time shown is how quickly you responded after the green. A track time slip also includes the car's rollout and drivetrain response, so DragTree is best for practice and consistency, not for predicting your exact slip.
 

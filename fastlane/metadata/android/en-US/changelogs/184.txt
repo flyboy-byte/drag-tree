@@ -4,6 +4,6 @@
 - Motion sensor up to 200 readings a second; sensor times are more accurate and may read slightly slower
 - Sensor launch on phones without a gyroscope
 - Consistency stats, time-slip comparison, phone latency check
-- Amber ticks and a softer green beep
+- New sounds; late launches timed to 5 s
 - Better fit on small screens and large text
 - One unused permission removed

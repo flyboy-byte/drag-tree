@@ -1,8 +1,8 @@
 // Programmatic audio cues: amber ticks, a green beep, result tones.
 // Synthesized WAVs — no bundled asset files. Android plays them through the
 // native module's SoundPool; other platforms use expo-av data URIs.
-// Android plays them on the media stream (media volume); iOS plays through the
-// silent switch. Background music dips briefly rather than stopping.
+// Android plays them on the media volume and mixes over any music (SoundPool
+// takes no audio focus); iOS plays through the silent switch.
 
 import { Platform } from "react-native";
 import { Audio } from "expo-av";
