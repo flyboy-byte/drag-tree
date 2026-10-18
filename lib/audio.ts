@@ -1,5 +1,6 @@
-// Programmatic audio cues: amber ticks, a soft green beep, result tones.
-// Uses expo-av with synthesized WAV data URIs — no bundled asset files needed.
+// Programmatic audio cues: amber ticks, a green beep, result tones.
+// Synthesized WAVs — no bundled asset files. Android plays them through the
+// native module's SoundPool; other platforms use expo-av data URIs.
 // Android plays them on the media stream (media volume); iOS plays through the
 // silent switch. Background music dips briefly rather than stopping.
 
@@ -7,6 +8,7 @@ import { Platform } from "react-native";
 import { Audio } from "expo-av";
 import type { ReactionGrade } from "@/components/ReactionDisplay";
 import { settings } from "./settings";
+import { DragTreeInput } from "@/modules/dragtree-input";
 
 const SR = 44100; // sample rate
 
@@ -142,34 +144,14 @@ const cache: Record<SoundKey, SoundSlot> = {
 // Lazily-built WAV data URIs — generated once the first time ensureReady() runs.
 let wavUris: Record<SoundKey, string> | null = null;
 
-// A freshly created player plays its first cue silently on some phones (seen
-// on a Pixel 9: the whole first run was mute, every later run fine). Play each
-// sound once at zero volume while loading so the first real cue isn't a first.
-const PRIME_MS = 160;
-async function primeSounds(): Promise<void> {
-  const slots = Object.values(cache).filter((s): s is { sound: Audio.Sound } => s !== null);
-  try {
-    await Promise.all(
-      slots.map(async ({ sound }) => {
-        await sound.setVolumeAsync(0);
-        await sound.replayAsync();
-      }),
-    );
-    await new Promise<void>((r) => setTimeout(r, PRIME_MS));
-  } catch {
-    // Priming is best-effort.
-  }
-  await Promise.all(
-    slots.map(async ({ sound }) => {
-      try {
-        await sound.stopAsync();
-        await sound.setVolumeAsync(1.0);
-      } catch {
-        // ignore
-      }
-    }),
-  );
-}
+// Android plays cues through SoundPool in the native module: expo-av's
+// ExoPlayer mixed the whole first run after launch at zero gain on a Pixel 9.
+// Other platforms (and builds without the module) use expo-av.
+const native =
+  Platform.OS === "android" && DragTreeInput?.loadCues && DragTreeInput.playCue
+    ? DragTreeInput
+    : null;
+let nativeReady = false;
 
 let initPromise: Promise<void> | null = null;
 
@@ -184,6 +166,15 @@ async function ensureReady(): Promise<void> {
         good:     buildWavUri(makeResultGoodSamples()),
         redlight: buildWavUri(makeResultRedLightSamples()),
       };
+    }
+
+    if (native) {
+      const b64 = Object.fromEntries(
+        Object.entries(wavUris).map(([k, uri]) => [k, uri.slice(uri.indexOf(",") + 1)]),
+      );
+      await native.loadCues!(b64);
+      nativeReady = true;
+      return;
     }
 
     // iOS needs the audio mode so cues play through the silent switch. Android
@@ -219,7 +210,6 @@ async function ensureReady(): Promise<void> {
         }
       }),
     );
-    await primeSounds();
   })().catch(() => {
     // Let the next cue try again instead of staying broken for the session.
     initPromise = null;
@@ -228,6 +218,10 @@ async function ensureReady(): Promise<void> {
 }
 
 async function playSlot(key: SoundKey): Promise<void> {
+  if (nativeReady) {
+    native!.playCue!(key);
+    return;
+  }
   const slot = cache[key];
   if (!slot) return;
   try {

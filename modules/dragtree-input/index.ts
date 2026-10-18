@@ -20,6 +20,8 @@ interface DragTreeInputNative {
   activeMotionKind?(): MotionKind;
   motionInfo?(): NativeMotionInfo;
   setKeyCapture(enabled: boolean): Promise<void>;
+  loadCues?(cues: Record<string, string>): Promise<void>; // key → base64 WAV
+  playCue?(key: string): boolean;
   addListener(event: "onMotion", fn: (s: NativeMotionSample) => void): EventSubscription;
   addListener(event: "onKey", fn: (e: NativeKeyEvent) => void): EventSubscription;
 }

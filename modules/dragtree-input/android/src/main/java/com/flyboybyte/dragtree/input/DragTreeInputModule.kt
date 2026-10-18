@@ -1,6 +1,8 @@
 package com.flyboybyte.dragtree.input
 
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.SoundPool
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -9,11 +11,14 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.SystemClock
+import android.util.Base64
 import android.view.KeyEvent
 import android.view.Window
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.io.File
 
 // DragTree native input (Android).
 //
@@ -32,6 +37,11 @@ import expo.modules.kotlin.modules.ModuleDefinition
 // consumed (the volume doesn't change) and forwarded as down/up events with
 // their hardware event time. Done by wrapping the activity window's
 // Window.Callback, so MainActivity doesn't need editing.
+//
+// Cues: the app's short sound effects play through SoundPool (game audio on
+// the media volume). expo-av's ExoPlayer path mixed the whole first run after
+// launch at zero gain on a Pixel 9; SoundPool is Android's player for exactly
+// this kind of sound and doesn't take audio focus.
 class DragTreeInputModule : Module() {
   private val context: Context
     get() = requireNotNull(appContext.reactContext)
@@ -189,6 +199,43 @@ class DragTreeInputModule : Module() {
     hookedWindow = null
   }
 
+  private var soundPool: SoundPool? = null
+  private val cueIds = HashMap<String, Int>()
+
+  // Writes each WAV to the cache dir and loads it; resolves once all are
+  // loaded. SoundPool reports loads on the creating thread's looper, so this
+  // must not block waiting for them.
+  private fun loadCues(cues: Map<String, String>, promise: Promise) {
+    val pool = soundPool ?: SoundPool.Builder()
+      .setMaxStreams(4)
+      .setAudioAttributes(
+        AudioAttributes.Builder()
+          .setUsage(AudioAttributes.USAGE_GAME)
+          .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+          .build()
+      )
+      .build()
+      .also { soundPool = it }
+    if (cues.isEmpty()) return promise.resolve(null)
+    val pending = HashMap<Int, String>()
+    var left = cues.size
+    pool.setOnLoadCompleteListener { _, id, status ->
+      synchronized(pending) {
+        val key = pending.remove(id) ?: return@synchronized
+        if (status == 0) cueIds[key] = id
+        if (--left == 0) promise.resolve(null)
+      }
+    }
+    synchronized(pending) {
+      for ((key, base64) in cues) {
+        cueIds.remove(key)?.let { pool.unload(it) }
+        val file = File(context.cacheDir, "cue-$key.wav")
+        file.writeBytes(Base64.decode(base64, Base64.DEFAULT))
+        pending[pool.load(file.path, 1)] = key
+      }
+    }
+  }
+
   override fun definition() = ModuleDefinition {
     Name("DragTreeInput")
 
@@ -221,12 +268,22 @@ class DragTreeInputModule : Module() {
       if (enabled) hookWindow()
     }.runOnQueue(Queues.MAIN)
 
+    // Sound cues: { key: base64 WAV } → loaded; then playCue(key).
+    AsyncFunction("loadCues") { cues: Map<String, String>, promise: Promise -> loadCues(cues, promise) }
+    Function("playCue") { key: String ->
+      val id = cueIds[key] ?: return@Function false
+      (soundPool?.play(id, 1f, 1f, 1, 0, 1f) ?: 0) != 0
+    }
+
     OnActivityEntersForeground {
       if (keyCapture) hookWindow()
     }
 
     OnDestroy {
       stopMotion()
+      soundPool?.release()
+      soundPool = null
+      cueIds.clear()
       keyCapture = false
       appContext.currentActivity?.runOnUiThread { unhookWindow() }
     }
