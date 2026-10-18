@@ -3,6 +3,7 @@
 // Android plays them on the media stream (media volume); iOS plays through the
 // silent switch. Background music dips briefly rather than stopping.
 
+import { Platform } from "react-native";
 import { Audio } from "expo-av";
 import type { ReactionGrade } from "@/components/ReactionDisplay";
 import { settings } from "./settings";
@@ -156,21 +157,22 @@ async function ensureReady(): Promise<void> {
       };
     }
 
-    try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,   // fire through silent switch on iOS
-        staysActiveInBackground: false,
-        // Android: cues request transient may-duck focus (expo-av's default
-        // DuckOthers mode), so music dips for a beep instead of stopping.
-        // This flag only controls whether *our* cues get ducked by others.
-        shouldDuckAndroid: false,
-        // Don't pass playThroughEarpieceAndroid: even `false` makes expo-av call
-        // setSpeakerphoneOn(true), which left the first cues silent until the
-        // volume was nudged. Media already plays through the speaker.
-      });
-    } catch {
-      // Some devices reject an audio-mode field; play with the defaults.
+    // iOS needs the audio mode so cues play through the silent switch. Android
+    // is left on expo-av's defaults: setAudioModeAsync always calls
+    // setSpeakerphoneOn(true) there, which left the first cues silent until the
+    // volume was nudged. The defaults already duck music for a cue.
+    if (Platform.OS === "ios") {
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: false,
+          playThroughEarpieceAndroid: false,
+        });
+      } catch {
+        // Play with the defaults.
+      }
     }
 
     const keys = ["tick", "green", "good", "redlight"] as const;
