@@ -266,6 +266,29 @@ export default function DiagnosticScreen() {
           <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>LAUNCH</Text>
           <View style={styles.toggleRow}>
             <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={[styles.rowVal, { color: colors.foreground }]}>Sound</Text>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+                A tick on each amber, a beep at green (not when the motion sensor is launching) and a tone with your result. Plays at media volume, so turn it up.
+              </Text>
+            </View>
+            <Switch
+              value={appSettings.soundEnabled}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                settings.set({ soundEnabled: v });
+              }}
+              disabled={isSessionLocked}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={appSettings.soundEnabled ? colors.primaryForeground : colors.mutedForeground}
+              accessibilityLabel="Sound toggle"
+              accessibilityHint="Enables or disables audio cues during the tree sequence"
+            />
+          </View>
+
+          <View style={[styles.divider, { borderColor: colors.border }]} />
+
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={[styles.rowVal, { color: colors.foreground }]}>Motion Sensor</Text>
               <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
                 Use the accelerometer to detect your real launch. Turn off to
@@ -588,29 +611,6 @@ export default function DiagnosticScreen() {
               thumbColor={appSettings.treeMode === "full" ? colors.primaryForeground : colors.mutedForeground}
               accessibilityLabel="Sportsman Tree toggle"
               accessibilityHint="Switches from Pro Tree (.400s) to Sportsman Tree (.500s)"
-            />
-          </View>
-
-          <View style={[styles.divider, { borderColor: colors.border }]} />
-
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={[styles.rowVal, { color: colors.foreground }]}>Sound</Text>
-              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
-                A tick on each amber, a soft beep at green (not when the motion sensor is launching) and a tone with your result. Plays at media volume.
-              </Text>
-            </View>
-            <Switch
-              value={appSettings.soundEnabled}
-              onValueChange={(v) => {
-                Haptics.selectionAsync();
-                settings.set({ soundEnabled: v });
-              }}
-              disabled={isSessionLocked}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={appSettings.soundEnabled ? colors.primaryForeground : colors.mutedForeground}
-              accessibilityLabel="Sound toggle"
-              accessibilityHint="Enables or disables audio cues during the tree sequence"
             />
           </View>
 

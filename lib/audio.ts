@@ -57,13 +57,13 @@ function makeTickSamples(): Float32Array {
     const t = i / SR;
     const env = Math.min(1, i / attackN) * Math.exp(-t * 85);
     phase += (2 * Math.PI * 800) / SR;
-    out[i] = 0.16 * env * Math.sin(phase);
+    out[i] = 0.7 * env * Math.sin(phase);
   }
   return out;
 }
 
-// Gentle low beep for green (~100ms, 620→760 Hz). The old 1400→2000 Hz chirp
-// sat in the ear's most sensitive range and read as harsh next to the ping.
+// Clear mid-pitch beep for green (~100ms, 880→1000 Hz), loud enough to hear
+// over an engine. Lower than the old 1400→2000 Hz chirp, which read as harsh.
 function makeGreenSamples(): Float32Array {
   const n = Math.floor(SR * 0.100);
   const out = new Float32Array(n);
@@ -71,10 +71,10 @@ function makeGreenSamples(): Float32Array {
   const attackN = Math.floor(SR * 0.012);
   for (let i = 0; i < n; i++) {
     const t = i / SR;
-    const env = Math.min(1, i / attackN) * Math.exp(-t * 14);
-    const freq = 620 + (t / 0.100) * 140;
+    const env = Math.min(1, i / attackN) * Math.exp(-t * 10);
+    const freq = 880 + (t / 0.100) * 120;
     phase += (2 * Math.PI * freq) / SR;
-    out[i] = 0.14 * env * Math.sin(phase);
+    out[i] = 0.85 * env * Math.sin(phase);
   }
   return out;
 }
@@ -90,7 +90,7 @@ function makeResultGoodSamples(): Float32Array {
     const env = Math.min(1, i / attackN) * Math.exp(-t * 9);
     const freq = 1600 + (t / 0.110) * 500;
     phase += (2 * Math.PI * freq) / SR;
-    out[i] = 0.26 * env * Math.sin(phase);
+    out[i] = 0.8 * env * Math.sin(phase);
   }
   return out;
 }
@@ -107,7 +107,7 @@ function makeResultRedLightSamples(): Float32Array {
     const freq = Math.max(60, 220 - (t / 0.180) * 160);
     phase += (2 * Math.PI * freq) / SR;
     const sine = Math.sin(phase);
-    out[i] = 0.29 * env * (0.7 * sine + 0.3 * Math.sign(sine));
+    out[i] = 0.85 * env * (0.7 * sine + 0.3 * Math.sign(sine));
   }
   return out;
 }
@@ -165,7 +165,7 @@ async function ensureReady(): Promise<void> {
         try {
           const { sound } = await Audio.Sound.createAsync(
             { uri: wavUris![key] },
-            { shouldPlay: false, volume: 0.55 },
+            { shouldPlay: false, volume: 1.0 },
           );
           cache[key] = { sound };
         } catch {
