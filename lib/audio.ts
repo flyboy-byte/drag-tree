@@ -165,7 +165,9 @@ async function ensureReady(): Promise<void> {
         // DuckOthers mode), so music dips for a beep instead of stopping.
         // This flag only controls whether *our* cues get ducked by others.
         shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
+        // Don't pass playThroughEarpieceAndroid: even `false` makes expo-av call
+        // setSpeakerphoneOn(true), which left the first cues silent until the
+        // volume was nudged. Media already plays through the speaker.
       });
     } catch {
       // Some devices reject an audio-mode field; play with the defaults.
