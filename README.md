@@ -92,4 +92,4 @@ F-Droid builds this app from source with a reproducible recipe. The release proc
 
 ## Tech
 
-Expo SDK 54 · React Native 0.81 (New Architecture) · expo-router · expo-av · a local Kotlin module for the motion sensor and hardware buttons · TypeScript. MIT license.
+Expo SDK 54 · React Native 0.81 (New Architecture) · expo-router · expo-av (Android sounds play through SoundPool in the native module) · a local Kotlin module for the motion sensor and hardware buttons · TypeScript. MIT license.

@@ -11,7 +11,7 @@ Got an Expo SDK 54 / React Native 0.81.5 Android app accepted to F-Droid with:
 - ABI splits (4 separate APKs: armeabi-v7a, arm64-v8a, x86, x86_64)
 - Reviewer (linsui) satisfied; MR #41671 merged 2026-09-28
 
-**Status (2026-10-08):** v1.7.3 (161–164) live on f-droid.org. Updates now go through `AutoUpdateMode` — see the release runbook in `fdroid/README.md`.
+**Status (2026-10-21):** v1.8.0 (181–184) built and verified on F-Droid's build server 2026-10-20, waiting on the index publish; 1.7.4 listed until then. Updates go through `AutoUpdateMode` — see the release runbook in `fdroid/README.md`. The recipe now uses npm (`npm install --ignore-scripts`), not the pnpm setup described in `MR_ACTIVITY.md`.
 
 The submission process took ~2 weeks of iteration. This doc is what we wish we'd had on day one.
 
@@ -118,6 +118,18 @@ If you see all 4 ABI dirs, the splits sed didn't work (check for abiFilters conf
 
 ---
 
+## The real build server is offline (fork CI is not)
+
+Your fork's GitLab CI has internet; F-Droid's build server does not. Anything that downloads during Gradle configuration passes on the fork and fails only after merge or auto-update. The 1.8.0 case: the RN Gradle plugin's `settings.gradle.kts` applies the foojay toolchain resolver, which tries to fetch a JDK. Maintainer Licaon_Kter added this before `npx expo prebuild` in every block (upstream commit e3d332b1, 2026-10-20):
+
+```bash
+sed -i -e '/foojay/d' node_modules/@react-native/gradle-plugin/settings.gradle.kts
+```
+
+Keep it. When a release is out, read the real build logs at `https://monitor.f-droid.org/builds/log/<appid>/<versionCode>`, not just the fork pipeline.
+
+---
+
 ## YAML formatting gotchas (rewritemeta canonical format)
 
 CI rewritemeta is strict about trailing spaces. These trip up every time:
@@ -145,8 +157,10 @@ For base versionCode 14: versionCodes become 141, 142, 143, 144.
 The versionCode patch in `prebuild:` uses `$VERCODE$` — an fdroidserver template variable substituted with each block's computed versionCode at build time:
 
 ```bash
-sed -i 's/versionCode .*/versionCode $VERCODE$/' android/app/build.gradle
+sed -i 's/versionCode .*/versionCode $$VERCODE$$/' android/app/build.gradle
 ```
+
+In the YAML it is written `$$VERCODE$$` (double dollars), the same syntax as srclib references like `$$flutter$$`.
 
 This is cleaner than hardcoding (`141`, `142`, etc.) and means the YAML never needs a versionCode sed update when the app version changes. Linsui suggested this pattern (applied to all 4 blocks in commit `c8eb58b3f`). Do not revert to hardcoded values.
 
@@ -206,6 +220,7 @@ Replace:
 Keep (these apply to all Expo/RN apps):
 - IP address sed (AgpConfiguratorUtils.kt)
 - JDK 17→21 sed (RN gradle plugin)
+- foojay sed (RN gradle plugin `settings.gradle.kts`)
 - `buildFromSource: [".*"]` in package.json (compiles native modules from source — required)
 - `--alignment-preserved true` signing
 - `android.splits.abi` approach for ABI splits

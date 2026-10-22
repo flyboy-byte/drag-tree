@@ -4,7 +4,7 @@ Listing: https://f-droid.org/packages/com.flyboybyte.dragtree/
 Original inclusion MR: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/41671 (merged 2026-09-28)  
 fdroiddata fork: `flyboy-byte/fdroiddata` (local clone at `./fdroiddata/`, gitignored)
 
-**Status (2026-10-16): v1.7.4 (171–174) live on f-droid.org, picked up by `checkupdates` from the tag with no MR (GitHub release + tag at `41abd76`; fork Run 1 `2927243619`, Run 2 `2927352215`, all 4 byte comparisons passed; fork branch `dragtree-v1.7.4`). Next: 1.8.0 (181–184) — first release with the local native module `modules/dragtree-input`; dry-run it on the fork before merging.**
+**Status (2026-10-21): v1.8.0 (181–184) built and verified by F-Droid's build server on 2026-10-20 (tag v1.8.0 → 23d9d3d; fork Run 1 `2959708314`, Run 2 `2960334879`; fork branch `dragtree-v1.8.0`). Waiting on the next f-droid.org index publish; 1.7.4 (171–174) is what's listed until then. A maintainer added a foojay sed to the 1.8.0 recipe (see below); checkupdates carries it into future blocks.**
 
 Other docs in this folder: `AI_CONTEXT.md` (start here cold), `REPRO_EXECUTION.md` (repro playbook), `MR_ACTIVITY.md` (reviewer history), `REPRO_RESEARCH.md` (background only).
 
@@ -19,7 +19,7 @@ Order:
 1. **Bump** `version` in `app.json` + `package.json`, `android.versionCode` in `app.json`, and `versionCode`/`versionName` in `android/app/build.gradle` (checkupdates reads this file).
 2. **Changelogs** — F-Droid looks up `fastlane/metadata/android/en-US/changelogs/<final versionCode>.txt`, i.e. `171.txt`–`174.txt` for base 17. (Play uses `10 * code + 0`, entered in Play Console.)
 3. **Merge to `main` and push. Do not tag yet.**
-4. **Run 1** — on a fresh fork branch off `upstream/master`, add four blocks for the new version (`commit:` = full SHA of the `main` commit, **no `binary:`**), bump `CurrentVersion`/`CurrentVersionCode`. Push; fix rewritemeta from the CI diff only. Download the four unsigned APKs from the build job artifacts; check each contains only its own `lib/<abi>/`.
+4. **Run 1** — on a fresh fork branch off a freshly fetched `upstream/master` (maintainers edit our recipe there, e.g. the foojay line on 2026-10-20; copy the latest upstream blocks, never an old fork branch), add four blocks for the new version (`commit:` = full SHA of the `main` commit, **no `binary:`**), bump `CurrentVersion`/`CurrentVersionCode`. Push; fix rewritemeta from the CI diff only. Download the four unsigned APKs from the build job artifacts; check each contains only its own `lib/<abi>/`.
 5. **Sign** each with `--v1-signing-enabled false --alignment-preserved true`, **verify the cert** (`ff739cf5…`), then `gh release create vX.Y.Z --target <sha>` with all four `drag-tree-vX.Y.Z-<abi>.apk` attached. This creates the tag with the reference APKs already present.
 6. **Run 2** — add `binary:` to the four fork blocks, push, confirm all four byte comparisons pass.
    Expected Run 1 failures: `schema validation` (`binary` is required) and `checkupdates` (tag doesn't exist yet). Both pass in Run 2.
@@ -163,14 +163,14 @@ VercodeOperation:
 Each build block is identical except for the versionCode sed and splits sed at the end of `prebuild`:
 
 ```bash
-# All blocks — $VERCODE$ is substituted by fdroidserver with the block's versionCode (141/142/143/144)
-sed -i 's/versionCode .*/versionCode $VERCODE$/' android/app/build.gradle
+# All blocks — $$VERCODE$$ is substituted by fdroidserver with the block's versionCode (141/142/143/144)
+sed -i 's/versionCode .*/versionCode $$VERCODE$$/' android/app/build.gradle
 
 # ABI split sed — replace "armeabi-v7a" with the target ABI per block:
 sed -i 's/^android {$/android {\n    splits { abi { enable true; reset(); include "armeabi-v7a"; universalApk false } }/' android/app/build.gradle
 ```
 
-`$VERCODE$` is an fdroidserver template variable substituted at build time with each block's computed versionCode (from `VercodeOperation`). Using it instead of hardcoded values means YAML never needs editing when versionCode changes. Linsui applied this as an inline suggestion to block 1 (2026-07-23); applied to blocks 2–4 in the same commit.
+`$$VERCODE$$` (double dollars, as written in the YAML) is an fdroidserver template variable substituted at build time with each block's computed versionCode (from `VercodeOperation`). Using it instead of hardcoded values means YAML never needs editing when versionCode changes. Linsui applied this as an inline suggestion to block 1 (2026-07-23); applied to blocks 2–4 in the same commit.
 
 The YAML sed lines must have a trailing space after `sed -i` (on their own line) and after `{ false }/'` — required by CI rewritemeta canonical format.
 
@@ -283,6 +283,9 @@ gh release upload v1.7.2 "$OUTDIR/drag-tree-v1.7.2.apk" \
 Play app-signing key was changed to the developer key (`ff739cf5...`) via Play Console → "Change app signing key" → "Export and upload a key from Java keystore" + PEPK. All three stores (Play, F-Droid, GitHub releases) now share the same cert. F-Droid pipeline: zero changes needed — `AllowedAPKSigningKeys` was already `ff739cf5...`.
 
 ### fdroiddata paths
+
+`~/dragtree-fdroid-build/` was gone on 2026-10-21. Recreate it for the next release (fresh clone per build, never the working tree).
+
 
 - YAML: `/home/logan/projects/fdroiddata/metadata/com.flyboybyte.dragtree.yml`
 - build.sh: `/home/logan/dragtree-fdroid-build/build.sh`

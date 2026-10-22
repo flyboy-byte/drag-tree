@@ -23,6 +23,8 @@ npm run web
 npm run typecheck
 
 # Local APK build (requires Android SDK + NDK 27.1.12297006 + JDK 21 + local.properties)
+# The committed android/ is stale: build test/beta APKs from a fresh clone after
+# `npx expo prebuild -p android --clean` (recipe in PLAN.md), not from this folder.
 cd android && ./gradlew assembleRelease
 
 # Local AAB build for Play Store
@@ -88,7 +90,7 @@ drag-tree/                     ← repo root = app root (no monorepo nesting)
 │   ├── settings.ts            ← Pub/sub settings store (AsyncStorage-backed)
 │   ├── sessionLock.ts         ← Pub/sub boolean (written by home, read by diag)
 │   ├── launchTelemetry.ts     ← Pub/sub last-launch sensor breakdown
-│   └── audio.ts               ← Synthesized WAV audio cues (expo-av)
+│   └── audio.ts               ← Synthesized WAV audio cues (SoundPool via the native module on Android, expo-av elsewhere)
 └── constants/colors.ts        ← All color tokens (light + dark)
 ```
 
@@ -237,6 +239,9 @@ All F-Droid docs live in `fdroid/`.
 - `android/` is committed as the intended Gradle state, but Expo prebuild regenerates it during F-Droid recipe.
 - Reference APK must come from a fresh clone in a Debian/F-Droid-like container, same patch sequence as the YAML.
 - Tag every release — F-Droid AutoUpdateMode tracks tags matching versionName.
+- Maintainers edit the recipe upstream (2026-10-20: `sed -i -e '/foojay/d' node_modules/@react-native/gradle-plugin/settings.gradle.kts`, because the real build server is offline). Start every fork branch from a fresh `upstream/master` so those edits carry over. Check the real build at `https://monitor.f-droid.org/builds/log/com.flyboybyte.dragtree/<code>`.
+- The versionCode sed in the YAML uses `$$VERCODE$$` (double dollars).
+- General F-Droid how-to for any app: the `fdroid` skill (`~/.claude/skills/fdroid/`, published in `flyboy-byte/scripts-docs-dotfiles`).
 - Fastlane metadata: `fastlane/metadata/android/en-US/` — each release add `changelogs/<code>.txt` for the **final F-Droid codes** (`10 * versionCode + 1..4`, e.g. `171.txt`–`174.txt`); F-Droid never reads the base-code file.
 - AndroidManifest.xml permissions from Expo/RN defaults are kept intentionally.
 - Reference APK signing flags: `--alignment-preserved true --v1-signing-enabled false`, applied to F-Droid's unsigned APK (not a locally-built one) — prevents apksigner from converting null-byte ZIP padding to 0xD935 extra fields, which would break CHUNKED_SHA256 byte comparison.

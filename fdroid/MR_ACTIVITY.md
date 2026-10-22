@@ -361,6 +361,14 @@ Branch rebased on upstream/master (6 commits ahead). MR updated. Awaiting merge.
 
 ---
 
+### 2026-10-19 to 2026-10-20 — v1.8.0 auto-update, maintainer recipe fix
+
+- 2026-10-19: F-Droid's bot (`checkupdates`) saw tag v1.8.0 and added blocks 181–184 ("Update DragTree to 184"), copied from the 1.7.4 blocks with our `binary:` URLs.
+- 2026-10-20: Licaon_Kter committed "dragtree - remove foojay" (e3d332b1) to upstream master: `sed -i -e '/foojay/d' node_modules/@react-native/gradle-plugin/settings.gradle.kts` before `npx expo prebuild` in all four blocks. The foojay resolver tries to download a JDK, which the offline build server blocks; our fork CI is online, so Run 1 and Run 2 never showed it.
+- 2026-10-20: all four built from 23d9d3d on the build server and "successfully verified" against the GitHub release APKs.
+
+---
+
 ## What This Log Establishes
 
 - The reviewer required strict adherence to the React Native template, not partial similarity.
