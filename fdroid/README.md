@@ -53,6 +53,15 @@ Confirmed in A3.
 
 ---
 
+**Offline build server: foojay resolver (added upstream 2026-10-20, 1.8.0)**
+
+The RN Gradle plugin's `settings.gradle.kts` applies the foojay toolchain resolver, which tries to download a JDK. F-Droid's build server is offline. Our fork CI is online, so it passes there and fails only on the real server. A maintainer added this before `npx expo prebuild` in every build block. Keep it:
+```bash
+sed -i -e '/foojay/d' node_modules/@react-native/gradle-plugin/settings.gradle.kts
+```
+
+---
+
 **2. `.so` files differ: `GRADLE_USER_HOME` path leakage**
 
 Gradle transform cache embeds file paths in `.so` files via `__FILE__` macros in `propsConversions.h`. F-Droid's server runs as the `vagrant` user, so its `GRADLE_USER_HOME` is `/home/vagrant/.gradle`. A local build uses a different path → different `.so` bytes in all ABIs.
